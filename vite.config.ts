@@ -1,11 +1,32 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  for (const name of ['GROQ_API_KEY', 'GROQ_MODEL', 'CLERK_SECRET_KEY']) if (env[name]) process.env[name] = env[name];
+  return {
   plugins: [
     react(),
+    {
+      name: 'local-answer-api',
+      configureServer(server) {
+        server.middlewares.use('/api/interpret-answer', async (req, res) => {
+          try {
+            let body = '';
+            for await (const chunk of req) {
+              body += chunk.toString();
+              if (body.length > 5000) { res.statusCode = 413; res.end('Request too large'); return; }
+            }
+            const request = req as typeof req & { body?: unknown };
+            try { request.body = body ? JSON.parse(body) : undefined; } catch { res.statusCode = 400; res.end('Invalid JSON'); return; }
+            const { default: handler } = await server.ssrLoadModule('/api/interpret-answer.ts');
+            await handler(request, res);
+          } catch { res.statusCode = 500; res.end('Interpretation unavailable'); }
+        });
+      },
+    },
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -35,4 +56,5 @@ export default defineConfig({
     }),
   ],
   test: { environment: 'node' },
+  };
 });

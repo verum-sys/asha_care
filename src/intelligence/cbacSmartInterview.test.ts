@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getApplicableInterviewQuestions } from './cbacInterviewQuestions';
+import { getApplicableInterviewQuestions, getInterviewStartIndex } from './cbacInterviewQuestions';
 import { parseCbacInterviewAnswer } from './cbacInterviewAnswers';
 import { getPartAScoreBreakdown } from './cbacScoreBreakdown';
 import { calculatePartAScore } from './cbacIntelligence';
@@ -60,5 +60,26 @@ describe('cumulative risk score', () => {
   it('shows unanswered questions separately and recomputes after clearing a score', () => {
     expect(getPartAScoreBreakdown({}).expression).toBe('No scored answers yet');
     expect(getPartAScoreBreakdown({ ageScore: undefined, smokeScore: 0 })).toEqual({ total: 0, answered: 1, expression: '0 = 0' });
+  });
+});
+
+describe('voice section progression', () => {
+  it.each(['M', 'F', ''] as const)('keeps sections ordered A → B → C → D for %s', sex => {
+    const questions = getApplicableInterviewQuestions(sex);
+    const sections = questions.map(q => q.slide).filter((slide, index, all) => index === 0 || slide !== all[index - 1]);
+    expect(sections).toEqual(['A', 'B', 'C', 'D']);
+    const family = questions.findIndex(q => q.id === 'familyHistory');
+    expect(questions[family + 1].slide).toBe('B');
+    const fuel = questions.findIndex(q => q.id === 'cooking_fuel');
+    expect(questions[fuel - 1].slide).toBe('B');
+    expect(questions[fuel + 1].slide).toBe('D');
+  });
+  it('starts in the visible section instead of resuming an old section', () => {
+    const questions = getApplicableInterviewQuestions('M');
+    const last = questions.length - 1;
+    expect(getInterviewStartIndex(questions, 'A', last)).toBe(0);
+    expect(questions[getInterviewStartIndex(questions, 'B', last)].id).toBe('cough_tb');
+    expect(questions[getInterviewStartIndex(questions, 'C', last)].id).toBe('cooking_fuel');
+    expect(getInterviewStartIndex(questions, 'D', last)).toBe(last);
   });
 });

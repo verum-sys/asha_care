@@ -77,10 +77,10 @@ export const CBAC_INTERVIEW_QUESTIONS: InterviewQuestion[] = [
     id: 'alcohol',
     field: 'alcohol',
     slide: 'A',
-    promptEn: 'How often do you drink alcohol: never, socially, weekly, or daily?',
+    promptEn: 'Do you drink alcohol? Say no, yes, socially, weekly, or daily.',
     promptHi: 'आप कितनी बार शराब पीते हैं: कभी नहीं, कभी-कभी, हफ्ते में, या रोज़ाना?',
-    hintEn: 'Choose your drinking frequency. Only daily consumption adds 1 CBAC point.',
-    hintHi: 'पीने की आवृत्ति बताएं। रोज़ाना पीने पर 1 CBAC अंक जुड़ता है।',
+    hintEn: 'Any alcohol consumption adds 1 point in this app; no alcohol adds 0. Frequency is saved separately.',
+    hintHi: 'शराब पीने पर 1 अंक, नहीं पीने पर 0 अंक।',
     optionsEn: ['Never', 'Socially / occasionally', 'Weekly / weekends', 'Daily'],
     optionsHi: ['कभी नहीं', 'कभी-कभी', 'हफ्ते में', 'रोज़ाना'],
     sampleResponses: ['Never', 'Socially', 'Occasionally', 'Weekly', 'Daily', 'कभी-कभी'],
@@ -91,7 +91,7 @@ export const CBAC_INTERVIEW_QUESTIONS: InterviewQuestion[] = [
     slide: 'A',
     promptEn: 'Do you do at least 150 minutes of physical activity or walking each week?',
     promptHi: 'क्या आप सप्ताह में कम से कम 150 मिनट शारीरिक व्यायाम, पैदल चलना या खेती करते हैं?',
-    hintEn: 'At least 150 min (0 pts) or Less (1 pt)',
+    hintEn: '150 minutes = 2.5 hours per week (0 pts); less activity (1 pt)',
     hintHi: 'कम से कम 150 मिनट (0 अंक) या कम (1 अंक)',
     optionsEn: ['At least 150 min/week (0 pts)', 'Less than 150 min/week (1 pt)'],
     optionsHi: ['कम से कम 150 मिनट/हफ़्ता (0 अंक)', '150 मिनट से कम (1 अंक)'],
@@ -177,4 +177,11 @@ export function getQuestionHint(q: InterviewQuestion, lang: Lang): string {
 /** Keep the interview and form applicability consistent. */
 export function getApplicableInterviewQuestions(sex: Sex | ''): InterviewQuestion[] {
   return CBAC_INTERVIEW_QUESTIONS.filter(question => question.id !== 'women_symptoms' || sex === 'F');
+}
+
+/** Resume within the visible section; switching sections starts its first question. */
+export function getInterviewStartIndex(questions: InterviewQuestion[], slide: InterviewQuestion['slide'], currentIndex: number): number {
+  if (questions[currentIndex]?.slide === slide) return currentIndex;
+  const first = questions.findIndex(question => question.slide === slide);
+  return first >= 0 ? first : 0;
 }

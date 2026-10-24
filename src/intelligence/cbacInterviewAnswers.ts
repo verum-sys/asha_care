@@ -1,3 +1,4 @@
+import { activityMinutesPerWeek } from './cbacActivity';
 import { parseAlcoholFrequency, alcoholScoreFor } from './cbacAlcohol';
 import { classifyAge, classifyWaist, parseCbacText, type SmartParseResult } from './cbacIntelligence';
 import { parseInterviewNumber } from '../voice/interviewRecognition';
@@ -58,15 +59,24 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
     }
     case 'alcohol': {
       const frequency = parseAlcoholFrequency(text);
-      if (!frequency) return fail('How often do you drink alcohol: never, socially/occasionally, weekly, or daily?');
+      if (!frequency) return fail('Do you drink alcohol? You can say no, yes, socially, weekly, or daily.');
       updates.partAUpdates.alcoholFrequency = frequency;
       updates.partAUpdates.alcoholScore = alcoholScoreFor(frequency);
       break;
     }
     case 'physicalActivity': {
-      if (no || /sedentary|inactive|no exercise|less than 150|कम|नहीं/i.test(text)) updates.partAUpdates.physicalActivityScore = 1;
-      else if (yes || /active|walks daily|exercise|150|रोज|व्यायाम/i.test(text)) updates.partAUpdates.physicalActivityScore = 0;
-      else return fail('Please answer whether you do at least 150 minutes of activity each week.');
+      const minutes = activityMinutesPerWeek(text);
+      if (minutes !== undefined) {
+        if (/less than|under|से कम/i.test(text)) {
+          if (minutes > 150) return fail('Please specify the actual activity duration per week.');
+          updates.partAUpdates.physicalActivityScore = 1;
+        } else {
+          updates.partAUpdates.activityMinutesPerWeek = minutes;
+          updates.partAUpdates.physicalActivityScore = minutes >= 150 ? 0 : 1;
+        }
+      } else if (no || /sedentary|inactive|no exercise|less than 150|नहीं/i.test(text)) updates.partAUpdates.physicalActivityScore = 1;
+      else if (yes || /active|walks daily|रोज|व्यायाम/i.test(text)) updates.partAUpdates.physicalActivityScore = 0;
+      else return fail('Please give weekly activity in minutes or hours, such as 150 minutes or 2.5 hours.');
       break;
     }
     case 'familyHistory': {

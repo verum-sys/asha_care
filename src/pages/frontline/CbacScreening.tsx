@@ -1,10 +1,11 @@
+import { useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { interpretInterviewAnswer } from '../../intelligence/answerInterpretation';
 import { ALCOHOL_OPTIONS, alcoholScoreFor } from '../../intelligence/cbacAlcohol';
 import type { AlcoholFrequency } from '../../intelligence/cbacTypes';
 import { getPartAScoreBreakdown } from '../../intelligence/cbacScoreBreakdown';
-import { parseCbacInterviewAnswer } from '../../intelligence/cbacInterviewAnswers';
 import type { SmartParseResult } from '../../intelligence/cbacIntelligence';
 import { useAuth } from '../../auth/AuthContext';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/Icon';
 import { BackLink } from '../../components/Layout';
@@ -48,7 +49,7 @@ import {
 import { useSettings } from '../../settings';
 import { listenForInterviewAnswer } from '../../voice/interviewRecognition';
 import { useSpeak } from '../../voice/useSpeak';
-import { getApplicableInterviewQuestions, getQuestionText, getQuestionHint } from '../../intelligence/cbacInterviewQuestions';
+import { getApplicableInterviewQuestions, getInterviewStartIndex, getQuestionText, getQuestionHint } from '../../intelligence/cbacInterviewQuestions';
 
 type SlideId = 'A' | 'B' | 'C' | 'D' | 'REFERRAL';
 
@@ -144,6 +145,7 @@ export function CbacScreening() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
+  const { getToken } = useClerkAuth();
   const { t, lang } = useLang();
   const { workerName } = useSettings();
 
@@ -167,6 +169,7 @@ export function CbacScreening() {
 
   const [interviewIndex, setInterviewIndex] = useState<number>(0);
   const [interviewActive, setInterviewActive] = useState<boolean>(false);
+  const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [currentAnswer, setCurrentAnswer] = useState<string>('');
 
   const { speak, stop: stopSpeak, speaking } = useSpeak();
@@ -263,6 +266,8 @@ export function CbacScreening() {
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const answerHandlerRef = useRef<(text: string) => void>(() => {});
   const [answerError, setAnswerError] = useState('');
+  const [interpreting, setInterpreting] = useState(false);
+  const interpretationAbortRef = useRef<AbortController | null>(null);
   questionIndexRef.current = interviewIndex;
   // Recognition can outlive a render; always dispatch to the latest question handler.
   answerHandlerRef.current = handleInterviewAnswer;
@@ -309,6 +314,8 @@ export function CbacScreening() {
     if (!q) return;
     clearTransition();
     const run = ++questionRunRef.current;
+    interpretationAbortRef.current?.abort();
+    setInterpreting(false);
     answerPendingRef.current = false;
     questionIndexRef.current = qIndex;
     setInterviewIndex(qIndex);
@@ -335,6 +342,8 @@ export function CbacScreening() {
   const stopInterview = useCallback(() => {
     interviewActiveRef.current = false;
     ++questionRunRef.current;
+    interpretationAbortRef.current?.abort();
+    setInterpreting(false);
     clearTransition();
     answerPendingRef.current = false;
     setInterviewActive(false);
@@ -343,26 +352,27 @@ export function CbacScreening() {
     setCurrentAnswer('');
   }, [stopSpeak, stopInterviewListening, clearTransition]);
 
-  function handleInterviewAnswer(answerText: string) {
+  async function handleInterviewAnswer(answerText: string) {
     if (!answerText.trim() || answerPendingRef.current) return;
     const answeredIndex = questionIndexRef.current;
     const currentQ = questionsRef.current[answeredIndex];
 
-    const parsed = parseCbacInterviewAnswer(currentQ.id, answerText, general.sex);
+    answerPendingRef.current = true;
+    const interpretationRun = ++questionRunRef.current;
+    stopSpeak(); stopInterviewListening(); clearTransition();
+    setAnswerError(''); setInterpreting(true); setCurrentAnswer(answerText);
+    interpretationAbortRef.current?.abort();
+    const controller = new AbortController();
+    interpretationAbortRef.current = controller;
+    const parsed = await interpretInterviewAnswer(currentQ.id, answerText, general.sex, () => getToken(), controller.signal);
+    if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
+    setInterpreting(false);
     if (!parsed.ok) {
-      stopInterviewListening();
+      answerPendingRef.current = false;
       setAnswerError(parsed.error);
       return;
     }
-
-    answerPendingRef.current = true;
-    ++questionRunRef.current;
-    stopSpeak();
-    setAnswerError('');
-    // Apply only updates belonging to the current interview question.
     applyInterviewUpdates(parsed.updates);
-    setCurrentAnswer(answerText);
-    stopInterviewListening();
 
     const run = questionRunRef.current;
     clearTransition();
@@ -374,6 +384,7 @@ export function CbacScreening() {
         const nextIdx = answeredIndex + 1;
         questionIndexRef.current = nextIdx;
         setInterviewIndex(nextIdx);
+        setActiveSlide(questionsRef.current[nextIdx].slide);
         if (interviewActiveRef.current) speakQuestion(nextIdx, true);
         else setCurrentAnswer('');
       } else {
@@ -387,15 +398,25 @@ export function CbacScreening() {
 
   function goToInterviewQuestion(index: number) {
     clearTransition();
+    interpretationAbortRef.current?.abort();
+    setInterpreting(false);
     ++questionRunRef.current;
     answerPendingRef.current = false;
     questionIndexRef.current = index;
     setInterviewIndex(index);
+    setActiveSlide(questionsRef.current[index].slide);
     setCurrentAnswer('');
     setAnswerError('');
     stopInterviewListening();
     stopSpeak();
     if (interviewActiveRef.current) speakQuestion(index);
+  }
+
+  function goToAssessmentSlide(slide: SlideId) {
+    stopInterview();
+    const firstIndex = interviewQuestions.findIndex(question => question.slide === slide);
+    if (firstIndex >= 0) goToInterviewQuestion(firstIndex);
+    setActiveSlide(slide);
   }
 
   const previousQuestionsRef = useRef(interviewQuestions);
@@ -423,6 +444,7 @@ export function CbacScreening() {
   useEffect(() => () => {
     interviewActiveRef.current = false;
     ++questionRunRef.current;
+    interpretationAbortRef.current?.abort();
     clearTransition();
     stopRecognitionRef.current?.();
     stopRecognitionRef.current = null;
@@ -797,193 +819,70 @@ export function CbacScreening() {
         </p>
       </div>
 
-      {/* Smart Voice & Natural Language Assistant Card */}
-      <section className="card bg-gradient-to-r from-teal-50/70 via-white to-sky-50/70 border-2 border-accent/40 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-line/60">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-white shadow-xs">
-              <Icon name="spark" size={18} />
-            </span>
-            <div>
-              <span className="font-bold text-sm sm:text-base text-brand block leading-tight">
-                Proactive AI Voice Assistant
-              </span>
-              <span className="text-[0.72rem] text-muted">
-                Answer one question at a time using your microphone, typed text, or a quick answer.
-              </span>
-            </div>
-          </div>
-
+      {/* Compact optional voice controls keep manual entry within reach. */}
+      <section className="rounded-xl border border-line bg-white p-2.5 sm:p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-muted">Assessment progress</span>
+          <button type="button" aria-expanded={voicePanelOpen} aria-controls="cbac-voice-controls"
+            onClick={() => { if (voicePanelOpen) stopInterview(); setVoicePanelOpen(!voicePanelOpen); }}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50">
+            <Icon name="mic" size={14} /> Voice assistant <span aria-hidden="true">{voicePanelOpen ? '▴' : '▾'}</span>
+          </button>
         </div>
-
-        {/* MODE 1: Step-by-Step Interactive Questioning */}
-        <>
-          <div className="space-y-3 animate-in fade-in duration-200">
-            <div className="p-3.5 rounded-2xl bg-white border border-accent/30 shadow-2xs space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[0.75rem] font-bold text-accent uppercase tracking-wider">
-                  Question {interviewIndex + 1} of {interviewQuestions.length} · {currentQuestion.slide === 'A' ? 'Part A: Risk' : currentQuestion.slide === 'B' ? 'Part B: Symptoms' : currentQuestion.slide === 'C' ? 'Part C: COPD' : 'Part D: PHQ-2'}
-                </span>
-                <span className="text-xs font-semibold text-muted">
-                  Language: {lang === 'hi' ? 'हिंदी (Hindi)' : 'English'}
-                </span>
-              </div>
-
-              {/* Spoken Question Banner */}
-              <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-200/70 text-ink">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">📢</span>
-                  <div>
-                    <h3 className="font-bold text-sm sm:text-base text-brand">
-                      {getQuestionText(currentQuestion, lang)}
-                    </h3>
-                    <p className="text-xs text-muted mt-0.5">
-                      {getQuestionHint(currentQuestion, lang)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-teal-200 bg-teal-50 p-3" role="status" aria-live="polite">
-                <div className="text-xs font-semibold text-teal-800">Cumulative risk score · Part A</div>
-                <div className="font-mono text-lg font-bold text-teal-900 mt-1">{scoreBreakdown.expression}</div>
-                <div className="text-xs text-teal-700">{scoreBreakdown.answered}/6 scored questions answered · Total {scoreBreakdown.total}/12</div>
-              </div>
-              {/* Sample Quick Answer Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-                <span className="font-semibold text-muted text-[0.72rem] mr-1">Tap quick answer:</span>
-                {currentQuestion.sampleResponses.map((sample, sIdx) => (
-                  <button
-                    key={sIdx}
-                    type="button"
-                    onClick={() => handleInterviewAnswer(sample)}
-                    className="rounded-lg bg-surface border border-line px-2.5 py-1 font-semibold text-brand hover:border-brand hover:bg-brand/5 transition-all text-xs"
-                  >
-                    "{sample}"
+        {voicePanelOpen && (
+          <div id="cbac-voice-controls" className="rounded-lg border border-teal-100 bg-teal-50/60 p-3 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-brand">{getQuestionText(currentQuestion, lang)}</p>
+              <span className="text-xs text-muted whitespace-nowrap">{interviewIndex + 1}/{interviewQuestions.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!interviewActive ? (
+                <button type="button" onClick={() => startInterview(getInterviewStartIndex(interviewQuestions, activeSlide, interviewIndex))} className="btn btn-accent !min-h-[34px] text-xs">Start voice</button>
+              ) : (
+                <>
+                  <button type="button" onClick={() => speakQuestion(interviewIndex)} disabled={speaking || interpreting} className="btn btn-secondary !min-h-[34px] text-xs">{speaking ? 'Speaking…' : 'Repeat'}</button>
+                  <button type="button" disabled={interpreting} onClick={() => isInterviewListening ? stopInterviewListening() : startInterviewListening()} className={`btn !min-h-[34px] text-xs ${isInterviewListening ? 'btn-danger' : 'btn-primary'}`}>
+                    {isInterviewListening ? 'Listening…' : 'Answer with mic'}
                   </button>
-                ))}
-              </div>
-
-              {/* Interactive Voice Controls */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line/50">
-                <div className="flex items-center gap-2">
-                  {!interviewActive ? (
-                    <button
-                      type="button"
-                      onClick={() => startInterview(interviewIndex)}
-                      className="btn btn-accent !min-h-[38px] !px-4 text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-xs"
-                    >
-                      <Icon name="speaker" size={16} />
-                      <span>Start Voice Interview</span>
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => speakQuestion(interviewIndex)}
-                        disabled={speaking}
-                        className={`btn !min-h-[38px] !px-3 text-xs font-semibold flex items-center gap-1.5 ${
-                          speaking ? 'btn-secondary text-accent font-bold animate-pulse' : 'btn-secondary'
-                        }`}
-                      >
-                        <Icon name="speaker" size={16} />
-                        <span>{speaking ? 'Speaking Question…' : 'Repeat Question'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isInterviewListening) {
-                            stopInterviewListening();
-                          } else {
-                            startInterviewListening();
-                          }
-                        }}
-                        className={`btn !min-h-[38px] !px-3 text-xs font-bold flex items-center gap-1.5 ${
-                          isInterviewListening ? 'btn-danger animate-pulse' : 'btn-primary'
-                        }`}
-                      >
-                        <Icon name="mic" size={16} />
-                        <span>{isInterviewListening ? 'Listening Answer…' : 'Answer with Mic'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={stopInterview}
-                        className="btn btn-ghost !min-h-[38px] !px-2.5 text-xs text-muted hover:text-danger"
-                      >
-                        Stop Interview
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* Step Navigation */}
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    disabled={interviewIndex === 0}
-                    onClick={() => {
-                      const prevIdx = Math.max(0, interviewIndex - 1);
-                      goToInterviewQuestion(prevIdx);
-                    }}
-                    className="btn btn-secondary !min-h-[34px] !px-2.5 text-xs font-semibold"
-                  >
-                    ← Prev
-                  </button>
-                  <span className="text-xs font-bold text-ink px-1.5">
-                    {interviewIndex + 1}/{interviewQuestions.length}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={interviewIndex === interviewQuestions.length - 1}
-                    onClick={() => {
-                      const nextIdx = Math.min(interviewQuestions.length - 1, interviewIndex + 1);
-                      goToInterviewQuestion(nextIdx);
-                    }}
-                    className="btn btn-secondary !min-h-[34px] !px-2.5 text-xs font-semibold"
-                  >
-                    Skip / Next →
-                  </button>
-                </div>
-              </div>
-
-              <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); handleInterviewAnswer(currentAnswer); }}>
-                <label className="sr-only" htmlFor="interview-answer">Answer to the current question</label>
-                <input id="interview-answer" className="flex-1 min-w-0 text-sm" value={currentAnswer} onChange={event => setCurrentAnswer(event.target.value)} placeholder="Type your answer…" />
-                <button type="submit" className="btn btn-primary text-xs" disabled={!currentAnswer.trim()}>Save answer & next</button>
-              </form>
-              {answerError && <p role="alert" className="text-sm text-danger">{answerError}</p>}
-              {/* Recognized Answer feedback */}
-              {currentAnswer && (
-                <div className="rounded-xl bg-accent-soft/70 px-3 py-1.5 text-xs text-brand font-medium flex items-center gap-2">
-                  <span className="font-bold text-accent">Heard Answer:</span>
-                  <span className="italic font-bold">"{currentAnswer}"</span>
-                </div>
+                  <button type="button" onClick={stopInterview} className="btn btn-ghost !min-h-[34px] text-xs">Stop</button>
+                </>
               )}
+              <button type="button" disabled={interviewIndex === 0} onClick={() => goToInterviewQuestion(interviewIndex - 1)} className="btn btn-secondary !min-h-[34px] text-xs">← Previous</button>
+              <button type="button" disabled={interviewIndex === interviewQuestions.length - 1} onClick={() => goToInterviewQuestion(interviewIndex + 1)} className="btn btn-secondary !min-h-[34px] text-xs">Next →</button>
             </div>
-          </div>
-        </>
-
-        {/* Smart Explanations Badge Banner */}
-        {smartExplanations.length > 0 && (
-          <div className="mt-2 rounded-xl bg-accent-soft/70 p-2.5 text-xs text-brand space-y-1">
-            <div className="font-bold flex items-center gap-1.5 text-accent">
-              <Icon name="check" size={14} />
-              Proactive AI Actions Applied:
+            <form className="flex gap-2" onSubmit={event => { event.preventDefault(); handleInterviewAnswer(currentAnswer); }}>
+              <label className="sr-only" htmlFor="interview-answer">Answer to the current question</label>
+              <input id="interview-answer" className="flex-1 min-w-0 text-sm" value={currentAnswer} onChange={event => setCurrentAnswer(event.target.value)} placeholder={getQuestionHint(currentQuestion, lang)} />
+              <button type="submit" className="btn btn-primary text-xs" disabled={interpreting || !currentAnswer.trim()}>Save →</button>
+            </form>
+            <div className="flex flex-wrap gap-1.5">
+              {currentQuestion.sampleResponses.map(sample => <button key={sample} type="button" disabled={interpreting} onClick={() => handleInterviewAnswer(sample)} className="rounded-md border border-line bg-white px-2 py-1 text-xs text-brand">{sample}</button>)}
             </div>
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {smartExplanations.map((exp, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 font-medium border border-accent/30 text-brand shadow-2xs"
-                >
-                  <span className="text-accent font-bold">✓</span> {exp.detail}
-                </span>
-              ))}
-            </div>
+            {interpreting && <p role="status" className="text-xs text-teal-700">Interpreting answer…</p>}
+            {answerError && <p role="alert" className="text-xs text-danger">{answerError}</p>}
+            {smartExplanations.length > 0 && <p role="status" className="text-xs text-teal-700">{smartExplanations.map(exp => exp.detail).join(' · ')}</p>}
+            <p className="text-[11px] text-muted">Unclear answers use Groq AI. Only the current question and answer are sent.</p>
           </div>
         )}
+      <nav aria-label="CBAC Slides" className="flex items-center gap-1 border-t border-line pt-2">
+        {([
+          { id: 'A', label: 'Risk', complete: slideAComplete },
+          { id: 'B', label: 'Symptoms', complete: false },
+          { id: 'C', label: 'COPD', complete: slideCComplete },
+          { id: 'D', label: 'PHQ-2', complete: slideDComplete },
+          { id: 'REFERRAL', label: 'Referral', complete: false },
+        ] as const).map((step, index) => (
+          <Fragment key={step.id}>
+            {index > 0 && <span aria-hidden="true" className="text-muted text-xs">→</span>}
+            <button type="button" onClick={() => goToAssessmentSlide(step.id)}
+              aria-current={activeSlide === step.id ? 'step' : undefined}
+              className={`flex-1 min-w-0 rounded-lg py-2 px-1 text-xs font-bold transition-colors ${activeSlide === step.id ? 'bg-brand text-white' : 'text-muted hover:bg-surface hover:text-brand'}`}>
+              <span>{step.complete ? '✓ ' : ''}{step.id === 'REFERRAL' ? 'Referral' : step.id}</span>
+              {step.id !== 'REFERRAL' && <span className="hidden sm:inline ml-1 font-medium">{step.label}</span>}
+            </button>
+          </Fragment>
+        ))}
+      </nav>
       </section>
 
       {/* ALWAYS VISIBLE: Patient Profile & Demographics (Questions from New Referral) */}
@@ -1218,100 +1117,6 @@ export function CbacScreening() {
         </section>
       )}
 
-      {/* Stepper Tabs Navigation (Horizontal Slides) */}
-      <nav aria-label="CBAC Slides" className="bg-white border border-line rounded-2xl p-1.5 shadow-2xs">
-        <div className="grid grid-cols-5 gap-1 sm:gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveSlide('A')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-              activeSlide === 'A'
-                ? 'bg-brand text-white shadow-xs'
-                : 'text-muted hover:bg-surface hover:text-ink'
-            }`}
-          >
-            <span className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[0.7rem] sm:text-xs ${
-              activeSlide === 'A' ? 'bg-white text-brand font-black' : slideAComplete ? 'bg-ok text-white' : 'bg-line text-muted'
-            }`}>
-              {slideAComplete ? '✓' : 'A'}
-            </span>
-            <span className="truncate">Part A: Risk</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSlide('B')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-              activeSlide === 'B'
-                ? 'bg-brand text-white shadow-xs'
-                : 'text-muted hover:bg-surface hover:text-ink'
-            }`}
-          >
-            <span className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[0.7rem] sm:text-xs ${
-              activeSlide === 'B' ? 'bg-white text-brand font-black' : totalSymptomsChecked > 0 ? 'bg-danger text-white' : 'bg-line text-muted'
-            }`}>
-              {totalSymptomsChecked > 0 ? totalSymptomsChecked : 'B'}
-            </span>
-            <span className="truncate">Part B: Symptoms</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSlide('C')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-              activeSlide === 'C'
-                ? 'bg-brand text-white shadow-xs'
-                : 'text-muted hover:bg-surface hover:text-ink'
-            }`}
-          >
-            <span className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[0.7rem] sm:text-xs ${
-              activeSlide === 'C' ? 'bg-white text-brand font-black' : slideCComplete ? 'bg-ok text-white' : 'bg-line text-muted'
-            }`}>
-              {slideCComplete ? '✓' : 'C'}
-            </span>
-            <span className="truncate">Part C: COPD</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSlide('D')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-              activeSlide === 'D'
-                ? 'bg-brand text-white shadow-xs'
-                : 'text-muted hover:bg-surface hover:text-ink'
-            }`}
-          >
-            <span className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[0.7rem] sm:text-xs ${
-              activeSlide === 'D' ? 'bg-white text-brand font-black' : slideDComplete ? 'bg-ok text-white' : 'bg-line text-muted'
-            }`}>
-              {slideDComplete ? '✓' : 'D'}
-            </span>
-            <span className="truncate">Part D: PHQ-2</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSlide('REFERRAL')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-              activeSlide === 'REFERRAL'
-                ? 'bg-brand text-white shadow-xs'
-                : 'text-muted hover:bg-surface hover:text-ink'
-            }`}
-          >
-            <span className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[0.7rem] sm:text-xs ${
-              activeSlide === 'REFERRAL'
-                ? 'bg-white text-brand font-black'
-                : referralForm.referralRequired === 'yes'
-                  ? 'bg-warn text-white'
-                  : 'bg-line text-muted'
-            }`}>
-              {referralForm.referralRequired === 'yes' ? '!' : '5'}
-            </span>
-            <span className="truncate">Referral Plan</span>
-          </button>
-        </div>
-      </nav>
-
       {/* Two-Column Side-by-Side Grid: Main Slide + Sticky Right Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
         {/* Left / Center: Active Slide Content */}
@@ -1503,7 +1308,7 @@ export function CbacScreening() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-muted">CBAC adds 1 point for daily consumption; other frequencies add 0. Your reported frequency is saved separately.</p>
+                <p className="text-xs text-muted">This app scores any alcohol consumption as 1 and no consumption as 0. Frequency is saved separately.</p>
               </div>
 
               {/* Question 4: Waist measurement (Adaptive to Female vs Male) */}
@@ -1675,7 +1480,7 @@ export function CbacScreening() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('B')}
+                  onClick={() => goToAssessmentSlide('B')}
                   className="btn btn-primary !min-h-[44px] !px-5 text-sm font-bold flex items-center gap-1.5"
                 >
                   <span>Next: Part B (Symptoms)</span>
@@ -1873,14 +1678,14 @@ export function CbacScreening() {
               <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('A')}
+                  onClick={() => goToAssessmentSlide('A')}
                   className="btn btn-secondary !min-h-[44px] !px-4 text-sm font-semibold"
                 >
                   ← Back to Part A
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('C')}
+                  onClick={() => goToAssessmentSlide('C')}
                   className="btn btn-primary !min-h-[44px] !px-5 text-sm font-bold flex items-center gap-1.5"
                 >
                   <span>Next: Part C (COPD)</span>
@@ -1979,14 +1784,14 @@ export function CbacScreening() {
               <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('B')}
+                  onClick={() => goToAssessmentSlide('B')}
                   className="btn btn-secondary !min-h-[44px] !px-4 text-sm font-semibold"
                 >
                   ← Back to Part B
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('D')}
+                  onClick={() => goToAssessmentSlide('D')}
                   className="btn btn-primary !min-h-[44px] !px-5 text-sm font-bold flex items-center gap-1.5"
                 >
                   <span>Next: Part D (PHQ-2)</span>
@@ -2106,14 +1911,14 @@ export function CbacScreening() {
               <div className="flex items-center justify-between pt-4 border-t border-line">
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('C')}
+                  onClick={() => goToAssessmentSlide('C')}
                   className="btn btn-secondary !min-h-[46px] !px-4 text-sm font-semibold"
                 >
                   ← Back to Part C
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('REFERRAL')}
+                  onClick={() => goToAssessmentSlide('REFERRAL')}
                   className="btn btn-primary !min-h-[48px] !px-6 text-sm sm:text-base font-bold shadow-md flex items-center gap-2"
                 >
                   <span>Next: Referral Details</span>
@@ -2431,7 +2236,7 @@ export function CbacScreening() {
               <div className="flex items-center justify-between pt-4 border-t border-line">
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('D')}
+                  onClick={() => goToAssessmentSlide('D')}
                   className="btn btn-secondary !min-h-[46px] !px-4 text-sm font-semibold"
                 >
                   ← Back to Part D
@@ -2627,35 +2432,35 @@ export function CbacScreening() {
               <div className="grid grid-cols-2 gap-1.5 text-xs">
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('A')}
+                  onClick={() => goToAssessmentSlide('A')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'A' ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   Part A ({partA.totalScore} pts)
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('B')}
+                  onClick={() => goToAssessmentSlide('B')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'B' ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   Part B ({totalSymptomsChecked} sym)
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('C')}
+                  onClick={() => goToAssessmentSlide('C')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'C' ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   Part C ({partC.cookingFuel.length} fuel)
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('D')}
+                  onClick={() => goToAssessmentSlide('D')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'D' ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   Part D ({partD.totalScore} pts)
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveSlide('REFERRAL')}
+                  onClick={() => goToAssessmentSlide('REFERRAL')}
                   className={`col-span-2 btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'REFERRAL' ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   Referral Plan ({referralForm.referralRequired === 'yes' ? referralForm.destinationFacility || 'Required' : 'Screening Only'})
@@ -2671,10 +2476,10 @@ export function CbacScreening() {
                   activeSlide === 'REFERRAL'
                     ? handleSaveAssessment
                     : () => {
-                        if (activeSlide === 'A') setActiveSlide('B');
-                        else if (activeSlide === 'B') setActiveSlide('C');
-                        else if (activeSlide === 'C') setActiveSlide('D');
-                        else if (activeSlide === 'D') setActiveSlide('REFERRAL');
+                        if (activeSlide === 'A') goToAssessmentSlide('B');
+                        else if (activeSlide === 'B') goToAssessmentSlide('C');
+                        else if (activeSlide === 'C') goToAssessmentSlide('D');
+                        else if (activeSlide === 'D') goToAssessmentSlide('REFERRAL');
                       }
                 }
                 disabled={saving}

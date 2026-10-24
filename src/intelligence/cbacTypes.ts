@@ -21,15 +21,16 @@ export interface CbacGeneralInfo {
   disabilityDetails: string;
 }
 
-export type AlcoholFrequency = 'never' | 'socially' | 'weekly' | 'daily';
+export type AlcoholFrequency = 'never' | 'socially' | 'weekly' | 'daily' | 'unspecified';
 
 export interface CbacPartA {
   ageScore?: number; // 0: 0-29, 1: 30-39, 2: 40-49, 3: 50-59, 4: >=60
   smokeScore?: number; // 0: Never, 1: Past/Sometimes, 2: Daily
-  alcoholScore?: number; // 0: Not daily, 1: Daily (CBAC scoring)
+  alcoholScore?: number; // 0: No consumption, 1: Any consumption (app-configured)
   alcoholFrequency?: AlcoholFrequency; // Preserve the reported frequency separately.
   waistCm?: number;
   waistScore?: number; // 0, 1, 2
+  activityMinutesPerWeek?: number;
   physicalActivityScore?: number; // 0: >=150 min/wk, 1: <150 min/wk
   familyHistoryScore?: number; // 0: No, 2: Yes
   totalScore: number;

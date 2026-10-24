@@ -53,3 +53,11 @@ This remains a local IndexedDB prototype. This administrator prototype gives aut
 Login uses the reference account roles: Super Admin, Hospital Admin, Doctor, Nurse, Compounder, Ambulance Member, and Emergency Member. ASHA, PHC, DH, and TCC are care modules shown inside the Super Admin dashboard after Clerk sign-in; they are never login roles. The selected account role survives Clerk redirects. A recognized role in Clerk public metadata takes precedence over the prototype role selector. Other account roles open a clinical workspace with patient registry and referral inbox links.
 
 Without an assigned Clerk metadata role this local prototype uses the selected role. Production must enforce account roles and record access on the backend.
+
+## Natural-language interview answers
+
+The app-configured alcohol rule is any reported consumption = 1 and none = 0, including social drinking. This intentionally differs from the original CBAC daily-consumption question. Activity accepts weekly minutes/hours and explicit schedules; 2.5 hours equals 150 minutes.
+
+Clear answers use local interpretation. Unclear answers can call a Clerk-authenticated Groq endpoint at `/api/interpret-answer`; only the current question and answer are sent. Model interpretations are validated and scored with local rules. Uncertain results ask for clarification instead of changing fields. No full patient record is sent and answers are not logged.
+
+For local use, set server-only `GROQ_API_KEY`, optional `GROQ_MODEL`, and `CLERK_SECRET_KEY` in `.env.local`, alongside `VITE_CLERK_PUBLISHABLE_KEY`. `npm run dev` serves the API locally too. Never prefix secret keys with `VITE_`. Vercel needs the same server variables; a static-only host cannot run the interpreter. The local parser and manual answers remain usable if the provider is unavailable.

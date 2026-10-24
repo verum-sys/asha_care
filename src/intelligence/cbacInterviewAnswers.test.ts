@@ -26,7 +26,7 @@ describe('interview field mapping', () => {
   it('does not alter demographics for a physical activity number', () => {
     const result = updates('physicalActivity', '150 minutes every week');
     expect(result.generalUpdates).toEqual({});
-    expect(result.partAUpdates).toEqual({ physicalActivityScore: 0 });
+    expect(result.partAUpdates).toMatchObject({ physicalActivityScore: 0 });
   });
   it('stores no/yes against the relevant field', () => {
     expect(updates('alcohol', 'No').partAUpdates).toEqual({ alcoholScore: 0, alcoholFrequency: 'never' });
