@@ -29,7 +29,7 @@ describe('interview field mapping', () => {
     expect(result.partAUpdates).toEqual({ physicalActivityScore: 0 });
   });
   it('stores no/yes against the relevant field', () => {
-    expect(updates('alcohol', 'No').partAUpdates).toEqual({ alcoholScore: 0 });
+    expect(updates('alcohol', 'No').partAUpdates).toEqual({ alcoholScore: 0, alcoholFrequency: 'never' });
     expect(updates('familyHistory', 'Yes').partAUpdates).toEqual({ familyHistoryScore: 2 });
     expect(updates('physicalActivity', 'No').partAUpdates).toEqual({ physicalActivityScore: 1 });
   });

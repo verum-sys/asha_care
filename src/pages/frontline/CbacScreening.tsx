@@ -1,3 +1,5 @@
+import { ALCOHOL_OPTIONS, alcoholScoreFor } from '../../intelligence/cbacAlcohol';
+import type { AlcoholFrequency } from '../../intelligence/cbacTypes';
 import { getPartAScoreBreakdown } from '../../intelligence/cbacScoreBreakdown';
 import { parseCbacInterviewAnswer } from '../../intelligence/cbacInterviewAnswers';
 import type { SmartParseResult } from '../../intelligence/cbacIntelligence';
@@ -551,6 +553,13 @@ export function CbacScreening() {
     setPartA((prev) => {
       const updated = { ...prev, [key]: value };
       return { ...updated, totalScore: calculatePartAScore(updated) };
+    });
+  }
+
+  function setAlcoholFrequency(frequency: AlcoholFrequency) {
+    setPartA(previous => {
+      const next = { ...previous, alcoholFrequency: frequency, alcoholScore: alcoholScoreFor(frequency) };
+      return { ...next, totalScore: calculatePartAScore(next) };
     });
   }
 
@@ -1462,7 +1471,7 @@ export function CbacScreening() {
               <div className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-line/60">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    3. Do you consume alcohol daily?
+                    3. How often do you drink alcohol?
                   </span>
                   {partA.alcoholScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
@@ -1471,18 +1480,15 @@ export function CbacScreening() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2" role="radiogroup">
-                  {[
-                    { label: 'No', score: 0 },
-                    { label: 'Yes', score: 1 },
-                  ].map((opt) => {
-                    const isSelected = partA.alcoholScore === opt.score;
+                  {ALCOHOL_OPTIONS.map((opt) => {
+                    const isSelected = partA.alcoholFrequency === opt.value || (!partA.alcoholFrequency && partA.alcoholScore === 1 && opt.value === 'daily');
                     return (
                       <button
-                        key={opt.score}
+                        key={opt.value}
                         type="button"
                         role="radio"
                         aria-checked={isSelected}
-                        onClick={() => setPartAField('alcoholScore', opt.score)}
+                        onClick={() => setAlcoholFrequency(opt.value)}
                         className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                           isSelected
                             ? 'bg-brand text-white border-brand shadow-xs font-bold'
@@ -1497,6 +1503,7 @@ export function CbacScreening() {
                     );
                   })}
                 </div>
+                <p className="text-xs text-muted">CBAC adds 1 point for daily consumption; other frequencies add 0. Your reported frequency is saved separately.</p>
               </div>
 
               {/* Question 4: Waist measurement (Adaptive to Female vs Male) */}

@@ -1,3 +1,4 @@
+import { parseAlcoholFrequency, alcoholScoreFor } from './cbacAlcohol';
 import { classifyAge, classifyWaist, parseCbacText, type SmartParseResult } from './cbacIntelligence';
 import { parseInterviewNumber } from '../voice/interviewRecognition';
 import type { Sex } from '../db/types';
@@ -51,14 +52,15 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
     case 'smoke': {
       if (no || /never|non.?smoker|no tobacco|does not smoke|नहीं|कभी नहीं/i.test(text)) updates.partAUpdates.smokeScore = 0;
       else if (/past|used to|quit|sometimes|occasionally|कभी.?कभी/i.test(text)) updates.partAUpdates.smokeScore = 1;
-      else if (/daily|every day|रोज|प्रतिदिन/i.test(text)) updates.partAUpdates.smokeScore = 2;
+      else if (/daily|every[\s-]*day|रोज|प्रतिदिन/i.test(text)) updates.partAUpdates.smokeScore = 2;
       else return fail('Please specify tobacco use: never, past/sometimes, or daily.');
       break;
     }
     case 'alcohol': {
-      if (no || /no alcohol|never|doesn.t drink|नहीं/i.test(text)) updates.partAUpdates.alcoholScore = 0;
-      else if (yes || /daily|every day|रोज|प्रतिदिन/i.test(text)) updates.partAUpdates.alcoholScore = 1;
-      else return fail('Please answer whether alcohol is consumed daily: yes or no.');
+      const frequency = parseAlcoholFrequency(text);
+      if (!frequency) return fail('How often do you drink alcohol: never, socially/occasionally, weekly, or daily?');
+      updates.partAUpdates.alcoholFrequency = frequency;
+      updates.partAUpdates.alcoholScore = alcoholScoreFor(frequency);
       break;
     }
     case 'physicalActivity': {
@@ -100,7 +102,7 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
     case 'phq2_mood': {
       let frequency: number | undefined;
       if (no || /not at all|बिल्कुल नहीं/i.test(text)) frequency = 0;
-      else if (/nearly every day|every day|लगभग हर दिन|रोज/i.test(text)) frequency = 3;
+      else if (/nearly every[\s-]*day|every[\s-]*day|लगभग हर दिन|रोज/i.test(text)) frequency = 3;
       else if (/more than half|आधे से अधिक/i.test(text)) frequency = 2;
       else if (/several days|कई दिन|कुछ दिन/i.test(text)) frequency = 1;
       else if (/^[0-3]$/.test(lower)) frequency = Number(lower);

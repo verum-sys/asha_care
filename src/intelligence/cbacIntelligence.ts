@@ -1,3 +1,4 @@
+import { parseAlcoholFrequency, alcoholScoreFor, ALCOHOL_OPTIONS } from './cbacAlcohol';
 import type { Sex, ScreeningArea, ScreeningFinding, ReferralRequiredAnswer, Intention, Urgency } from '../db/types';
 import { parseFreeTextWithSpans } from './parser';
 import {
@@ -298,13 +299,15 @@ export function parseCbacText(rawText: string, currentSex?: Sex | ''): SmartPars
     explanations.push({ field: 'smoke', detail: 'Tobacco: Past / Sometimes (1 pt)' });
   }
 
-  // 6. Detect Alcohol (Part A Question 3)
-  if (/\b(no\s+alcohol|doesn't\s+drink|never\s+drinks|sharab\s+nahi|no\s+liquor)\b/i.test(text)) {
-    partAUpdates.alcoholScore = 0;
-    explanations.push({ field: 'alcohol', detail: 'Alcohol: No (0 pts)' });
-  } else if (/\b(alcohol\s+daily|drinks\s+daily|daily\s+alcohol|regular\s+drinker|har\s+din\s+sharab)\b/i.test(text)) {
-    partAUpdates.alcoholScore = 1;
-    explanations.push({ field: 'alcohol', detail: 'Alcohol: Daily (1 pt)' });
+  // 6. Keep alcohol frequency separate from the daily-consumption CBAC score.
+  if (/\b(?:alcohol|liquor|drink|drinks|drinking|sharab)\b|शराब/i.test(text)) {
+    const alcoholText = text.split(/[,;.!?]/).filter(clause => /\b(?:alcohol|liquor|drink|drinks|drinking|sharab)\b|शराब/i.test(clause)).join(', ');
+    const frequency = parseAlcoholFrequency(alcoholText);
+    if (frequency) {
+      partAUpdates.alcoholFrequency = frequency;
+      partAUpdates.alcoholScore = alcoholScoreFor(frequency);
+      explanations.push({ field: 'alcohol', detail: `Alcohol: ${ALCOHOL_OPTIONS.find(option => option.value === frequency)?.label} (${alcoholScoreFor(frequency)} CBAC pts)` });
+    }
   }
 
   // 7. Detect Physical Activity (Part A Question 5)
