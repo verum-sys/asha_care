@@ -72,6 +72,11 @@ function TierRoute() {
   return <TierModuleView key={location.pathname + location.search} />;
 }
 
+function CbacRoute() {
+  const location = useLocation();
+  return <CbacScreening key={location.pathname + location.search} />;
+}
+
 export function App() {
   return (
     <ClerkAuthProvider>
@@ -85,12 +90,12 @@ export function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/frontline" element={<Home />} />
               <Route path="/new" element={<NewCase />} />
-              <Route path="/cbac" element={<CbacScreening />} />
+              <Route path="/cbac" element={<CbacRoute />} />
               <Route path="/cases" element={<CategoryCases />} />
               <Route path="/cases/:category" element={<CategoryCases />} />
               <Route path="/case/:id" element={<CaseView />} />
               <Route path="/case/:id/edit" element={<NewCase />} />
-              <Route path="/case/:id/cbac" element={<CbacScreening />} />
+              <Route path="/case/:id/cbac" element={<CbacRoute />} />
               <Route path="/case/:id/follow-up" element={<RecordFollowUp />} />
               <Route path="/sync" element={<SyncPage />} />
               <Route path="/facility" element={<Inbox />} />

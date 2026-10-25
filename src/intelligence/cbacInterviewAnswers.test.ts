@@ -47,3 +47,10 @@ describe('interview field mapping', () => {
     });
   }
 });
+
+describe('bare frequency for physical activity', () => {
+  it.each(['Daily', 'daily', 'every day', 'Regularly'])('treats %s as active', answer => {
+    const r = parseCbacInterviewAnswer('physicalActivity', answer);
+    expect(r.ok && r.updates.partAUpdates.physicalActivityScore).toBe(0);
+  });
+});

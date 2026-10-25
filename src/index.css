@@ -327,3 +327,13 @@ input.registry-search { width:250px; max-width:100%; min-height:38px; font-size:
 .login-access-note { padding:22px; background:#f6fbfc; border:1px solid #e0ecec; border-radius:12px; display:flex; align-items:center; gap:15px; }
 .login-access-note strong { font-size:13px; font-weight:600; }.login-access-note p { color:#94a3b8; font-size:11px; margin-top:5px; }
 @media(max-width:640px) { .login-benefits { display:none; } }
+
+/* Compact super admin landing page. */
+.care-workspace.care-workspace-home { margin-left:0; }
+.compact-home .module-card { padding:16px; }
+.compact-home .module-heading { margin-bottom:10px; }
+.compact-home .module-icon { width:34px; height:34px; border-radius:9px; }
+.compact-home .module-units { margin:12px 0; }
+.compact-home .module-card ul { padding:10px 0 0; margin-bottom:10px; }
+.compact-home .module-card li { margin-bottom:5px; }
+.compact-home .module-open { padding:9px; }

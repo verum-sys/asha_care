@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { CbacScreening } from './CbacScreening';
 vi.mock('@clerk/clerk-react', () => ({ useAuth: () => ({ getToken: async () => null }) }));
 vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ user: { role: 'super_admin', unit: 'a' } }) }));
@@ -8,6 +8,16 @@ vi.mock('../../i18n', () => ({ useLang: () => ({ lang: 'en', t: (key: string) =>
 vi.mock('../../settings', () => ({ useSettings: () => ({ workerName: 'Test worker' }) }));
 vi.mock('../../voice/useSpeak', () => ({ useSpeak: () => ({ speak: vi.fn(async () => {}), stop: vi.fn(), speaking: false }) }));
 describe('CBAC interview UI', () => {
+  it('provides a starting-page fallback when editable CBAC is opened directly', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={[{ pathname: '/case/current-patient/cbac', search: '?tier=phc&unit=b', state: { returnTo: '/tier/phc?unit=b' } }]}>
+        <Routes><Route path="/case/:id/cbac" element={<CbacScreening />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(html).toContain('href="/"');
+    expect(html).not.toContain('/case/REF-0007');
+  });
+
   it('prioritizes manual fields with compact progress and collapsed voice controls', () => {
     const html = renderToStaticMarkup(<MemoryRouter><CbacScreening /></MemoryRouter>);
     expect(html).toContain('Voice assistant');
@@ -17,6 +27,8 @@ describe('CBAC interview UI', () => {
     expect(html).not.toContain('id="interview-answer"');
     expect(html.indexOf('aria-label="CBAC Slides"')).toBeLessThan(html.indexOf('id="patient-name"'));
     expect(html).toContain('id="patient-name"');
+    expect(html).not.toContain('Facility Response Status');
+    expect(html).not.toContain('Has destination facility confirmed receipt or acceptance?');
     expect(html).not.toContain('All Questions at Once');
     expect(html).not.toContain('Auto Fill All');
     expect(html).not.toContain('Continuous Mic Dictate');

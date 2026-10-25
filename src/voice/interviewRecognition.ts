@@ -1,5 +1,6 @@
 export interface InterviewRecognition {
   continuous: boolean;
+  maxAlternatives?: number;
   interimResults: boolean;
   lang: string;
   onresult: ((event: any) => void) | null;
@@ -12,27 +13,29 @@ export interface InterviewRecognition {
 export function listenForInterviewAnswer(rec: InterviewRecognition, options: {
   lang: string;
   onTranscript: (text: string) => void;
-  onAnswer: (text: string) => void;
+  onAnswer: (text: string, alternatives: string[]) => void;
   onStopped: () => void;
 }) {
   let disposed = false;
   let answered = false;
   rec.continuous = true;
+  rec.maxAlternatives = 5;
   rec.interimResults = true;
   rec.lang = options.lang;
   rec.onresult = event => {
     if (disposed || answered) return;
     let final = '';
     let interim = '';
+    const alternatives: string[] = [];
     for (let i = 0; i < event.results.length; i++) {
       const result = event.results[i];
-      if (result.isFinal) final += result[0].transcript + ' ';
+      if (result.isFinal) { final += result[0].transcript + ' '; for (let j = 1; j < result.length; j++) alternatives.push(result[j].transcript.trim()); }
       else interim += result[0].transcript + ' ';
     }
     options.onTranscript((final + interim).trim());
     if (final.trim() && !interim.trim()) {
       answered = true;
-      options.onAnswer(final.trim());
+      options.onAnswer(final.trim(), alternatives.filter(Boolean));
     }
   };
   rec.onerror = event => {

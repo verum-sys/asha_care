@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import type { ReportAttachment } from '../db/types';
-import { addCaseAttachment } from '../db/repo';
+import { addCaseAttachment, updateCaseAttachment } from '../db/repo';
 import { Icon } from './Icon';
 
 interface ReportAttachmentModalProps {
   referralId: string;
+  initialAttachment?: ReportAttachment;
   category: 'general' | 'biopsy' | 'radiology';
   isOpen: boolean;
   onClose: () => void;
@@ -13,16 +14,17 @@ interface ReportAttachmentModalProps {
 
 export function ReportAttachmentModal({
   referralId,
+  initialAttachment,
   category,
   isOpen,
   onClose,
   onSaved,
 }: ReportAttachmentModalProps) {
-  const [title, setTitle] = useState('');
-  const [findings, setFindings] = useState('');
-  const [fileName, setFileName] = useState('');
-  const [fileSize, setFileSize] = useState('');
-  const [dataUrl, setDataUrl] = useState('');
+  const [title, setTitle] = useState(initialAttachment?.title || '');
+  const [findings, setFindings] = useState(initialAttachment?.findings || '');
+  const [fileName, setFileName] = useState(initialAttachment?.fileName || '');
+  const [fileSize, setFileSize] = useState(initialAttachment?.fileSize || '');
+  const [dataUrl, setDataUrl] = useState(initialAttachment?.dataUrl || '');
   const [submitting, setSubmitting] = useState(false);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
@@ -65,24 +67,26 @@ export function ReportAttachmentModal({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dataUrl || reading) { setError('Choose a PDF before saving.'); return; }
+    if ((!dataUrl && !initialAttachment) || reading) { setError('Choose a PDF before saving.'); return; }
 
     setSubmitting(true);
     try {
       const attachment: ReportAttachment = {
-        id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: initialAttachment?.id || `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         title: title.trim() || fileName || 'Clinical PDF Report',
         fileName: fileName || `${category}_report.pdf`,
         fileSize: fileSize || '1.5 MB',
         fileType: 'application/pdf',
         category,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: 'DiagNXT Clinical Portal',
+        uploadedAt: initialAttachment?.uploadedAt || new Date().toISOString(),
+        uploadedBy: initialAttachment?.uploadedBy || 'DiagNXT Clinical Portal',
         findings: findings.trim() || undefined,
-        dataUrl,
+        dataUrl: dataUrl || undefined,
+        fileUrl: dataUrl ? undefined : initialAttachment?.fileUrl,
       };
 
-      await addCaseAttachment(referralId, attachment);
+      if (initialAttachment) await updateCaseAttachment(referralId, attachment);
+      else await addCaseAttachment(referralId, attachment);
       onSaved?.();
       onClose();
     } catch { setError('The PDF could not be saved. Check device storage and try again.'); } finally {
@@ -105,7 +109,7 @@ export function ReportAttachmentModal({
               </span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 mt-1">{categoryTitles[category]}</h2>
-            <p className="text-xs text-slate-500">Attach and store certified diagnostic PDF documentation to patient file</p>
+            <p className="text-xs text-slate-500">Edit report details or select a PDF to attach or replace the saved file</p>
           </div>
           <button
             type="button"
@@ -189,7 +193,7 @@ export function ReportAttachmentModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || reading || !dataUrl}
+              disabled={submitting || reading || (!dataUrl && !initialAttachment)}
               className="px-5 py-2.5 rounded-xl text-sm font-bold bg-sky-600 text-white shadow-md hover:bg-sky-700 disabled:opacity-50 active:scale-95 transition-all flex items-center gap-1.5"
             >
               <Icon name="check" size={16} />

@@ -28,7 +28,7 @@ describe('one-question voice interview', () => {
     rec.onresult?.(result('26', false));
     expect(answer).not.toHaveBeenCalled();
     rec.onresult?.(result('26')); rec.onresult?.(result('26'));
-    expect(answer).toHaveBeenCalledExactlyOnceWith('26');
+    expect(answer).toHaveBeenCalledExactlyOnceWith('26', []);
   });
   it('ignores queued results after stopping or moving to another question', () => {
     const rec = recognizer(); const answer = vi.fn(); const stopped = vi.fn();
@@ -40,5 +40,17 @@ describe('one-question voice interview', () => {
   });
   it.each([['26', 26], ['26 years old', 26], ['I am twenty six years old', 26], ['twenty-six', 26], ['२६ साल', 26], ['one hundred and five', 105], ['0', 0], ['130', undefined], ['not sure', undefined]])('parses age %s', (text, expected) => {
     expect(parseInterviewAge(text)).toBe(expected);
+  });
+});
+
+describe('alternative transcripts', () => {
+  it('passes the recognizer’s other hearings with the answer', () => {
+    const rec = recognizer();
+    const answer = vi.fn();
+    listenForInterviewAnswer(rec, { lang: 'en-IN', onTranscript: vi.fn(), onAnswer: answer, onStopped: vi.fn() });
+    const final = Object.assign([{ transcript: 'Delhi' }, { transcript: 'daily ' }, { transcript: 'dally' }], { isFinal: true });
+    rec.onresult?.({ resultIndex: 0, results: [final] });
+    expect(rec.maxAlternatives).toBe(5);
+    expect(answer).toHaveBeenCalledWith('Delhi', ['daily', 'dally']);
   });
 });

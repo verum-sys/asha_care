@@ -9,8 +9,8 @@ const modules: { tier: CareTier; title: string; subtitle: string; icon: 'user' |
 ];
 export function SuperAdminDashboard() {
   return (
-    <section aria-label="Care modules">
-      <div className="module-grid">{modules.map((module, i) => <article className={`module-card module-${module.tier}`} key={module.tier}><div className="module-heading"><span className="module-icon"><Icon name={module.icon} size={23}/></span><span className="text-[10px] font-semibold tracking-widest text-slate-400">TIER 0{i + 1}</span></div><h3>{module.title}</h3><p className="text-xs text-slate-500">{module.subtitle}</p><div className="module-units">{(['a', 'b', 'c'] as const).map(u => <Link key={u} to={`/tier/${module.tier}?unit=${u}`}>Unit {u.toUpperCase()} ↗</Link>)}</div><ul>{module.features.map(feature => <li key={feature}><span>✓</span>{feature}</li>)}</ul><Link className="module-open" to={`/tier/${module.tier}?unit=a`}>Open {module.tier.toUpperCase()} module <span>→</span></Link><Link className="module-add" to={`/cbac?tier=${module.tier}&unit=a`}>+ Add new CBAC form</Link></article>)}</div>
+    <section aria-label="Care modules" className="compact-home">
+      <div className="module-grid">{modules.map((module, i) => <article className={`module-card module-${module.tier}`} key={module.tier}><div className="module-heading"><span className="module-icon"><Icon name={module.icon} size={23}/></span><span className="text-[10px] font-semibold tracking-widest text-slate-400">TIER 0{i + 1}</span></div><h3>{module.title}</h3><p className="text-xs text-slate-500">{module.subtitle}</p><ul>{module.features.map(feature => <li key={feature}><span>✓</span>{feature}</li>)}</ul><Link className="module-open" to={`/tier/${module.tier}`}>Open {module.tier.toUpperCase()} module <span>→</span></Link></article>)}</div>
     </section>
   );
 }

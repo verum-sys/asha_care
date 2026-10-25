@@ -1,3 +1,4 @@
+import { today } from '../intelligence/dates';
 /**
  * Frontline repository. Every write lands in IndexedDB first, is marked `pending`,
  * and is queued in the outbox for the next sync. Nothing here touches the network.
@@ -6,6 +7,7 @@ import { getDB, getMeta, notifyChange, setMeta, uid } from './db';
 import { emptyFacility } from './factory';
 import type {
   ActionKey,
+  Attendance,
   AppointmentCertainty,
   CareTier,
   CareUnit,
@@ -170,6 +172,8 @@ export async function addFollowUp(referralId: string, input: FollowUpInput): Pro
   const db = await getDB();
   const referral = await db.get('referrals', referralId);
   if (!referral) throw new Error('Referral not found');
+  if (input.action === 'outcome_recorded' && referral.tier !== 'tcc') throw new Error('Only TCC can close the care loop; refer to the next care tier instead');
+  if (input.action === 'info_sent_to_facility' && referral.tier === 'tcc') throw new Error('TCC is the final care stage');
   const now = new Date().toISOString();
   const w = { ...referral.worker };
   let intention = referral.patientIntention;
@@ -187,15 +191,18 @@ export async function addFollowUp(referralId: string, input: FollowUpInput): Pro
     case 'rescheduled':
       if (input.date) w.appointmentDate = input.date;
       w.attendance = undefined;
+      w.attendedDate = undefined;
       break;
     case 'contacted_patient':
       if (input.intention) intention = input.intention;
       break;
     case 'patient_attended':
       w.attendance = 'attended';
+      w.attendedDate = input.date || today();
       break;
     case 'patient_not_attended':
       w.attendance = 'not_attended';
+      w.attendedDate = undefined;
       break;
     case 'outcome_recorded':
       w.outcomeRecorded = true;
@@ -209,7 +216,7 @@ export async function addFollowUp(referralId: string, input: FollowUpInput): Pro
     at: now,
     action: input.action,
     note: input.note || undefined,
-    data: { date: input.date, response: input.response, intention: input.intention },
+    data: { date: input.action === 'patient_attended' ? w.attendedDate : input.date, response: input.response, intention: input.intention, tier: referral.tier || 'asha' },
     suggestedAction: input.suggestedAction,
     syncStatus: 'pending',
   };
@@ -302,6 +309,16 @@ export async function referToNextTier(
   const now = new Date().toISOString();
   const updated: Referral = {
     ...current,
+    clinicalHandovers: [...(current.clinicalHandovers || []), {
+      fromTier: current.tier || 'asha', toTier: targetTier, at: now,
+      physicalExam: current.physicalExam,
+      notes: [current.notes, notes].filter(Boolean).join('\n'),
+      dhNotes: current.dhNotes,
+      aiSummary: current.aiSummaryOverride,
+      visitStatus: current.worker, facilityStatus: current.facility,
+    }],
+    worker: {},
+    facility: emptyFacility(),
     tier: targetTier,
     unit: targetUnit || current.unit,
     destinationFacility: destinationFacility || current.destinationFacility,
@@ -325,4 +342,30 @@ export async function referToNextTier(
   await tx.objectStore('outbox').put(outboxItem('followup', fu.id));
   await tx.done;
   notifyChange();
+}
+
+/** Update recorded acceptance/attendance without discarding prior follow-up history. */
+export async function updateVisitDetails(referralId: string, input: { response: FacilityResponse; date: string; attendance: Attendance; note: string }): Promise<void> {
+  const db = await getDB();
+  const current = await db.get('referrals', referralId);
+  if (!current) throw new Error('Referral not found');
+  const now = new Date().toISOString();
+  const updated: Referral = { ...current, worker: { ...current.worker, facilityResponse: input.response, appointmentDate: input.date, appointmentCertainty: input.date ? 'confirmed' : undefined, attendance: input.attendance, attendedDate: input.attendance === 'attended' ? current.worker.attendedDate || today() : undefined }, updatedAt: now, syncStatus: 'pending' };
+  const followUp: FollowUp = { id: uid('fu-'), referralId, at: now, action: 'other', data: { tier: current.tier || 'asha', attendance: input.attendance, date: updated.worker.attendedDate || input.date || undefined }, note: `Visit updated: ${input.response}; appointment ${input.date || 'not set'}; attendance ${input.attendance}.${input.note ? ` ${input.note}` : ''}`, syncStatus: 'pending' };
+  const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');
+  await tx.objectStore('referrals').put(updated);
+  await tx.objectStore('followups').put(followUp);
+  await tx.objectStore('outbox').put(outboxItem('referral', referralId));
+  await tx.objectStore('outbox').put(outboxItem('followup', followUp.id));
+  await tx.done;
+  notifyChange();
+}
+
+export async function updateCaseAttachment(referralId: string, attachment: ReportAttachment): Promise<void> {
+  const db = await getDB();
+  const current = await db.get('referrals', referralId);
+  if (!current) throw new Error('Referral not found');
+  const field = attachment.category === 'general' ? 'reports' : attachment.category === 'biopsy' ? 'biopsyReports' : 'radiologyReports';
+  if (!current[field]?.some(report => report.id === attachment.id)) throw new Error('Report not found');
+  await updateCaseClinical(referralId, { [field]: current[field]!.map(report => report.id === attachment.id ? attachment : report) });
 }

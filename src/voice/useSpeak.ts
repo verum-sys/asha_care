@@ -49,6 +49,7 @@ function speakTTS(text: string, lang: string): Promise<void> {
     if (voice) u.voice = voice;
     u.onend = () => resolve();
     u.onerror = () => resolve();
+    speechSynthesis.resume(); // Chrome can stay paused after cancel(), which reads as silence.
     speechSynthesis.speak(u);
   });
 }
@@ -65,7 +66,8 @@ export function useSpeak() {
       shared.onerror = null;
       shared.pause();
     }
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    // Cancelling an idle synthesizer right before speak() makes Chrome swallow the start of the next utterance.
+    if ('speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel();
     setSpeaking(false);
   }, []);
 

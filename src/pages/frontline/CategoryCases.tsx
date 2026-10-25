@@ -157,7 +157,7 @@ export function CategoryCases() {
 
   return (
     <div className="space-y-4">
-      <BackLink to="/" label={t('home.allCases') + ' ←'} />
+      <BackLink />
 
       {/* Header */}
       <div className="flex flex-col gap-1">

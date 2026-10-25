@@ -1,3 +1,7 @@
+import { CareJourneySummary } from '../../components/CareJourneySummary';
+import { VisitStatusModal } from '../../components/VisitStatusModal';
+import { ClinicalHandovers } from '../../components/ClinicalHandovers';
+import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { CaseStageSummary } from '../../components/CaseStageSummary';
@@ -39,6 +43,8 @@ export function CaseView() {
   const [previewPdf, setPreviewPdf] = useState<ReportAttachment | null>(null);
   const [showExamModal, setShowExamModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showVisitModal, setShowVisitModal] = useState(false);
+  const [editReport, setEditReport] = useState<ReportAttachment | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
 
   const { data, loading } = useLive(async () => {
@@ -50,7 +56,7 @@ export function CaseView() {
   if (!data)
     return (
       <div>
-        <BackLink to="/" />
+        <BackLink />
         <p className="card">{t('case.notFound')}</p>
       </div>
     );
@@ -72,7 +78,7 @@ export function CaseView() {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
-        <BackLink to="/" />
+        <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
           <button
@@ -191,7 +197,8 @@ export function CaseView() {
             <span>CBAC Assessment {currentTier !== 'asha' ? '(Editable)' : ''}</span>
           </h2>
           <Link
-            to={`/case/${referral.id}/cbac`}
+            to={`/case/${referral.id}/cbac?tier=${currentTier}&unit=${currentUnit}`}
+            state={{ returnTo: `/case/${referral.id}` }}
             className="btn btn-secondary !min-h-[36px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5"
           >
             <Icon name="spark" size={14} className="text-teal-600" />
@@ -244,6 +251,10 @@ export function CaseView() {
         )}
       </section>
 
+      <CareJourneySummary record={data} onEditSummary={() => setShowAiModal(true)} />
+      <ClinicalHandovers handovers={referral.clinicalHandovers} />
+
+      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>Recorded acceptance: <strong>{referral.worker.facilityResponse ?? referral.facility.response}</strong> · Appointment: {referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>Acceptance & appointment</button></div>
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">
@@ -262,27 +273,7 @@ export function CaseView() {
 
         {referral.physicalExam ? (
           <div className="space-y-3 text-xs sm:text-sm">
-            {/* Vitals Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Blood Pressure</span>
-                <span className="font-bold text-slate-800 text-sm">
-                  {referral.physicalExam.bpSystolic}/{referral.physicalExam.bpDiastolic} mmHg
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Pulse Rate</span>
-                <span className="font-bold text-slate-800 text-sm">{referral.physicalExam.pulseRate} bpm</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">SpO2 Level</span>
-                <span className="font-bold text-slate-800 text-sm">{referral.physicalExam.spo2}%</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">BMI</span>
-                <span className="font-bold text-slate-800 text-sm">{referral.physicalExam.bmi || '—'}</span>
-              </div>
-            </div>
+            <RecordedVitals exam={referral.physicalExam} />
 
             {/* Findings list */}
             <div className="space-y-1.5 text-xs text-slate-700">
@@ -372,7 +363,7 @@ export function CaseView() {
                   <p className="text-[11px] text-slate-500 line-clamp-2">{att.findings || att.fileName}</p>
                 </div>
                 <div className="text-sky-600 text-xs font-bold shrink-0 mt-1">
-                  View PDF →
+                  <button type="button" className="underline mr-3" onClick={event => { event.stopPropagation(); setEditReport(att); }}>Edit report</button>View PDF →
                 </div>
               </div>
             ))}
@@ -415,6 +406,9 @@ export function CaseView() {
       </section>
 
       {/* MODALS */}
+      {showVisitModal && <VisitStatusModal referral={referral} onClose={() => setShowVisitModal(false)} />}
+      {editReport && <ReportAttachmentModal referralId={referral.id} category={editReport.category} initialAttachment={editReport} isOpen onClose={() => setEditReport(null)} />}
+
       {attachmentCat && (
         <ReportAttachmentModal
           referralId={referral.id}
@@ -451,6 +445,8 @@ export function CaseView() {
           referralId={referral.id}
           patientName={patient.name}
           currentTier={currentTier}
+          savedSummary={referral.aiSummaryOverride}
+          onEditSummary={() => setShowAiModal(true)}
           isOpen={true}
           onClose={() => setShowReferralModal(false)}
         />

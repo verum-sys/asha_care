@@ -1,3 +1,5 @@
+import { generateWorkerNotes } from '../../intelligence/cbacWorkerNotes';
+import { referralInterviewQuestion, parseReferralDecision } from '../../intelligence/cbacReferralInterview';
 import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { interpretInterviewAnswer } from '../../intelligence/answerInterpretation';
 import { ALCOHOL_OPTIONS, alcoholScoreFor } from '../../intelligence/cbacAlcohol';
@@ -48,8 +50,9 @@ import {
 } from '../../intelligence/cbacTypes';
 import { useSettings } from '../../settings';
 import { listenForInterviewAnswer } from '../../voice/interviewRecognition';
+import { buildInterviewQuestions, type PartBCategory } from '../../intelligence/cbacPartBInterview';
 import { useSpeak } from '../../voice/useSpeak';
-import { getApplicableInterviewQuestions, getInterviewStartIndex, getQuestionText, getQuestionHint } from '../../intelligence/cbacInterviewQuestions';
+import { getInterviewStartIndex, getQuestionText, getQuestionHint } from '../../intelligence/cbacInterviewQuestions';
 
 type SlideId = 'A' | 'B' | 'C' | 'D' | 'REFERRAL';
 
@@ -169,7 +172,11 @@ export function CbacScreening() {
 
   const [interviewIndex, setInterviewIndex] = useState<number>(0);
   const [interviewActive, setInterviewActive] = useState<boolean>(false);
+  const [bCategories, setBCategories] = useState<PartBCategory[] | undefined>();
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [generatingNotes, setGeneratingNotes] = useState(false);
+  const [notesError, setNotesError] = useState('');
   const [currentAnswer, setCurrentAnswer] = useState<string>('');
 
   const { speak, stop: stopSpeak, speaking } = useSpeak();
@@ -177,8 +184,9 @@ export function CbacScreening() {
   // If editing an existing case, load patient & any existing CBAC
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     void getCase(id).then((c) => {
-      if (!c) return;
+      if (cancelled || !c) return;
       const { patient: p, referral: r } = c;
       setGeneral((prev) => ({
         ...prev,
@@ -225,6 +233,7 @@ export function CbacScreening() {
         if (cb.partD) setPartD(cb.partD);
       }
     });
+    return () => { cancelled = true; };
   }, [id]);
 
   // Read URL query params like ?name=Sunita&age=26&sex=F
@@ -264,7 +273,7 @@ export function CbacScreening() {
   const questionRunRef = useRef(0);
   const answerPendingRef = useRef(false);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const answerHandlerRef = useRef<(text: string) => void>(() => {});
+  const answerHandlerRef = useRef<(text: string, alternatives?: string[]) => void>(() => {});
   const [answerError, setAnswerError] = useState('');
   const [interpreting, setInterpreting] = useState(false);
   const interpretationAbortRef = useRef<AbortController | null>(null);
@@ -272,7 +281,17 @@ export function CbacScreening() {
   // Recognition can outlive a render; always dispatch to the latest question handler.
   answerHandlerRef.current = handleInterviewAnswer;
 
-  const interviewQuestions = useMemo(() => getApplicableInterviewQuestions(general.sex), [general.sex]);
+  // Computed Triage
+  const triage = useMemo(() => {
+    return evaluateCbacTriage(partA, partB, partC, partD);
+  }, [partA, partB, partC, partD]);
+
+  const interviewQuestions = useMemo(() => {
+    const questions = buildInterviewQuestions(general.sex, general.age, bCategories);
+    const isAsha = (searchParams.get('tier') || 'asha') === 'asha';
+    const complete = [partA.ageScore, partA.smokeScore, partA.alcoholScore, partA.waistScore, partA.physicalActivityScore, partA.familyHistoryScore].every(score => score !== undefined);
+    return isAsha ? [...questions, referralInterviewQuestion(partA.totalScore, triage.referralRequired, complete)] : questions;
+  }, [general.sex, general.age, bCategories, searchParams, partA, triage.referralRequired]);
   const questionsRef = useRef(interviewQuestions);
   questionsRef.current = interviewQuestions;
   const currentQuestion = interviewQuestions[interviewIndex] || interviewQuestions[0];
@@ -304,7 +323,7 @@ export function CbacScreening() {
     stopRecognitionRef.current = listenForInterviewAnswer(new SR(), {
       lang: lang === 'hi' ? 'hi-IN' : 'en-US',
       onTranscript: setCurrentAnswer,
-      onAnswer: text => answerHandlerRef.current(text),
+      onAnswer: (text, alternatives) => answerHandlerRef.current(text, alternatives),
       onStopped: () => setIsInterviewListening(false),
     });
   }, [lang, stopInterviewListening]);
@@ -352,7 +371,7 @@ export function CbacScreening() {
     setCurrentAnswer('');
   }, [stopSpeak, stopInterviewListening, clearTransition]);
 
-  async function handleInterviewAnswer(answerText: string) {
+  async function handleInterviewAnswer(answerText: string, alternatives: string[] = []) {
     if (!answerText.trim() || answerPendingRef.current) return;
     const answeredIndex = questionIndexRef.current;
     const currentQ = questionsRef.current[answeredIndex];
@@ -364,15 +383,34 @@ export function CbacScreening() {
     interpretationAbortRef.current?.abort();
     const controller = new AbortController();
     interpretationAbortRef.current = controller;
-    const parsed = await interpretInterviewAnswer(currentQ.id, answerText, general.sex, () => getToken(), controller.signal);
-    if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
-    setInterpreting(false);
-    if (!parsed.ok) {
-      answerPendingRef.current = false;
-      setAnswerError(parsed.error);
-      return;
+    if (currentQ.id === 'initiate_referral') {
+      const decision = parseReferralDecision(answerText);
+      setInterpreting(false);
+      if (!decision) {
+        answerPendingRef.current = false;
+        setAnswerError('Please say yes to initiate referral, or no for screening only.');
+        return;
+      }
+      setReferralForm(previous => ({
+        ...previous, referralRequired: decision,
+        ...(decision === 'yes' ? {
+          destinationFacility: previous.destinationFacility || general.phcUphc || 'PHC',
+          reason: previous.reason || triage.reasons.join(' · ') || `CBAC Part A risk score ${partA.totalScore}/12; referral requested`,
+          urgency: triage.referralRequired ? triage.urgency : previous.urgency,
+        } : {}),
+      }));
+    } else {
+      const parsed = await interpretInterviewAnswer(currentQ.id, answerText, general.sex, () => getToken(), controller.signal, general.age, alternatives);
+      if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
+      setInterpreting(false);
+      if (!parsed.ok) {
+        answerPendingRef.current = false;
+        setAnswerError(parsed.error);
+        return;
+      }
+      applyInterviewUpdates(parsed.updates);
+      if (parsed.categories) setBCategories(parsed.categories);
     }
-    applyInterviewUpdates(parsed.updates);
 
     const run = questionRunRef.current;
     clearTransition();
@@ -391,9 +429,9 @@ export function CbacScreening() {
         interviewActiveRef.current = false;
         setInterviewActive(false);
         setActiveSlide('REFERRAL');
-        if (interviewActive) void speak([{ text: lang === 'hi' ? 'सभी प्रश्नों की जांच पूरी हो गई है।' : 'All interview questions have been completed.' }]);
+        if (interviewActive) void speak([{ text: lang === 'hi' ? 'सभी प्रश्न पूरे हो गए। कृपया रेफरल योजना जांच कर फॉर्म सेव करें।' : 'All interview questions are complete. Please review the referral plan and save the form.' }]);
       }
-    }, 700);
+    }, 150);
   }
 
   function goToInterviewQuestion(index: number) {
@@ -632,10 +670,6 @@ export function CbacScreening() {
     });
   }
 
-  // Computed Triage
-  const triage = useMemo(() => {
-    return evaluateCbacTriage(partA, partB, partC, partD);
-  }, [partA, partB, partC, partD]);
 
   const isElderly = typeof general.age === 'number' && general.age >= 60;
   const isFemale = general.sex === 'F';
@@ -712,6 +746,25 @@ export function CbacScreening() {
     });
     return analyze(patient, referral, []);
   }, [general, referralForm]);
+
+  async function handleGenerateNotes() {
+    if (generatingNotes) return;
+    setGeneratingNotes(true); setNotesError(''); setNotesDraft('');
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Please sign in again to generate notes.');
+      const context = generateWorkerNotes({ partA, partB, partC, partD, reasons: triage.reasons, referralRequired: referralForm.referralRequired, urgency: referralForm.urgency });
+      const response = await fetch('/api/interpret-answer', {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: 'clinical-notes', context }), signal: AbortSignal.timeout(15000),
+      });
+      const data = await response.json();
+      if (!response.ok || typeof data.notes !== 'string' || !data.notes.trim()) throw new Error(data.error || 'Could not generate notes. Please try again.');
+      setNotesDraft(data.notes);
+    } catch (error) {
+      setNotesError(error instanceof Error ? error.message : 'Could not generate notes. Please try again.');
+    } finally { setGeneratingNotes(false); }
+  }
 
   // Save CBAC Assessment
   async function handleSaveAssessment() {
@@ -791,7 +844,7 @@ export function CbacScreening() {
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
         <div className="flex items-center gap-2">
-          <BackLink to={id ? `/case/${id}` : '/'} label={id ? t('case.back') : 'Back to Home'} />
+          <BackLink />
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
@@ -1947,7 +2000,7 @@ export function CbacScreening() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${referralForm.referralRequired === 'yes' ? 'bg-warn text-white' : 'bg-ok-soft text-ok'}`}>
-                    {referralForm.referralRequired === 'yes' ? 'Referral: Initiated' : 'Screening Only'}
+                    {referralForm.referralRequired === 'yes' ? 'Referral: Planned' : 'Screening Only'}
                   </span>
                 </div>
               </div>
@@ -2021,6 +2074,15 @@ export function CbacScreening() {
                 <span className="font-bold text-sm sm:text-base text-ink block">
                   Does this patient require referral to a health facility?
                 </span>
+                {(searchParams.get('tier') || 'asha') === 'asha' && (
+                  <div className="text-xs text-muted space-y-1">
+                    <p>Part A risk score: <strong>{partA.totalScore}/12</strong>{!slideAComplete ? ' · Incomplete risk assessment' : ''}. {triage.highRiskNcd ? 'Score above 4: PHC referral recommended.' : triage.referralRequired ? 'Other screening flags recommend referral to PHC.' : 'No automatic referral flag from the current screening.'}</p>
+                    <button type="button" className="font-semibold text-teal-700 underline" onClick={() => {
+                      const index = interviewQuestions.findIndex(question => question.id === 'initiate_referral');
+                      if (index >= 0) { setVoicePanelOpen(true); startInterview(index); }
+                    }}>Ask referral decision by voice</button>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2" role="radiogroup">
                   <button
                     type="button"
@@ -2163,43 +2225,32 @@ export function CbacScreening() {
                     </div>
                   </div>
 
-                  {/* Facility Coordination / Response (from New Referral) */}
-                  <div className="p-3 rounded-xl bg-surface border border-line/60 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-xs sm:text-sm text-ink block">
-                        Facility Response Status
-                      </span>
-                      <span className="text-[0.72rem] text-muted">
-                        Has destination facility confirmed receipt or acceptance?
-                      </span>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-brand">
-                      <input
-                        type="checkbox"
-                        className="!min-h-0 !w-4 !h-4 rounded text-brand"
-                        checked={referralForm.facilityResponse === 'accepted'}
-                        onChange={(e) =>
-                          setReferralForm((f) => ({
-                            ...f,
-                            facilityResponse: e.target.checked ? 'accepted' : undefined,
-                          }))
-                        }
-                      />
-                      <span>Facility Accepted</span>
-                    </label>
-                  </div>
-
                   {/* Worker Notes */}
                   <div>
-                    <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                      Frontline Worker Clinical Notes
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label htmlFor="worker-clinical-notes" className="text-xs sm:text-sm font-bold text-ink">Frontline Worker Clinical Notes</label>
+                      <button type="button" className="btn btn-secondary text-xs !min-h-[32px]" disabled={generatingNotes} onClick={handleGenerateNotes}>
+                        <Icon name="spark" size={14} /> {generatingNotes ? 'Generating…' : 'AI generate'}
+                      </button>
+                    </div>
                     <textarea
+                      id="worker-clinical-notes"
                       rows={3}
                       value={referralForm.notes}
                       placeholder="Add details on patient condition, family member escorting, transportation plan, etc."
                       onChange={(e) => setReferralForm((f) => ({ ...f, notes: e.target.value }))}
                     />
+                    <p className="text-[11px] text-muted mt-1">Groq AI uses screening findings and the referral plan. Names and contact details are excluded.</p>
+                    {notesError && <p role="alert" className="text-xs text-danger mt-2">{notesError}</p>}
+                    {notesDraft && <div className="rounded-lg border border-teal-200 bg-teal-50 p-3 mt-2 space-y-2">
+                      <p className="text-xs font-semibold text-teal-800">Clinical notes draft · Review before using</p>
+                      <p className="text-sm whitespace-pre-wrap">{notesDraft}</p>
+                      <div className="flex gap-2">
+                        <button type="button" className="btn btn-primary text-xs" onClick={() => { setReferralForm(previous => ({ ...previous, notes: [previous.notes.trim(), notesDraft].filter(Boolean).join('\n\n') })); setNotesDraft(''); }}>Use draft{referralForm.notes.trim() ? ' · append to notes' : ''}</button>
+                        <button type="button" className="btn btn-secondary text-xs" onClick={() => setNotesDraft('')}>Discard</button>
+                      </div>
+                    </div>}
+
                   </div>
 
                   {/* Small AI Live Gap Preview */}

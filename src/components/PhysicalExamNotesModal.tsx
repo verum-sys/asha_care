@@ -27,7 +27,7 @@ export function PhysicalExamNotesModal({
   const [bpSys, setBpSys] = useState<string>(initialExam?.bpSystolic ? String(initialExam.bpSystolic) : '');
   const [bpDia, setBpDia] = useState<string>(initialExam?.bpDiastolic ? String(initialExam.bpDiastolic) : '');
   const [pulse, setPulse] = useState<string>(initialExam?.pulseRate ? String(initialExam.pulseRate) : '');
-  const [spo2, setSpo2] = useState<string>(initialExam?.spo2 ? String(initialExam.spo2) : '98');
+  const [spo2, setSpo2] = useState<string>(initialExam?.spo2 ? String(initialExam.spo2) : '');
   const [temp, setTemp] = useState<string>(initialExam?.temperature ? String(initialExam.temperature) : '');
   const [weight, setWeight] = useState<string>(initialExam?.weightKg ? String(initialExam.weightKg) : '');
   const [height, setHeight] = useState<string>(initialExam?.heightCm ? String(initialExam.heightCm) : '');

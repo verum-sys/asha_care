@@ -2,17 +2,33 @@ import { activityMinutesPerWeek } from './cbacActivity';
 import { parseAlcoholFrequency, alcoholScoreFor } from './cbacAlcohol';
 import { classifyAge, classifyWaist, parseCbacText, type SmartParseResult } from './cbacIntelligence';
 import { parseInterviewNumber } from '../voice/interviewRecognition';
+import { B_CATEGORIES_ID, B_SYMPTOM_PREFIX, parsePartBCategories, parseYesNo, partBSymptomQuestion, type PartBCategory } from './cbacPartBInterview';
 import type { Sex } from '../db/types';
 
-export type InterviewAnswerResult = { ok: true; updates: SmartParseResult } | { ok: false; error: string };
+export type InterviewAnswerResult = { ok: true; updates: SmartParseResult; categories?: PartBCategory[] } | { ok: false; error: string };
 /** Parse only the field being asked. Never run unrestricted demographic extraction on an answer. */
-export function parseCbacInterviewAnswer(question: string, answer: string, sex: Sex | '' = ''): InterviewAnswerResult {
+export function parseCbacInterviewAnswer(question: string, answer: string, sex: Sex | '' = '', age: number | '' = ''): InterviewAnswerResult {
   const text = answer.trim();
   const lower = text.toLowerCase();
   const updates: SmartParseResult = { generalUpdates: {}, partAUpdates: {}, partBUpdates: {}, partCUpdates: {}, partDUpdates: {}, explanations: [] };
   const fail = (error: string): InterviewAnswerResult => ({ ok: false, error });
   const no = /^(?:no|none|never|no alcohol|no tobacco|no family history|no cough|no symptoms|not at all|नहीं|कभी नहीं|कोई समस्या नहीं|परिवार में कोई नहीं)[.!]?$/i.test(text);
   const yes = /^(?:yes|हाँ|हां|haan|han)[.!]?$/i.test(text);
+  if (question === B_CATEGORIES_ID) {
+    const categories = parsePartBCategories(text, sex, age);
+    if (!categories) return fail('Please name the problem area, such as TB, mouth, eyes, skin, or say none.');
+    updates.explanations = [{ field: question, detail: categories.length ? `Part B sections to ask: ${categories.join(', ')}` : 'No Part B problem areas reported' }];
+    return { ok: true, updates, categories };
+  }
+  if (question.startsWith(B_SYMPTOM_PREFIX)) {
+    const symptomId = question.slice(B_SYMPTOM_PREFIX.length);
+    if (!partBSymptomQuestion(symptomId)) return fail('This question is not supported. Use the form field to record your answer.');
+    const value = parseYesNo(text);
+    if (value === undefined) return fail('Please answer yes or no.');
+    updates.partBUpdates[symptomId] = value;
+    updates.explanations = [{ field: symptomId, detail: `${symptomId}: ${value ? 'yes' : 'no'}` }];
+    return { ok: true, updates };
+  }
   switch (question) {
     case 'name': {
       const name = text.replace(/^(?:my name is|patient(?:'s)? name is|name is|मेरा नाम)\s+/i, '').trim();
@@ -75,7 +91,7 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
           updates.partAUpdates.physicalActivityScore = minutes >= 150 ? 0 : 1;
         }
       } else if (no || /sedentary|inactive|no exercise|less than 150|नहीं/i.test(text)) updates.partAUpdates.physicalActivityScore = 1;
-      else if (yes || /active|walks daily|रोज|व्यायाम/i.test(text)) updates.partAUpdates.physicalActivityScore = 0;
+      else if (yes || /active|walks daily|^(?:daily|every[\s-]*day|regularly)$|रोज|व्यायाम/i.test(text)) updates.partAUpdates.physicalActivityScore = 0;
       else return fail('Please give weekly activity in minutes or hours, such as 150 minutes or 2.5 hours.');
       break;
     }

@@ -1,10 +1,15 @@
+import { CareJourneySummary } from '../../components/CareJourneySummary';
+import { BackLink } from '../../components/Layout';
+import { VisitStatusModal } from '../../components/VisitStatusModal';
+import { ClinicalHandovers } from '../../components/ClinicalHandovers';
+import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
+import { Link, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { Icon } from '../../components/Icon';
 import { listCases, type CaseRecord } from '../../db/repo';
 import { useLive } from '../../db/useLive';
-import type { CareTier, CareUnit, ReportAttachment } from '../../db/types';
+import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
@@ -14,11 +19,9 @@ import { AiSummaryModal } from '../../components/AiSummaryModal';
 export function TierModuleView() {
   const { tier: tierParam } = useParams<{ tier: CareTier }>();
   const navigate = useNavigate();
-  const [query] = useSearchParams();
-  const { user, switchUnit } = useAuth();
+  const { user } = useAuth();
   const activeTier: CareTier = (tierParam as CareTier) || 'asha';
 
-  const [activeUnit, setActiveUnit] = useState<CareUnit>(['a', 'b', 'c'].includes(query.get('unit') || '') ? query.get('unit') as CareUnit : user.unit);
   const [search, setSearch] = useState('');
 
   // Modals state
@@ -26,16 +29,20 @@ export function TierModuleView() {
   const [activePdfPreview, setActivePdfPreview] = useState<{ attachment: ReportAttachment; patientName: string; patientId: string } | null>(null);
   const [activeCaseForExam, setActiveCaseForExam] = useState<{ caseRecord: CaseRecord } | null>(null);
   const [activeCaseForReferral, setActiveCaseForReferral] = useState<{ caseRecord: CaseRecord } | null>(null);
+  const [visitCase, setVisitCase] = useState<CaseRecord | null>(null);
+  const [editReport, setEditReport] = useState<{ id: string; attachment: ReportAttachment } | null>(null);
   const [activeCaseForAi, setActiveCaseForAi] = useState<{ caseRecord: CaseRecord } | null>(null);
 
   const { data: allCases = [] } = useLive(listCases, []);
+  /** Modals hold a snapshot; read the live record so saved summaries show immediately. */
+  const freshCase = (record: CaseRecord) => allCases.find(c => c.referral.id === record.referral.id) ?? record;
 
-  // Filter cases belonging to this tier and unit
+  // Super admins see every unit in the module; staff retain their assigned access.
   const tierCases = allCases.filter((c) => {
     const t = c.referral.tier || 'asha';
     const u = c.referral.unit || 'a';
     if (t !== activeTier) return false;
-    if (activeUnit && u !== activeUnit) return false;
+    if (user.role !== 'super_admin' && u !== user.unit) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       const name = (c.patient.name || '').toLowerCase();
@@ -49,56 +56,30 @@ export function TierModuleView() {
     name: string;
     level: string;
     gradient: string;
-    units: { key: CareUnit; label: string }[];
     nextTierName?: string;
-    features: string[];
   }> = {
     asha: {
       name: 'ASHA Grassroots Healthcare',
       level: 'Tier 1 · Community Screening',
       gradient: 'from-teal-500 via-teal-600 to-emerald-600',
-      units: [
-        { key: 'a', label: 'Bero Subcentre A' },
-        { key: 'b', label: 'Rampur Village B' },
-        { key: 'c', label: 'Mandar Sector C' },
-      ],
       nextTierName: 'PHC',
-      features: ['CBAC Form', 'Refer to next PHC', 'AI Summary'],
     },
     phc: {
       name: 'Primary Health Centre (PHC)',
       level: 'Tier 2 · Primary Medical Triage',
       gradient: 'from-sky-500 via-sky-600 to-blue-600',
-      units: [
-        { key: 'a', label: 'PHC Itki Unit A' },
-        { key: 'b', label: 'PHC Bero Unit B' },
-        { key: 'c', label: 'PHC Kanke Unit C' },
-      ],
       nextTierName: 'DH',
-      features: ['CBAC Form (editable)', 'Notes (Physical Examination)', 'Reports (PDF file attachment)', 'Refer to DH', 'AI Summary'],
     },
     dh: {
       name: 'District Hospital (DH)',
       level: 'Tier 3 · Secondary Diagnostic & Staging',
       gradient: 'from-cyan-600 via-teal-600 to-emerald-600',
-      units: [
-        { key: 'a', label: 'Sadar DH Ranchi Unit A' },
-        { key: 'b', label: 'DH Khunti Unit B' },
-        { key: 'c', label: 'DH Gumla Unit C' },
-      ],
       nextTierName: 'TCC',
-      features: ['CBAC Form (editable)', 'Notes (Physical Examination)', 'Reports (PDF file attachment)', 'Biopsy Report (PDF)', 'Radiology Report (PDF)', 'DH Notes', 'Refer to TCC', 'AI Summary'],
     },
     tcc: {
       name: 'Tertiary Care Centre (TCC)',
       level: 'Tier 4 · Advanced Oncology & MDT Protocols',
       gradient: 'from-emerald-600 via-teal-700 to-sky-700',
-      units: [
-        { key: 'a', label: 'RIMS Regional Cancer Centre A' },
-        { key: 'b', label: 'State Cancer Institute B' },
-        { key: 'c', label: 'Apex Oncology Centre C' },
-      ],
-      features: ['CBAC Form (editable)', 'Notes (Physical Examination)', 'Reports (PDF file attachment)', 'Biopsy Report (PDF)', 'Radiology Report (PDF)', 'TCC Notes', 'AI Summary'],
     },
   };
 
@@ -109,10 +90,7 @@ export function TierModuleView() {
     <div key={activeTier} className="tier-module space-y-5 max-w-6xl mx-auto pb-12">
       {/* Breadcrumb & Navigation */}
       <div className="flex items-center justify-between">
-        <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900">
-          <Icon name="back" size={16} />
-          <span>Care network overview</span>
-        </Link>
+        <BackLink />
         <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
           {currentMeta.level}
         </span>
@@ -128,15 +106,12 @@ export function TierModuleView() {
             <h1 className="text-2xl font-black font-display tracking-tight text-white mt-1">
               {currentMeta.name}
             </h1>
-            <p className="text-xs text-white/85 max-w-2xl mt-1">
-              Active facility workstation for conducting screenings, editing assessments, managing physical examination notes, diagnostic PDF reports, and care continuity.
-            </p>
           </div>
 
           {/* Prominent "+ Add New CBAC Form" button */}
           <button
             type="button"
-            onClick={() => navigate(`/cbac?tier=${activeTier}&unit=${activeUnit}`)}
+            onClick={() => navigate(`/cbac?tier=${activeTier}`)}
             className="btn !min-h-[44px] px-4 rounded-xl text-xs sm:text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md flex items-center gap-2 active:scale-95 transition-all"
           >
             <Icon name="spark" size={16} className="text-teal-600" />
@@ -144,53 +119,15 @@ export function TierModuleView() {
           </button>
         </div>
 
-        {/* Feature Pills */}
-        <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-white/70 uppercase">Enabled Capabilities:</span>
-          {currentMeta.features.map((feat, i) => (
-            <span
-              key={i}
-              className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white/15 text-white backdrop-blur-sm border border-white/20"
-            >
-              ✓ {feat}
-            </span>
-          ))}
-        </div>
+
       </div>
 
-      {/* Sub-Unit Selector (a / b / c) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Active Sub-Unit:
-          </span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {currentMeta.units.map((u) => (
-              <button
-                key={u.key}
-                type="button"
-                onClick={() => {
-                  setActiveUnit(u.key);
-                  switchUnit(u.key);
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeUnit === u.key
-                    ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-400/20'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <span>Unit {u.key.toUpperCase()}</span>
-                <span className="ml-1 text-[11px] font-normal opacity-80">({u.label})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <div className="flex justify-end bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
         {/* Search */}
         <div className="relative min-w-[220px]">
           <input
             type="text"
-            placeholder="Search patient in this unit..."
+            placeholder="Search patients..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full text-xs rounded-xl border border-slate-200 pl-8 pr-3 py-2 outline-none focus:border-sky-500"
@@ -205,7 +142,7 @@ export function TierModuleView() {
       <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 font-display">
-            <span>Patients at {currentMeta.name} (Unit {activeUnit.toUpperCase()})</span>
+            <span>Patients at {currentMeta.name}</span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
               {tierCases.length} {tierCases.length === 1 ? 'case' : 'cases'}
             </span>
@@ -213,7 +150,7 @@ export function TierModuleView() {
 
           <button
             type="button"
-            onClick={() => navigate(`/cbac?tier=${activeTier}&unit=${activeUnit}`)}
+            onClick={() => navigate(`/cbac?tier=${activeTier}`)}
             className="text-xs font-bold text-sky-700 hover:text-sky-800 underline flex items-center gap-1"
           >
             <Icon name="spark" size={13} />
@@ -223,10 +160,10 @@ export function TierModuleView() {
 
         {tierCases.length === 0 ? (
           <div className="text-center py-12 space-y-3">
-            <p className="text-slate-400 text-sm">No patient cases currently in {currentMeta.name} Unit {activeUnit.toUpperCase()}.</p>
+            <p className="text-slate-400 text-sm">No patient cases currently in {currentMeta.name}.</p>
             <button
               type="button"
-              onClick={() => navigate(`/cbac?tier=${activeTier}&unit=${activeUnit}`)}
+              onClick={() => navigate(`/cbac?tier=${activeTier}`)}
               className="btn btn-primary !min-h-[40px] text-xs font-bold"
             >
               + Create First CBAC Screening for this Unit
@@ -284,16 +221,9 @@ export function TierModuleView() {
                     </div>
                   </div>
 
-                  {/* Vitals snapshot if recorded */}
-                  {c.referral.physicalExam && (
-                    <div className="text-xs bg-white p-2 rounded-lg border border-slate-200 flex flex-wrap items-center gap-3 text-slate-700">
-                      <span className="font-bold text-slate-500">Vitals:</span>
-                      <span>BP: {c.referral.physicalExam.bpSystolic}/{c.referral.physicalExam.bpDiastolic} mmHg</span>
-                      <span>Pulse: {c.referral.physicalExam.pulseRate} bpm</span>
-                      <span>SpO2: {c.referral.physicalExam.spo2}%</span>
-                      <span>BMI: {c.referral.physicalExam.bmi || '—'}</span>
-                    </div>
-                  )}
+                  <RecordedVitals exam={c.referral.physicalExam} />
+                  <CareJourneySummary record={c} onEditSummary={() => setActiveCaseForAi({ caseRecord: c })} />
+                  <ClinicalHandovers handovers={c.referral.clinicalHandovers} />
 
                   {/* Attached Reports previews */}
                   {reportsCount > 0 && (
@@ -326,12 +256,15 @@ export function TierModuleView() {
                     </div>
                   )}
 
+                  {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="text-xs font-semibold text-sky-700 underline" onClick={() => setEditReport({ id: c.referral.id, attachment })}>Edit {attachment.title}</button>)}</div>}
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>Acceptance: {c.referral.worker.facilityResponse ?? c.referral.facility.response}</span><span>Appointment: {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>Acceptance & appointment</button><Link className="text-sky-700 font-semibold underline" to={`/case/${c.referral.id}/edit`}>Edit patient / referral</Link></div>
                   {/* Toolbar */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {/* CBAC Form */}
                       <Link
-                        to={`/case/${c.referral.id}/cbac`}
+                        to={`/case/${c.referral.id}/cbac?tier=${activeTier}&unit=${c.referral.unit || 'a'}`}
+                        state={{ returnTo: `/tier/${activeTier}` }}
                         className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                       >
                         <Icon name="spark" size={13} className="text-teal-600" />
@@ -421,6 +354,9 @@ export function TierModuleView() {
       </div>
 
       {/* MODALS */}
+      {visitCase && <VisitStatusModal referral={visitCase.referral} onClose={() => setVisitCase(null)} />}
+      {editReport && <ReportAttachmentModal referralId={editReport.id} category={editReport.attachment.category} initialAttachment={editReport.attachment} isOpen onClose={() => setEditReport(null)} />}
+
       {activeCaseForAttachment && (
         <ReportAttachmentModal
           referralId={activeCaseForAttachment.id}
@@ -457,6 +393,8 @@ export function TierModuleView() {
           referralId={activeCaseForReferral.caseRecord.referral.id}
           patientName={activeCaseForReferral.caseRecord.patient.name}
           currentTier={activeTier}
+          savedSummary={freshCase(activeCaseForReferral.caseRecord).referral.aiSummaryOverride}
+          onEditSummary={() => setActiveCaseForAi({ caseRecord: freshCase(activeCaseForReferral.caseRecord) })}
           isOpen={true}
           onClose={() => setActiveCaseForReferral(null)}
         />
@@ -464,7 +402,7 @@ export function TierModuleView() {
 
       {activeCaseForAi && (
         <AiSummaryModal
-          caseRecord={activeCaseForAi.caseRecord}
+          caseRecord={freshCase(activeCaseForAi.caseRecord)}
           viewerTier={activeTier}
           isOpen={true}
           onClose={() => setActiveCaseForAi(null)}

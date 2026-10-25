@@ -25,6 +25,7 @@ export interface WorkerFacts {
   appointmentDate?: string;
   appointmentCertainty?: AppointmentCertainty;
   attendance?: Attendance;
+  attendedDate?: string;
   outcomeRecorded?: boolean;
   outcomeNote?: string;
 }
@@ -91,6 +92,18 @@ export interface TierNote {
   at: string;
 }
 
+export interface ClinicalHandover {
+  fromTier: CareTier;
+  toTier: CareTier;
+  at: string;
+  physicalExam?: PhysicalExamNotes;
+  notes?: string;
+  dhNotes?: string;
+  aiSummary?: string;
+  visitStatus?: WorkerFacts;
+  facilityStatus?: FacilityFacts;
+}
+
 export interface Referral {
   id: string;
   patientId: string;
@@ -114,6 +127,7 @@ export interface Referral {
   biopsyReports?: ReportAttachment[];
   radiologyReports?: ReportAttachment[];
   aiSummaryOverride?: string;
+  clinicalHandovers?: ClinicalHandover[];
   createdAt: string;
   updatedAt: string;
   syncStatus: SyncStatus;
@@ -140,7 +154,7 @@ export interface FollowUp {
   at: string;
   action: FollowUpAction;
   note?: string;
-  data?: { date?: string; response?: FacilityResponse; intention?: Intention };
+  data?: { date?: string; response?: FacilityResponse; intention?: Intention; tier?: CareTier; attendance?: Attendance };
   /** The action key the Small AI suggested at the time; lets the timeline show worker overrides. */
   suggestedAction?: ActionKey;
   syncStatus: SyncStatus;

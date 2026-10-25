@@ -7,6 +7,9 @@ interface TierReferralModalProps {
   referralId: string;
   patientName: string;
   currentTier: CareTier;
+  savedSummary?: string;
+  onEditSummary?: () => void;
+  initialNotes?: string;
   isOpen: boolean;
   onClose: () => void;
   onReferred?: () => void;
@@ -16,6 +19,9 @@ export function TierReferralModal({
   referralId,
   patientName,
   currentTier,
+  savedSummary,
+  onEditSummary,
+  initialNotes = '',
   isOpen,
   onClose,
   onReferred,
@@ -41,7 +47,7 @@ export function TierReferralModal({
 
   const [destinationFacility, setDestinationFacility] = useState(defaultFacilities[targetTier][0] || '');
   const [urgency, setUrgency] = useState<Urgency>('soon');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(initialNotes);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -128,6 +134,11 @@ export function TierReferralModal({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="rounded-xl bg-teal-50 border border-teal-100 p-3 text-xs text-teal-900">
+            <div className="flex items-center justify-between gap-2"><p className="font-semibold">AI summary handover</p>{onEditSummary && <button type="button" className="btn btn-secondary !min-h-[30px] text-xs" onClick={onEditSummary}>{savedSummary?.trim() ? 'Edit summary' : 'Write summary'}</button>}</div>
+            {savedSummary?.trim() ? <><p className="whitespace-pre-wrap mt-2 max-h-36 overflow-y-auto">{savedSummary}</p><p className="mt-2">This saved summary will be available to the receiving care team.</p></> : <p className="mt-1">No edited summary saved yet. Save one from AI Summary to include it in the handover.</p>}
           </div>
 
           {/* Clinical Escalation Reason */}

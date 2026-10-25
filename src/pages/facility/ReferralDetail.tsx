@@ -33,7 +33,7 @@ export function ReferralDetail() {
   if (!data)
     return (
       <div>
-        <BackLink to="/facility" />
+        <BackLink />
         <p className="card">{t('facility.notFound')}</p>
       </div>
     );
@@ -58,7 +58,7 @@ export function ReferralDetail() {
 
   return (
     <div className="space-y-4">
-      <BackLink to="/facility" />
+      <BackLink />
       <h1 className="text-[1.4rem] font-bold">{t('facility.detail')}</h1>
 
       <section className="card">
@@ -108,7 +108,7 @@ export function ReferralDetail() {
           </p>
         )}
         {closed ? (
-          <p className="text-muted">{t('facility.closedInfo')}</p>
+          <div className="space-y-2"><p className="text-muted">{t('facility.closedInfo')}</p><button type="button" className="btn btn-primary text-xs" disabled={busy} onClick={() => void act({ kind: 'accepted', text: msg() })}>Accept / reopen referral</button></div>
         ) : (
           <>
             <div>

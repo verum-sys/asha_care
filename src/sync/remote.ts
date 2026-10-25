@@ -27,7 +27,7 @@ export async function pushRecords(patients: Patient[], referrals: Referral[], fo
     const existing = await tx.objectStore('remote_referrals').get(r.id);
     await tx
       .objectStore('remote_referrals')
-      .put({ ...r, facility: existing ? existing.facility : r.facility, syncStatus: 'synced', lastSyncedAt: at });
+      .put({ ...r, facility: existing && (existing.tier || 'asha') === (r.tier || 'asha') ? existing.facility : r.facility, syncStatus: 'synced', lastSyncedAt: at });
   }
   for (const f of followUps) await tx.objectStore('remote_followups').put({ ...f, syncStatus: 'synced' });
   await tx.done;
@@ -91,6 +91,7 @@ export async function facilityAct(referralId: string, input: FacilityActionInput
       break;
     case 'accepted':
       f.response = 'accepted';
+      f.completed = false;
       break;
     case 'declined':
       f.response = 'declined';
