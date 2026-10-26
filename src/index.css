@@ -337,3 +337,15 @@ input.registry-search { width:250px; max-width:100%; min-height:38px; font-size:
 .compact-home .module-card ul { padding:10px 0 0; margin-bottom:10px; }
 .compact-home .module-card li { margin-bottom:5px; }
 .compact-home .module-open { padding:9px; }
+
+/* App-like mobile shell: bottom tab bar and compact top bar for the installed PWA. */
+.mobile-tabbar { display:none; }
+@media(max-width:640px) {
+  .care-topbar { flex-wrap:nowrap; min-height:54px; padding:8px 14px; padding-top:calc(8px + env(safe-area-inset-top, 0px)); position:sticky; top:0; z-index:30; }
+  .care-topbar .care-brand { font-size:17px; letter-spacing:-0.5px; gap:8px; }
+  .care-topbar .brand-mark { width:30px; height:32px; font-size:20px; border-radius:9px; }
+  .care-main { padding-bottom:calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .mobile-tabbar { display:flex; position:fixed; inset:auto 0 0 0; z-index:40; background:white; border-top:1px solid #e2e8f0; padding:6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); box-shadow:0 -4px 16px rgba(15,23,42,.06); }
+  .mobile-tabbar a { flex:1; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:11px; font-weight:600; color:#64748b; border-radius:12px; }
+  .mobile-tabbar a.active { color:#0f766e; background:#e6f6f2; }
+}

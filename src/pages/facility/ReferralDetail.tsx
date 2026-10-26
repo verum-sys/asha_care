@@ -108,7 +108,7 @@ export function ReferralDetail() {
           </p>
         )}
         {closed ? (
-          <div className="space-y-2"><p className="text-muted">{t('facility.closedInfo')}</p><button type="button" className="btn btn-primary text-xs" disabled={busy} onClick={() => void act({ kind: 'accepted', text: msg() })}>Accept / reopen referral</button></div>
+          <div className="space-y-2"><p className="text-muted">{t('facility.closedInfo')}</p><button type="button" className="btn btn-primary text-xs" disabled={busy} onClick={() => void act({ kind: 'accepted', text: msg() })}>{t('Accept / reopen referral')}</button></div>
         ) : (
           <>
             <div>

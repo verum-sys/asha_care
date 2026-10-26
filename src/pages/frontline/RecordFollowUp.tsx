@@ -69,8 +69,8 @@ export function RecordFollowUp() {
     }
   }
 
-  if (loading) return <p role="status">Loading patient record…</p>;
-  if (!data) return <div><BackLink /><p>Patient record not found.</p></div>;
+  if (loading) return <p role="status">{t('Loading patient record…')}</p>;
+  if (!data) return <div><BackLink /><p>{t('Patient record not found.')}</p></div>;
 
   return (
     <div className="space-y-4">
@@ -135,7 +135,7 @@ export function RecordFollowUp() {
           <textarea id="fu-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} required={action === 'outcome_recorded'} />
         </div>
 
-        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{t(error)}</p>}
         <button type="submit" className="btn btn-primary btn-block !min-h-[56px] text-lg" disabled={!canSave} data-testid="save-followup">
           {action === 'refer_next_tier' ? `Continue referral to ${nextCareTier(tier)?.toUpperCase()}` : t('followup.save')}
         </button>

@@ -1,5 +1,6 @@
 import { CBAC_B1_SYMPTOMS, CBAC_B2_SYMPTOMS, CBAC_B3_SYMPTOMS } from './cbacTypes';
 import { getApplicableInterviewQuestions, type InterviewQuestion } from './cbacInterviewQuestions';
+import { hiExtra } from '../i18n/hiExtra';
 import type { Sex } from '../db/types';
 
 export type PartBCategory = 'tb' | 'eyes_ears' | 'mouth' | 'skin_nerve' | 'women' | 'elderly';
@@ -50,7 +51,7 @@ export function partBSymptomQuestion(symptomId: string): InterviewQuestion | und
   return {
     id: B_SYMPTOM_PREFIX + symptomId, field: symptomId, slide: 'B',
     promptEn: `${item.label}? Yes or no.`,
-    promptHi: `क्या आपको यह समस्या है: ${item.label}? हाँ या नहीं।`,
+    promptHi: `क्या आपको यह समस्या है: ${hiExtra[item.label] ?? item.label}? हाँ या नहीं।`,
     hintEn: 'Answer yes or no.', hintHi: 'हाँ या नहीं बताएं।',
     sampleResponses: ['Yes', 'No'],
   };

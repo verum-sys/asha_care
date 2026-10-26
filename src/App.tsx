@@ -47,10 +47,11 @@ function Toast() {
 }
 
 function AccessGate({ children }: { children: React.ReactNode }) {
+  const { t } = useLang();
   const { isLoaded, isSignedIn } = useUser();
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
-  if (!isLoaded) return <div className="min-h-screen grid place-items-center text-teal-700" role="status">Loading secure portal…</div>;
+  if (!isLoaded) return <div className="min-h-screen grid place-items-center text-teal-700" role="status">{t('Loading secure portal…')}</div>;
   if (location.pathname === '/login') return <>{children}</>;
   if (!isSignedIn || !isAuthenticated) return <Navigate to="/login" replace />;
   if (!canAccessPath(user.role, location.pathname)) return <Navigate to={homeForRole(user.role)} replace />;
@@ -60,9 +61,10 @@ function AccessGate({ children }: { children: React.ReactNode }) {
 }
 
 function CaseAccess({ caseId, children }: { caseId: string; children: React.ReactNode }) {
+  const { t } = useLang();
   const { user } = useAuth();
   const { data: record, loading } = useLive(() => getCase(caseId), [caseId]);
-  if (loading) return <div role="status" className="p-8">Loading patient record…</div>;
+  if (loading) return <div role="status" className="p-8">{t('Loading patient record…')}</div>;
   if (!record || (record.referral.unit || 'a') !== user.unit) return <Navigate to={homeForRole(user.role)} replace />;
   return <>{children}</>;
 }

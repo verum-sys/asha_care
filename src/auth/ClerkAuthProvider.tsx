@@ -1,3 +1,4 @@
+import { useLang } from '../i18n';
 import React from 'react';
 import { ClerkProvider } from '@clerk/clerk-react';
 
@@ -5,9 +6,10 @@ export const CLERK_PUBLISHABLE_KEY =
   (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string) || '';
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLang();
   if (!CLERK_PUBLISHABLE_KEY) {
     console.warn('Missing Clerk Publishable Key');
-    return <div role="alert">Set VITE_CLERK_PUBLISHABLE_KEY to enable sign-in.</div>;
+    return <div role="alert">{t('Set VITE_CLERK_PUBLISHABLE_KEY to enable sign-in.')}</div>;
   }
 
   return (

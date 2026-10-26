@@ -1,3 +1,4 @@
+import { useLang } from '../i18n';
 import React, { useState } from 'react';
 import type { CareTier, Urgency } from '../db/types';
 import { referToNextTier } from '../db/repo';
@@ -26,6 +27,7 @@ export function TierReferralModal({
   onClose,
   onReferred,
 }: TierReferralModalProps) {
+  const { t } = useLang();
   if (!isOpen) return null;
 
   const targetTier: CareTier =
@@ -70,13 +72,13 @@ export function TierReferralModal({
         <div className="flex items-start justify-between border-b border-slate-100 pb-3">
           <div>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-              CLINICAL REFERRAL PIPELINE
+              {t('CLINICAL REFERRAL PIPELINE')}
             </span>
             <h2 className="text-xl font-bold text-slate-900 mt-1 font-display">
-              Refer to Next Level: {tierNames[targetTier]}
+              {t('Refer to Next Level:')} {t(tierNames[targetTier])}
             </h2>
             <p className="text-xs text-slate-500">
-              Escalating patient <strong className="text-slate-800">{patientName}</strong> from{' '}
+              {t('Escalating patient')} <strong className="text-slate-800">{patientName}</strong> from{' '}
               <span className="uppercase font-semibold">{currentTier}</span> to{' '}
               <span className="uppercase font-semibold text-emerald-700">{targetTier}</span>
             </p>
@@ -90,11 +92,11 @@ export function TierReferralModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">{error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+        <form onSubmit={handleSubmit} className="space-y-4">{error && <p role="alert" className="text-sm text-red-700">{t(error)}</p>}
           {/* Target Facility */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Destination {targetTier.toUpperCase()} Facility
+              {t('Destination')} {targetTier.toUpperCase()} {t('Facility')}
             </label>
             <select
               value={destinationFacility}
@@ -112,7 +114,7 @@ export function TierReferralModal({
           {/* Urgency */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Referral Urgency Level
+              {t('Referral Urgency Level')}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {(['routine', 'soon', 'urgent'] as Urgency[]).map((u) => (
@@ -137,14 +139,14 @@ export function TierReferralModal({
           </div>
 
           <div className="rounded-xl bg-teal-50 border border-teal-100 p-3 text-xs text-teal-900">
-            <div className="flex items-center justify-between gap-2"><p className="font-semibold">AI summary handover</p>{onEditSummary && <button type="button" className="btn btn-secondary !min-h-[30px] text-xs" onClick={onEditSummary}>{savedSummary?.trim() ? 'Edit summary' : 'Write summary'}</button>}</div>
-            {savedSummary?.trim() ? <><p className="whitespace-pre-wrap mt-2 max-h-36 overflow-y-auto">{savedSummary}</p><p className="mt-2">This saved summary will be available to the receiving care team.</p></> : <p className="mt-1">No edited summary saved yet. Save one from AI Summary to include it in the handover.</p>}
+            <div className="flex items-center justify-between gap-2"><p className="font-semibold">{t('AI summary handover')}</p>{onEditSummary && <button type="button" className="btn btn-secondary !min-h-[30px] text-xs" onClick={onEditSummary}>{savedSummary?.trim() ? 'Edit summary' : 'Write summary'}</button>}</div>
+            {savedSummary?.trim() ? <><p className="whitespace-pre-wrap mt-2 max-h-36 overflow-y-auto">{savedSummary}</p><p className="mt-2">{t('This saved summary will be available to the receiving care team.')}</p></> : <p className="mt-1">{t('No edited summary saved yet. Save one from AI Summary to include it in the handover.')}</p>}
           </div>
 
           {/* Clinical Escalation Reason */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Referral Reason & Handover Notes
+              {t('Referral Reason & Handover Notes')}
             </label>
             <textarea
               rows={3}
@@ -161,7 +163,7 @@ export function TierReferralModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"

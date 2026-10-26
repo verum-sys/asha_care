@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { en, type MessageKey } from './en';
 import { hi } from './hi';
+import { hiExtra } from './hiExtra';
 
 export type Lang = 'en' | 'hi';
-const DICTS: Record<Lang, Partial<Record<MessageKey, string>>> = { en, hi };
+const DICTS: Record<Lang, Partial<Record<string, string>>> = { en, hi: { ...hiExtra, ...hi } };
 const STORAGE_KEY = 'carelink.lang';
 
 type Params = Record<string, string | number | undefined>;
@@ -39,6 +40,10 @@ interface LangCtx {
 }
 
 const Ctx = createContext<LangCtx | null>(null);
+const FALLBACK: LangCtx = {
+  lang: 'en', setLang: () => undefined, t: (key, params) => translate('en', key, params),
+  formatDate: iso => (iso ? iso.slice(0, 10) : '—'), formatDateTime: iso => iso,
+};
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(readLang);
@@ -72,7 +77,6 @@ export function LangProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLang(): LangCtx {
-  const c = useContext(Ctx);
-  if (!c) throw new Error('useLang outside LangProvider');
-  return c;
+  // Outside a provider (isolated renders) fall back to English rather than crashing.
+  return useContext(Ctx) ?? FALLBACK;
 }

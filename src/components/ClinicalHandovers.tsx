@@ -1,9 +1,11 @@
+import { useLang } from '../i18n';
 import type { ClinicalHandover } from '../db/types';
 import { RecordedVitals } from './RecordedVitals';
 export function ClinicalHandovers({ handovers }: { handovers?: ClinicalHandover[] }) {
+  const { t } = useLang();
   if (!handovers?.length) return null;
   return <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 space-y-3">
-    <h3 className="text-sm font-bold text-sky-900">Notes from previous care teams</h3>
+    <h3 className="text-sm font-bold text-sky-900">{t('Notes from previous care teams')}</h3>
     {handovers.map((handover, index) => <details key={`${handover.at}-${index}`} open className="rounded-lg bg-white border border-sky-100 p-3 text-xs space-y-2">
       <summary className="font-semibold text-sky-900 cursor-pointer">{handover.fromTier.toUpperCase()} → {handover.toTier.toUpperCase()} · {new Date(handover.at).toLocaleDateString()}</summary>
       <RecordedVitals exam={handover.physicalExam} />

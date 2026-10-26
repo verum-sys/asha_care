@@ -1,3 +1,4 @@
+import { useLang } from '../../i18n';
 import { CareJourneySummary } from '../../components/CareJourneySummary';
 import { BackLink } from '../../components/Layout';
 import { VisitStatusModal } from '../../components/VisitStatusModal';
@@ -17,6 +18,7 @@ import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
 
 export function TierModuleView() {
+  const { t } = useLang();
   const { tier: tierParam } = useParams<{ tier: CareTier }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -92,7 +94,7 @@ export function TierModuleView() {
       <div className="flex items-center justify-between">
         <BackLink />
         <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-          {currentMeta.level}
+          {t(currentMeta.level)}
         </span>
       </div>
 
@@ -101,10 +103,10 @@ export function TierModuleView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-white/80 block">
-              {activeTier.toUpperCase()} OPERATIONAL MODULE
+              {activeTier.toUpperCase()} {t('OPERATIONAL MODULE')}
             </span>
             <h1 className="text-2xl font-black font-display tracking-tight text-white mt-1">
-              {currentMeta.name}
+              {t(currentMeta.name)}
             </h1>
           </div>
 
@@ -115,7 +117,7 @@ export function TierModuleView() {
             className="btn !min-h-[44px] px-4 rounded-xl text-xs sm:text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md flex items-center gap-2 active:scale-95 transition-all"
           >
             <Icon name="spark" size={16} className="text-teal-600" />
-            <span>+ Add New CBAC Form</span>
+            <span>{t('+ Add New CBAC Form')}</span>
           </button>
         </div>
 
@@ -127,7 +129,7 @@ export function TierModuleView() {
         <div className="relative min-w-[220px]">
           <input
             type="text"
-            placeholder="Search patients..."
+            placeholder={t('Search patients...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full text-xs rounded-xl border border-slate-200 pl-8 pr-3 py-2 outline-none focus:border-sky-500"
@@ -142,7 +144,7 @@ export function TierModuleView() {
       <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 font-display">
-            <span>Patients at {currentMeta.name}</span>
+            <span>{t('Patients at')} {t(currentMeta.name)}</span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
               {tierCases.length} {tierCases.length === 1 ? 'case' : 'cases'}
             </span>
@@ -151,22 +153,22 @@ export function TierModuleView() {
           <button
             type="button"
             onClick={() => navigate(`/cbac?tier=${activeTier}`)}
-            className="text-xs font-bold text-sky-700 hover:text-sky-800 underline flex items-center gap-1"
+            className="btn btn-primary !min-h-[40px] px-4 text-sm font-bold flex items-center gap-1.5 shadow-xs"
           >
-            <Icon name="spark" size={13} />
-            <span>+ Add New CBAC Form to this Unit</span>
+            <Icon name="spark" size={14} />
+            <span>{t('+ Add New CBAC Form to this Unit')}</span>
           </button>
         </div>
 
         {tierCases.length === 0 ? (
           <div className="text-center py-12 space-y-3">
-            <p className="text-slate-400 text-sm">No patient cases currently in {currentMeta.name}.</p>
+            <p className="text-slate-400 text-sm">{t('No patient cases currently in')} {t(currentMeta.name)}.</p>
             <button
               type="button"
               onClick={() => navigate(`/cbac?tier=${activeTier}`)}
               className="btn btn-primary !min-h-[40px] text-xs font-bold"
             >
-              + Create First CBAC Screening for this Unit
+              {t('+ Create First CBAC Screening for this Unit')}
             </button>
           </div>
         ) : (
@@ -193,7 +195,7 @@ export function TierModuleView() {
                           <span className="text-xs font-mono text-slate-400">({c.patient.id})</span>
                           {c.referral.urgency === 'urgent' && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
-                              URGENT
+                              {t('URGENT')}
                             </span>
                           )}
                         </div>
@@ -206,16 +208,16 @@ export function TierModuleView() {
                     <div className="flex items-center gap-2">
                       {cbac ? (
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${cbac.highRiskNcd ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                          CBAC Score: {cbac.partA.totalScore}/12
+                          {t('CBAC Score:')} {cbac.partA.totalScore}/12
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                          CBAC Pending
+                          {t('CBAC Pending')}
                         </span>
                       )}
                       {reportsCount > 0 && (
                         <span className="text-xs font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-md">
-                          {reportsCount} PDF Reports
+                          {reportsCount} {t('PDF Reports')}
                         </span>
                       )}
                     </div>
@@ -228,7 +230,7 @@ export function TierModuleView() {
                   {/* Attached Reports previews */}
                   {reportsCount > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-slate-400">Reports:</span>
+                      <span className="text-[11px] font-bold text-slate-400">{t('Reports:')}</span>
                       {[
                         ...(c.referral.reports || []),
                         ...(c.referral.biopsyReports || []),
@@ -256,8 +258,8 @@ export function TierModuleView() {
                     </div>
                   )}
 
-                  {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="text-xs font-semibold text-sky-700 underline" onClick={() => setEditReport({ id: c.referral.id, attachment })}>Edit {attachment.title}</button>)}</div>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>Acceptance: {c.referral.worker.facilityResponse ?? c.referral.facility.response}</span><span>Appointment: {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>Acceptance & appointment</button><Link className="text-sky-700 font-semibold underline" to={`/case/${c.referral.id}/edit`}>Edit patient / referral</Link></div>
+                  {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Acceptance:')} {c.referral.worker.facilityResponse ?? c.referral.facility.response}</span><span>{t('Appointment:')} {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>{t('Acceptance & appointment')}</button><Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/edit`}>{t('✎ Edit patient / referral')}</Link></div>
                   {/* Toolbar */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -279,11 +281,11 @@ export function TierModuleView() {
                           className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                         >
                           <Icon name="user" size={13} className="text-sky-600" />
-                          <span>Notes (Physical Examination)</span>
+                          <span>{t('Notes (Physical Examination)')}</span>
                         </button>
                       )}
 
-                      {(activeTier === 'dh' || activeTier === 'tcc') && <button type="button" onClick={() => setActiveCaseForExam({ caseRecord: c })} className="btn btn-secondary text-xs !min-h-[34px]">{activeTier.toUpperCase()} Notes</button>}
+                      {(activeTier === 'dh' || activeTier === 'tcc') && <button type="button" onClick={() => setActiveCaseForExam({ caseRecord: c })} className="btn btn-secondary text-xs !min-h-[34px]">{activeTier.toUpperCase()} {t('Notes')}</button>}
                       {/* PDF Reports Attachments */}
                       {activeTier !== 'asha' && (
                         <div className="flex flex-wrap items-center gap-1">
@@ -292,7 +294,7 @@ export function TierModuleView() {
                             onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'general' })}
                             className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
                           >
-                            + Reports (PDF)
+                            {t('+ Reports (PDF)')}
                           </button>
                           {(activeTier === 'dh' || activeTier === 'tcc') && (
                             <>
@@ -301,14 +303,14 @@ export function TierModuleView() {
                                 onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'biopsy' })}
                                 className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
                               >
-                                + Biopsy Report (PDF)
+                                {t('+ Biopsy Report (PDF)')}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'radiology' })}
                                 className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200"
                               >
-                                + Radiology Report (PDF)
+                                {t('+ Radiology Report (PDF)')}
                               </button>
                             </>
                           )}
@@ -324,7 +326,7 @@ export function TierModuleView() {
                         className="btn !min-h-[34px] px-3 py-1 text-xs font-bold rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1"
                       >
                         <Icon name="spark" size={13} />
-                        <span>AI Summary</span>
+                        <span>{t('AI Summary')}</span>
                       </button>
 
                       {/* Refer to Next Tier */}

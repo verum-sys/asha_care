@@ -33,7 +33,7 @@ export function StatusBar({ showSync = true }: { showSync?: boolean }) {
               type="button"
               onClick={() => void reloadApp()}
               className="chip cursor-pointer bg-brand text-white font-semibold shadow-sm hover:opacity-90"
-              title="A new version of CareLink is ready. Tap to reload."
+              title={t('A new version of CareLink is ready. Tap to reload.')}
             >
               <Icon name="spark" size={13} className="text-accent" />
               {t('status.updateReady')}

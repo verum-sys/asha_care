@@ -1,3 +1,4 @@
+import { useLang } from '../i18n';
 import type { PhysicalExamNotes } from '../db/types';
 export function recordedVitals(exam?: PhysicalExamNotes): { label: string; value: string }[] {
   if (!exam) return [];
@@ -12,10 +13,11 @@ export function recordedVitals(exam?: PhysicalExamNotes): { label: string; value
   return entries;
 }
 export function RecordedVitals({ exam }: { exam?: PhysicalExamNotes }) {
+  const { t } = useLang();
   const entries = recordedVitals(exam);
   if (!entries.length) return null;
   return <div className="text-xs bg-white p-2 rounded-lg border border-slate-200 flex flex-wrap items-center gap-3 text-slate-700">
-    <span className="font-bold text-slate-500">Vitals:</span>
-    {entries.map(entry => <span key={entry.label}>{entry.label}: {entry.value}</span>)}
+    <span className="font-bold text-slate-500">{t('Vitals:')}</span>
+    {entries.map(entry => <span key={entry.label}>{t(entry.label)}: {entry.value}</span>)}
   </div>;
 }

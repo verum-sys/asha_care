@@ -9,35 +9,22 @@ import { Icon } from './Icon';
 import { StatusBar } from './StatusBar';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { user, isSuperAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { lang, setLang, t } = useLang();
   const location = useLocation();
   if (location.pathname === '/login') return <>{children}</>;
-  const tiers = [ ['asha', 'ASHA', 'Community screening'], ['phc', 'PHC', 'Primary health centre'], ['dh', 'District Hospital', 'Specialist diagnostics'], ['tcc', 'TCC', 'Tertiary cancer care'] ];
-  const isHome = isSuperAdmin && location.pathname === '/';
-  const cbacUrl = `/cbac?tier=asha&unit=${user.unit}`;
   return <div className="care-shell">
-    {!isHome && <aside className="care-sidebar">
-      <Link to={homeForRole(user.role)} className="care-brand"><span className="brand-mark">✚</span><span>Diag<span className="text-teal-600">NXT</span><small>CONNECTED CARE</small></span></Link>
-      <div className="sidebar-label">WORKSPACE</div>
-      <nav className="care-nav" aria-label="Main navigation">
-        {!isSuperAdmin && <NavLink to="/workspace"><Icon name="building" size={18}/><span>My workspace</span></NavLink>}
-        {isSuperAdmin && <NavLink to="/" end><Icon name="spark" size={18}/><span>Overview</span></NavLink>}
-        {isSuperAdmin && <div className="sidebar-label">CARE NETWORK</div>}
-        {tiers.filter(() => isSuperAdmin).map(([key, name, desc]) => <NavLink key={key} to={`/tier/${key}`}><Icon name={key === 'asha' ? 'user' : 'building'} size={18}/><span>{name}<small>{desc}</small></span></NavLink>)}
-        <div className="sidebar-label">PATIENT CARE</div>
-        {isSuperAdmin && <NavLink to={cbacUrl}><Icon name="check" size={18}/><span>New CBAC form</span></NavLink>}
-        <NavLink to="/cases"><Icon name="user" size={18}/><span>Patient registry</span></NavLink>
-        <NavLink to="/sync"><Icon name="info" size={18}/><span>Sync & connectivity</span></NavLink>
-      </nav>
-      <div className="sidebar-bottom"><div className="network-status"><i/> {ROLE_LABELS[user.role]} workspace</div>{isSuperAdmin && <div className="text-xs text-slate-500 mt-2">ASHA → PHC → DH → TCC</div>}</div>
-    </aside>}
-    <div className={`care-workspace ${isHome ? 'care-workspace-home' : ''}`}>
-      <header className="care-topbar"><div><span className="text-slate-400 text-sm">CareLink / </span><span className="text-sm font-semibold">{ROLE_LABELS[user.role]} workspace</span></div><div className="flex items-center gap-3"><button className="text-xs text-slate-500" onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} aria-label="Change language">{t('lang.toggle')}</button><UserButton/><button onClick={logout} className="text-xs font-semibold text-teal-700">Sign out</button></div></header>
+    <div className="care-workspace care-workspace-home">
+      <header className="care-topbar"><div className="flex items-center gap-4"><Link to={homeForRole(user.role)} className="care-brand !mb-0"><span className="brand-mark">✚</span><span>Diag<span className="text-teal-600">NXT</span> CareLink</span></Link><span className="text-slate-400 text-sm hidden sm:inline">/ <span className="font-semibold text-ink">{t(ROLE_LABELS[user.role])} {t('workspace')}</span></span></div><div className="flex items-center gap-3"><Link to="/cases" className="hidden sm:inline text-xs font-semibold text-teal-700">{t('Patient registry')}</Link><Link to="/sync" className="hidden sm:inline text-xs font-semibold text-teal-700">{t('Sync')}</Link><button className="text-xs text-slate-500" onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} aria-label={t('Change language')}>{t('lang.toggle')}</button><UserButton/><button onClick={logout} className="hidden sm:inline text-xs font-semibold text-teal-700">{t('Sign out')}</button></div></header>
       <StatusBar showSync/>
       <main className="care-main">{children}</main>
-      <footer className="care-footer"><span>DiagNXT CareLink · Connected care, from community to specialist</span><Link to={homeForRole(user.role)}>Workspace overview →</Link></footer>
+      <footer className="care-footer hidden sm:flex"><span>{t('DiagNXT CareLink · Connected care, from community to specialist')}</span><Link to={homeForRole(user.role)}>{t('Workspace overview →')}</Link></footer>
     </div>
+    <nav className="mobile-tabbar" aria-label={t('Main navigation')}>
+      <NavLink to={homeForRole(user.role)} end><Icon name="building" size={20}/><span>{t('Home')}</span></NavLink>
+      <NavLink to="/cases"><Icon name="user" size={20}/><span>{t('Patients')}</span></NavLink>
+      <NavLink to="/sync"><Icon name="info" size={20}/><span>{t('Sync')}</span></NavLink>
+    </nav>
   </div>;
 }
 export function BackLink({ label }: { label?: string }) {

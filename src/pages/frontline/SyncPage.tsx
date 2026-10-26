@@ -75,7 +75,7 @@ export function SyncPage() {
           <div className="mb-1 font-semibold">{t('sync.language')}</div>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" className={`btn ${lang === 'en' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setLang('en')}>
-              English
+              {t('English')}
             </button>
             <button type="button" className={`btn ${lang === 'hi' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setLang('hi')}>
               हिंदी

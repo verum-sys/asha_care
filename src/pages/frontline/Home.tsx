@@ -47,7 +47,7 @@ export function Home() {
               <Icon name="spark" size={24} />
             </div>
             <span className="rounded-full bg-accent px-2.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-white">
-              Smart
+              {t('Smart')}
             </span>
           </div>
           <div>
@@ -140,7 +140,7 @@ export function Home() {
           className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface/90 px-4 py-2 text-xs font-semibold text-brand hover:border-brand hover:bg-brand/5 shadow-2xs transition-all"
         >
           <Icon name="plus" size={14} />
-          <span>+ Quick Manual Referral (Without CBAC)</span>
+          <span>{t('+ Quick Manual Referral (Without CBAC)')}</span>
         </Link>
       </div>
     </div>

@@ -693,7 +693,7 @@ export function CbacScreening() {
     return CBAC_B1_SYMPTOMS.filter((s) => {
       if (b1Filter.trim()) {
         const query = b1Filter.toLowerCase();
-        if (!s.label.toLowerCase().includes(query)) return false;
+        if (!s.label.toLowerCase().includes(query) && !t(s.label).toLowerCase().includes(query)) return false;
       }
       if (b1Category === 'tb') return s.isTbSuspect || s.isTbContact;
       if (b1Category === 'mouth') return s.id.includes('mouth') || s.id.includes('chewing') || s.id.includes('voice');
@@ -848,7 +848,7 @@ export function CbacScreening() {
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
-            MoHFW / Dell CBAC standard
+            {t('MoHFW / Dell CBAC standard')}
           </span>
           <button
             type="button"
@@ -865,21 +865,21 @@ export function CbacScreening() {
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-brand flex items-center gap-2">
           <Icon name="spark" size={24} className="text-accent" />
-          Community Based Assessment Checklist (CBAC)
+          {t('Community Based Assessment Checklist (CBAC)')}
         </h1>
         <p className="text-xs sm:text-sm text-muted mt-0.5">
-          Proactive NCD risk scoring, TB symptom detection, COPD risk factors, and PHQ-2 mental health screening.
+          {t('Proactive NCD risk scoring, TB symptom detection, COPD risk factors, and PHQ-2 mental health screening.')}
         </p>
       </div>
 
       {/* Compact optional voice controls keep manual entry within reach. */}
       <section className="rounded-xl border border-line bg-white p-2.5 sm:p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-muted">Assessment progress</span>
+          <span className="text-xs font-semibold text-muted">{t('Assessment progress')}</span>
           <button type="button" aria-expanded={voicePanelOpen} aria-controls="cbac-voice-controls"
             onClick={() => { if (voicePanelOpen) stopInterview(); setVoicePanelOpen(!voicePanelOpen); }}
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50">
-            <Icon name="mic" size={14} /> Voice assistant <span aria-hidden="true">{voicePanelOpen ? '▴' : '▾'}</span>
+            <Icon name="mic" size={14} /> {t('Voice assistant')} <span aria-hidden="true">{voicePanelOpen ? '▴' : '▾'}</span>
           </button>
         </div>
         {voicePanelOpen && (
@@ -890,34 +890,34 @@ export function CbacScreening() {
             </div>
             <div className="flex flex-wrap gap-2">
               {!interviewActive ? (
-                <button type="button" onClick={() => startInterview(getInterviewStartIndex(interviewQuestions, activeSlide, interviewIndex))} className="btn btn-accent !min-h-[34px] text-xs">Start voice</button>
+                <button type="button" onClick={() => startInterview(getInterviewStartIndex(interviewQuestions, activeSlide, interviewIndex))} className="btn btn-accent !min-h-[34px] text-xs">{t('Start voice')}</button>
               ) : (
                 <>
                   <button type="button" onClick={() => speakQuestion(interviewIndex)} disabled={speaking || interpreting} className="btn btn-secondary !min-h-[34px] text-xs">{speaking ? 'Speaking…' : 'Repeat'}</button>
                   <button type="button" disabled={interpreting} onClick={() => isInterviewListening ? stopInterviewListening() : startInterviewListening()} className={`btn !min-h-[34px] text-xs ${isInterviewListening ? 'btn-danger' : 'btn-primary'}`}>
                     {isInterviewListening ? 'Listening…' : 'Answer with mic'}
                   </button>
-                  <button type="button" onClick={stopInterview} className="btn btn-ghost !min-h-[34px] text-xs">Stop</button>
+                  <button type="button" onClick={stopInterview} className="btn btn-ghost !min-h-[34px] text-xs">{t('Stop')}</button>
                 </>
               )}
-              <button type="button" disabled={interviewIndex === 0} onClick={() => goToInterviewQuestion(interviewIndex - 1)} className="btn btn-secondary !min-h-[34px] text-xs">← Previous</button>
-              <button type="button" disabled={interviewIndex === interviewQuestions.length - 1} onClick={() => goToInterviewQuestion(interviewIndex + 1)} className="btn btn-secondary !min-h-[34px] text-xs">Next →</button>
+              <button type="button" disabled={interviewIndex === 0} onClick={() => goToInterviewQuestion(interviewIndex - 1)} className="btn btn-secondary !min-h-[34px] text-xs">{t('← Previous')}</button>
+              <button type="button" disabled={interviewIndex === interviewQuestions.length - 1} onClick={() => goToInterviewQuestion(interviewIndex + 1)} className="btn btn-secondary !min-h-[34px] text-xs">{t('Next →')}</button>
             </div>
             <form className="flex gap-2" onSubmit={event => { event.preventDefault(); handleInterviewAnswer(currentAnswer); }}>
-              <label className="sr-only" htmlFor="interview-answer">Answer to the current question</label>
+              <label className="sr-only" htmlFor="interview-answer">{t('Answer to the current question')}</label>
               <input id="interview-answer" className="flex-1 min-w-0 text-sm" value={currentAnswer} onChange={event => setCurrentAnswer(event.target.value)} placeholder={getQuestionHint(currentQuestion, lang)} />
-              <button type="submit" className="btn btn-primary text-xs" disabled={interpreting || !currentAnswer.trim()}>Save →</button>
+              <button type="submit" className="btn btn-primary text-xs" disabled={interpreting || !currentAnswer.trim()}>{t('Save →')}</button>
             </form>
             <div className="flex flex-wrap gap-1.5">
               {currentQuestion.sampleResponses.map(sample => <button key={sample} type="button" disabled={interpreting} onClick={() => handleInterviewAnswer(sample)} className="rounded-md border border-line bg-white px-2 py-1 text-xs text-brand">{sample}</button>)}
             </div>
-            {interpreting && <p role="status" className="text-xs text-teal-700">Interpreting answer…</p>}
-            {answerError && <p role="alert" className="text-xs text-danger">{answerError}</p>}
+            {interpreting && <p role="status" className="text-xs text-teal-700">{t('Interpreting answer…')}</p>}
+            {answerError && <p role="alert" className="text-xs text-danger">{t(answerError)}</p>}
             {smartExplanations.length > 0 && <p role="status" className="text-xs text-teal-700">{smartExplanations.map(exp => exp.detail).join(' · ')}</p>}
-            <p className="text-[11px] text-muted">Unclear answers use Groq AI. Only the current question and answer are sent.</p>
+            <p className="text-[11px] text-muted">{t('Unclear answers use Groq AI. Only the current question and answer are sent.')}</p>
           </div>
         )}
-      <nav aria-label="CBAC Slides" className="flex items-center gap-1 border-t border-line pt-2">
+      <nav aria-label={t('CBAC Slides')} className="flex items-center gap-1 border-t border-line pt-2">
         {([
           { id: 'A', label: 'Risk', complete: slideAComplete },
           { id: 'B', label: 'Symptoms', complete: false },
@@ -931,7 +931,7 @@ export function CbacScreening() {
               aria-current={activeSlide === step.id ? 'step' : undefined}
               className={`flex-1 min-w-0 rounded-lg py-2 px-1 text-xs font-bold transition-colors ${activeSlide === step.id ? 'bg-brand text-white' : 'text-muted hover:bg-surface hover:text-brand'}`}>
               <span>{step.complete ? '✓ ' : ''}{step.id === 'REFERRAL' ? 'Referral' : step.id}</span>
-              {step.id !== 'REFERRAL' && <span className="hidden sm:inline ml-1 font-medium">{step.label}</span>}
+              {step.id !== 'REFERRAL' && <span className="hidden sm:inline ml-1 font-medium">{t(step.label)}</span>}
             </button>
           </Fragment>
         ))}
@@ -946,10 +946,10 @@ export function CbacScreening() {
               <Icon name="user" size={16} />
             </span>
             <span className="font-black text-sm sm:text-base text-brand">
-              Patient Identification & Demographics
+              {t('Patient Identification & Demographics')}
             </span>
             <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.72rem] font-bold text-brand uppercase">
-              Core Referral Intake
+              {t('Core Referral Intake')}
             </span>
           </div>
           <button
@@ -965,13 +965,13 @@ export function CbacScreening() {
           {/* Patient Name */}
           <div className="lg:col-span-2">
             <label className="block text-xs font-bold text-ink mb-1">
-              Patient Full Name *
+              {t('Patient Full Name *')}
             </label>
             <input
               type="text"
               id="patient-name"
               value={general.name}
-              placeholder="e.g. Sunita Devi"
+              placeholder={t('e.g. Sunita Devi')}
               onChange={(e) => setGeneral({ ...general, name: e.target.value })}
               className={`!min-h-[42px] text-sm ${!general.name.trim() ? 'border-brand/40' : ''}`}
               required
@@ -981,7 +981,7 @@ export function CbacScreening() {
           {/* Age (Smart Auto-classifier) */}
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              Age (Years) *
+              {t('Age (Years) *')}
             </label>
             <div className="relative">
               <input
@@ -995,20 +995,20 @@ export function CbacScreening() {
                 required
               />
               {partA.ageScore !== undefined && (
-                <span className="absolute right-2.5 top-2.5 text-xs font-bold text-accent" title="Auto-classified into Part A Q1">
+                <span className="absolute right-2.5 top-2.5 text-xs font-bold text-accent" title={t('Auto-classified into Part A Q1')}>
                   ✓
                 </span>
               )}
             </div>
             <span className="text-[0.7rem] text-muted block mt-0.5">
-              Auto-clicks Part A Q1
+              {t('Auto-clicks Part A Q1')}
             </span>
           </div>
 
           {/* Sex (Smart Gender Adapter) */}
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              Sex *
+              {t('Sex *')}
             </label>
             <div className="grid grid-cols-3 gap-1" role="radiogroup">
               {(['F', 'M', 'O'] as Sex[]).map((s) => {
@@ -1028,19 +1028,19 @@ export function CbacScreening() {
               })}
             </div>
             <span className="text-[0.7rem] text-muted block mt-0.5">
-              Adapts waist & B2
+              {t('Adapts waist & B2')}
             </span>
           </div>
 
           {/* Phone Number */}
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              Phone Number
+              {t('Phone Number')}
             </label>
             <input
               type="tel"
               value={general.phone}
-              placeholder="10 digit mobile"
+              placeholder={t('10 digit mobile')}
               onChange={(e) => setGeneral({ ...general, phone: e.target.value })}
               className="!min-h-[42px] text-sm"
             />
@@ -1051,24 +1051,24 @@ export function CbacScreening() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-line/50">
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              Locality / Village / Ward
+              {t('Locality / Village / Ward')}
             </label>
             <input
               type="text"
               value={general.address}
-              placeholder="Village locality, hamlet, or tola"
+              placeholder={t('Village locality, hamlet, or tola')}
               onChange={(e) => setGeneral({ ...general, address: e.target.value })}
               className="!min-h-[40px] text-xs sm:text-sm"
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              Village / Ward Name
+              {t('Village / Ward Name')}
             </label>
             <input
               type="text"
               value={general.villageWard}
-              placeholder="e.g. Bero"
+              placeholder={t('e.g. Bero')}
               onChange={(e) => setGeneral({ ...general, villageWard: e.target.value })}
               className="!min-h-[40px] text-xs sm:text-sm"
             />
@@ -1082,20 +1082,20 @@ export function CbacScreening() {
           <div className="flex items-center justify-between border-b border-line pb-2 mb-3">
             <h2 className="font-bold text-xs sm:text-sm text-brand flex items-center gap-1.5 uppercase tracking-wider">
               <Icon name="user" size={16} />
-              Administrative MoHFW / ASHA Metadata
+              {t('Administrative MoHFW / ASHA Metadata')}
             </h2>
             <button
               type="button"
               onClick={() => setShowGeneralDetails(false)}
               className="text-xs font-bold text-muted hover:text-brand"
             >
-              ✕ Close
+              {t('✕ Close')}
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs sm:text-sm">
             <div>
-              <label className="block font-semibold mb-1">Assessment Date</label>
+              <label className="block font-semibold mb-1">{t('Assessment Date')}</label>
               <input
                 type="date"
                 value={general.date}
@@ -1103,7 +1103,7 @@ export function CbacScreening() {
               />
             </div>
             <div>
-              <label className="block font-semibold mb-1">Name of ASHA</label>
+              <label className="block font-semibold mb-1">{t('Name of ASHA')}</label>
               <input
                 type="text"
                 value={general.ashaName}
@@ -1111,7 +1111,7 @@ export function CbacScreening() {
               />
             </div>
             <div>
-              <label className="block font-semibold mb-1">Name of MPW / ANM</label>
+              <label className="block font-semibold mb-1">{t('Name of MPW / ANM')}</label>
               <input
                 type="text"
                 value={general.mpwAnmName}
@@ -1119,7 +1119,7 @@ export function CbacScreening() {
               />
             </div>
             <div>
-              <label className="block font-semibold mb-1">Sub Centre / PHC</label>
+              <label className="block font-semibold mb-1">{t('Sub Centre / PHC')}</label>
               <input
                 type="text"
                 value={general.subCentre}
@@ -1128,17 +1128,17 @@ export function CbacScreening() {
             </div>
 
             <div>
-              <label className="block font-semibold mb-1">Identifier (Aadhaar / Voter ID)</label>
+              <label className="block font-semibold mb-1">{t('Identifier (Aadhaar / Voter ID)')}</label>
               <input
                 type="text"
                 value={general.identifierNumber}
-                placeholder="e.g. XXXX-XXXX-1234"
+                placeholder={t('e.g. XXXX-XXXX-1234')}
                 onChange={(e) => setGeneral({ ...general, identifierNumber: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="block font-semibold mb-1">State Health Insurance</label>
+              <label className="block font-semibold mb-1">{t('State Health Insurance')}</label>
               <div className="flex items-center gap-3 mt-1.5">
                 <label className="flex items-center gap-1.5 font-medium cursor-pointer">
                   <input
@@ -1147,13 +1147,13 @@ export function CbacScreening() {
                     checked={general.hasStateInsurance}
                     onChange={(e) => setGeneral({ ...general, hasStateInsurance: e.target.checked })}
                   />
-                  <span>Covered (PM-JAY / State)</span>
+                  <span>{t('Covered (PM-JAY / State)')}</span>
                 </label>
               </div>
             </div>
 
             <div>
-              <label className="block font-semibold mb-1">Disability Status</label>
+              <label className="block font-semibold mb-1">{t('Disability Status')}</label>
               <div className="flex items-center gap-3 mt-1.5">
                 <label className="flex items-center gap-1.5 font-medium cursor-pointer">
                   <input
@@ -1162,7 +1162,7 @@ export function CbacScreening() {
                     checked={general.hasDisability}
                     onChange={(e) => setGeneral({ ...general, hasDisability: e.target.checked })}
                   />
-                  <span>Has Disability</span>
+                  <span>{t('Has Disability')}</span>
                 </label>
               </div>
             </div>
@@ -1185,7 +1185,7 @@ export function CbacScreening() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white text-sm font-bold">
                       A
                     </span>
-                    Part A: Risk Assessment
+                    {t('Part A: Risk Assessment')}
                   </h2>
                   <p className="text-xs sm:text-sm text-muted">
                     Total Part A Score &gt; 4 indicates higher risk of NCDs (weekly screening prioritization).
@@ -1194,12 +1194,12 @@ export function CbacScreening() {
                 <div className="flex items-center gap-2">
                   {general.age !== '' && (
                     <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand">
-                      Age: {general.age} yrs
+                      {t('Age:')} {general.age} {t('yrs')}
                     </span>
                   )}
                   {general.sex && (
                     <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand">
-                      Sex: {general.sex === 'F' ? 'Female' : 'Male'}
+                      {t('Sex:')} {general.sex === 'F' ? 'Female' : 'Male'}
                     </span>
                   )}
                 </div>
@@ -1209,10 +1209,10 @@ export function CbacScreening() {
               {(!general.age || !general.sex) && (
                 <div className="rounded-xl bg-info-soft p-3 text-xs sm:text-sm flex flex-wrap items-center gap-3">
                   <span className="font-bold text-brand flex items-center gap-1">
-                    <Icon name="spark" size={16} /> Quick Setup:
+                    <Icon name="spark" size={16} /> {t('Quick Setup:')}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <label className="font-semibold">Age:</label>
+                    <label className="font-semibold">{t('Age:')}</label>
                     <input
                       type="number"
                       placeholder="e.g. 26"
@@ -1222,19 +1222,19 @@ export function CbacScreening() {
                     />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <label className="font-semibold">Sex:</label>
+                    <label className="font-semibold">{t('Sex:')}</label>
                     <select
                       className="!min-h-[34px] !w-28 text-xs py-1 px-2"
                       value={general.sex}
                       onChange={(e) => handleSexChange(e.target.value as Sex | '')}
                     >
-                      <option value="">Select</option>
-                      <option value="F">Female</option>
-                      <option value="M">Male</option>
+                      <option value="">{t('Select')}</option>
+                      <option value="F">{t('Female')}</option>
+                      <option value="M">{t('Male')}</option>
                     </select>
                   </div>
                   <span className="text-muted text-xs">
-                    (Try typing age 26 — it will auto-click the 0-29 bar below!)
+                    {t('(Try typing age 26 — it will auto-click the 0-29 bar below!)')}
                   </span>
                 </div>
               )}
@@ -1243,11 +1243,11 @@ export function CbacScreening() {
               <div className={`space-y-2 p-3 rounded-2xl transition-all ${pulseField === 'age' ? 'ring-2 ring-accent bg-accent-soft/30' : 'bg-surface/50 border border-line/60'}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    1. What is your age? (in complete years)
+                    {t('1. What is your age? (in complete years)')}
                   </span>
                   {partA.ageScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
-                      Score: {partA.ageScore}
+                      {t('Score:')} {partA.ageScore}
                     </span>
                   )}
                 </div>
@@ -1273,9 +1273,9 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/50'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.82rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.82rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
-                          {opt.score} pts
+                          {opt.score} {t('pts')}
                         </span>
                       </button>
                     );
@@ -1287,11 +1287,11 @@ export function CbacScreening() {
               <div className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-line/60">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    2. Do you smoke or consume smokeless products (gutka/khaini)?
+                    {t('2. Do you smoke or consume smokeless products (gutka/khaini)?')}
                   </span>
                   {partA.smokeScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
-                      Score: {partA.smokeScore}
+                      {t('Score:')} {partA.smokeScore}
                     </span>
                   )}
                 </div>
@@ -1315,9 +1315,9 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/50'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.84rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.84rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
-                          {opt.score} pts
+                          {opt.score} {t('pts')}
                         </span>
                       </button>
                     );
@@ -1329,11 +1329,11 @@ export function CbacScreening() {
               <div className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-line/60">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    3. How often do you drink alcohol?
+                    {t('3. How often do you drink alcohol?')}
                   </span>
                   {partA.alcoholScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
-                      Score: {partA.alcoholScore}
+                      {t('Score:')} {partA.alcoholScore}
                     </span>
                   )}
                 </div>
@@ -1353,15 +1353,15 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/50'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.84rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.84rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
-                          {opt.score} pts
+                          {opt.score} {t('pts')}
                         </span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-muted">This app scores any alcohol consumption as 1 and no consumption as 0. Frequency is saved separately.</p>
+                <p className="text-xs text-muted">{t('This app scores any alcohol consumption as 1 and no consumption as 0. Frequency is saved separately.')}</p>
               </div>
 
               {/* Question 4: Waist measurement (Adaptive to Female vs Male) */}
@@ -1369,7 +1369,7 @@ export function CbacScreening() {
                 <div className="flex flex-wrap items-center justify-between gap-1">
                   <div>
                     <span className="font-bold text-sm sm:text-base text-ink">
-                      4. Measurement of waist (in cm)
+                      {t('4. Measurement of waist (in cm)')}
                     </span>
                     <span className="ml-2 rounded-md bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">
                       {isFemale ? 'Female Standards' : 'Male Standards'}
@@ -1377,26 +1377,26 @@ export function CbacScreening() {
                   </div>
                   {partA.waistScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
-                      Score: {partA.waistScore}
+                      {t('Score:')} {partA.waistScore}
                     </span>
                   )}
                 </div>
 
                 {/* Waist Numeric Input with Live Calculation */}
                 <div className="flex items-center gap-2 max-w-xs">
-                  <label className="text-xs font-semibold text-muted shrink-0">Waist (cm):</label>
+                  <label className="text-xs font-semibold text-muted shrink-0">{t('Waist (cm):')}</label>
                   <input
                     type="number"
                     min={40}
                     max={200}
-                    placeholder="e.g. 78 cm"
+                    placeholder={t('e.g. 78 cm')}
                     className="!min-h-[36px] text-xs py-1 px-2.5"
                     value={partA.waistCm ?? ''}
                     onChange={(e) => handleWaistCmChange(e.target.value)}
                   />
                   {partA.waistCm && (
                     <span className="text-xs font-bold text-brand shrink-0">
-                      → {isFemale ? 'Female' : 'Male'} calculated
+                      → {isFemale ? t('Female') : t('Male')} {t('calculated')}
                     </span>
                   )}
                 </div>
@@ -1429,13 +1429,13 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/50'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.84rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.84rem]">{t(opt.label)}</span>
                         <div className="flex items-center gap-1 mt-1">
                           <span className={`text-[0.7rem] ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
-                            {opt.hint}
+                            {t(opt.hint)}
                           </span>
                           <span className={`text-[0.7rem] font-bold ${isSelected ? 'text-white' : 'text-brand'}`}>
-                            · {opt.score} pts
+                            · {opt.score} {t('pts')}
                           </span>
                         </div>
                       </button>
@@ -1452,7 +1452,7 @@ export function CbacScreening() {
                   </span>
                   {partA.physicalActivityScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
-                      Score: {partA.physicalActivityScore}
+                      {t('Score:')} {partA.physicalActivityScore}
                     </span>
                   )}
                 </div>
@@ -1475,9 +1475,9 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/50'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.84rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.84rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
-                          {opt.score} pts
+                          {opt.score} {t('pts')}
                         </span>
                       </button>
                     );
@@ -1489,11 +1489,11 @@ export function CbacScreening() {
               <div className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-line/60">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    6. Family history of High BP, Diabetes or Heart Disease?
+                    {t('6. Family history of High BP, Diabetes or Heart Disease?')}
                   </span>
                   {partA.familyHistoryScore !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
-                      Score: {partA.familyHistoryScore}
+                      {t('Score:')} {partA.familyHistoryScore}
                     </span>
                   )}
                 </div>
@@ -1516,9 +1516,9 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/50'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.84rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.84rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
-                          {opt.score} pts
+                          {opt.score} {t('pts')}
                         </span>
                       </button>
                     );
@@ -1529,14 +1529,14 @@ export function CbacScreening() {
               {/* Slide A Bottom Action */}
               <div className="flex items-center justify-between pt-2">
                 <div className="text-xs sm:text-sm font-bold text-brand">
-                  Part A Total Score: <span className="text-lg">{partA.totalScore}</span> / 12<div className="font-mono text-xs mt-1">{scoreBreakdown.expression}</div>
+                  {t('Part A Total Score:')} <span className="text-lg">{partA.totalScore}</span> / 12<div className="font-mono text-xs mt-1">{scoreBreakdown.expression}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('B')}
                   className="btn btn-primary !min-h-[44px] !px-5 text-sm font-bold flex items-center gap-1.5"
                 >
-                  <span>Next: Part B (Symptoms)</span>
+                  <span>{t('Next: Part B (Symptoms)')}</span>
                   <Icon name="chevron" size={16} />
                 </button>
               </div>
@@ -1554,10 +1554,10 @@ export function CbacScreening() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white text-sm font-bold">
                       B
                     </span>
-                    Part B: Early Detection Symptoms
+                    {t('Part B: Early Detection Symptoms')}
                   </h2>
                   <p className="text-xs sm:text-sm text-muted">
-                    If Patient answers <strong>Yes</strong> to any symptom, refer immediately to nearest facility with Medical Officer.
+                    {t('If Patient answers')} <strong>{t('Yes')}</strong> {t('to any symptom, refer immediately to nearest facility with Medical Officer.')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1571,7 +1571,7 @@ export function CbacScreening() {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-bold text-sm sm:text-base text-brand">
-                    B1: Women and Men (General Symptoms)
+                    {t('B1: Women and Men (General Symptoms)')}
                   </h3>
                   {/* Category Filter Pills */}
                   <div className="flex flex-wrap gap-1 text-xs">
@@ -1592,7 +1592,7 @@ export function CbacScreening() {
                           b1Category === c.id ? 'bg-brand text-white' : 'bg-surface text-muted hover:bg-line'
                         }`}
                       >
-                        {c.label}
+                        {t(c.label)}
                       </button>
                     ))}
                   </div>
@@ -1601,7 +1601,7 @@ export function CbacScreening() {
                 {/* Search in symptoms */}
                 <input
                   type="text"
-                  placeholder="Filter symptoms (e.g. cough, vision, ulcer)..."
+                  placeholder={t('Filter symptoms (e.g. cough, vision, ulcer)...')}
                   className="!min-h-[36px] text-xs py-1 px-3"
                   value={b1Filter}
                   onChange={(e) => setB1Filter(e.target.value)}
@@ -1624,15 +1624,15 @@ export function CbacScreening() {
                         }`}
                       >
                         <div className="flex-1 text-xs sm:text-[0.82rem] leading-snug">
-                          {item.label}
+                          {t(item.label)}
                           {item.isTbSuspect && (
                             <span className="block text-[0.68rem] text-danger font-bold mt-0.5">
-                              * Sputum sample collection needed
+                              {t('* Sputum sample collection needed')}
                             </span>
                           )}
                           {item.isTbContact && (
                             <span className="block text-[0.68rem] text-warn font-bold mt-0.5">
-                              ** Family contact tracing by ANM/MPW
+                              {t('** Family contact tracing by ANM/MPW')}
                             </span>
                           )}
                         </div>
@@ -1655,11 +1655,11 @@ export function CbacScreening() {
               {isFemale && <div className={`p-3 rounded-2xl border space-y-2 transition-all ${isFemale ? 'bg-pink-50/60 border-pink-200' : 'bg-surface/50 border-line/60 opacity-60'}`}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm sm:text-base text-pink-900 flex items-center gap-1.5">
-                    <span>🌸</span> B2: Women Only Symptoms
+                    <span>🌸</span> {t('B2: Women Only Symptoms')}
                   </h3>
                   {!isFemale && (
                     <span className="text-xs font-semibold text-muted bg-white px-2 py-0.5 rounded border border-line">
-                      Not applicable (Male patient)
+                      {t('Not applicable (Male patient)')}
                     </span>
                   )}
                 </div>
@@ -1676,7 +1676,7 @@ export function CbacScreening() {
                             : 'bg-white border-line/60 text-ink hover:border-pink-300'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.82rem] leading-snug">{item.label}</span>
+                        <span className="text-xs sm:text-[0.82rem] leading-snug">{t(item.label)}</span>
                         <span
                           className={`rounded-md px-2 py-0.5 text-xs font-bold shrink-0 ${
                             isYes ? 'bg-danger text-white' : 'bg-surface text-muted'
@@ -1694,7 +1694,7 @@ export function CbacScreening() {
               {isElderly && <div className={`p-3 rounded-2xl border space-y-2 transition-all ${isElderly ? 'bg-amber-50/70 border-amber-300 shadow-xs' : 'bg-surface/50 border-line/60 opacity-75'}`}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm sm:text-base text-amber-900 flex items-center gap-1.5">
-                    <span>👴</span> B3: Elderly Specific (60 years and above)
+                    <span>👴</span> {t('B3: Elderly Specific (60 years and above)')}
                   </h3>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${isElderly ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold' : 'bg-white text-muted border-line'}`}>
                     {isElderly ? 'Active for Age >= 60' : 'Applicable for age 60+'}
@@ -1713,7 +1713,7 @@ export function CbacScreening() {
                             : 'bg-white border-line/60 text-ink hover:border-amber-300'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.82rem] leading-snug">{item.label}</span>
+                        <span className="text-xs sm:text-[0.82rem] leading-snug">{t(item.label)}</span>
                         <span
                           className={`rounded-md px-2 py-0.5 text-xs font-bold shrink-0 ${
                             isYes ? 'bg-amber-600 text-white' : 'bg-surface text-muted'
@@ -1734,14 +1734,14 @@ export function CbacScreening() {
                   onClick={() => goToAssessmentSlide('A')}
                   className="btn btn-secondary !min-h-[44px] !px-4 text-sm font-semibold"
                 >
-                  ← Back to Part A
+                  {t('← Back to Part A')}
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('C')}
                   className="btn btn-primary !min-h-[44px] !px-5 text-sm font-bold flex items-center gap-1.5"
                 >
-                  <span>Next: Part C (COPD)</span>
+                  <span>{t('Next: Part C (COPD)')}</span>
                   <Icon name="chevron" size={16} />
                 </button>
               </div>
@@ -1759,10 +1759,10 @@ export function CbacScreening() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white text-sm font-bold">
                       C
                     </span>
-                    Part C: Risk Factors for COPD
+                    {t('Part C: Risk Factors for COPD')}
                   </h2>
                   <p className="text-xs sm:text-sm text-muted">
-                    Circle all that apply (Cooking fuel types and occupational environmental smoke exposures).
+                    {t('Circle all that apply (Cooking fuel types and occupational environmental smoke exposures).')}
                   </p>
                 </div>
               </div>
@@ -1770,7 +1770,7 @@ export function CbacScreening() {
               {/* Cooking Fuel Multi-Select */}
               <div className="space-y-2">
                 <div className="font-bold text-sm sm:text-base text-ink flex items-center gap-2">
-                  <span>🔥</span> Type of Fuel used for cooking:
+                  <span>🔥</span> {t('Type of Fuel used for cooking:')}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {COOKING_FUELS.map((fuel) => {
@@ -1786,7 +1786,7 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/40'
                         }`}
                       >
-                        <span className="text-xs sm:text-sm">{fuel.label}</span>
+                        <span className="text-xs sm:text-sm">{t(fuel.label)}</span>
                         <span
                           className={`flex h-5 w-5 items-center justify-center rounded-md border text-xs font-bold ${
                             isChecked ? 'bg-white text-brand border-white' : 'border-line text-transparent'
@@ -1803,7 +1803,7 @@ export function CbacScreening() {
               {/* Occupational Exposure Multi-Select */}
               <div className="space-y-2 pt-2 border-t border-line/60">
                 <div className="font-bold text-sm sm:text-base text-ink flex items-center gap-2">
-                  <span>🏭</span> Occupational Exposure & Environmental Smoke:
+                  <span>🏭</span> {t('Occupational Exposure & Environmental Smoke:')}
                 </div>
                 <div className="grid grid-cols-1 gap-2.5">
                   {OCCUPATIONAL_EXPOSURES.map((exp) => {
@@ -1819,7 +1819,7 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/40'
                         }`}
                       >
-                        <span className="text-xs sm:text-sm pr-2">{exp.label}</span>
+                        <span className="text-xs sm:text-sm pr-2">{t(exp.label)}</span>
                         <span
                           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
                             isChecked ? 'bg-white text-brand border-white' : 'border-line text-transparent'
@@ -1840,14 +1840,14 @@ export function CbacScreening() {
                   onClick={() => goToAssessmentSlide('B')}
                   className="btn btn-secondary !min-h-[44px] !px-4 text-sm font-semibold"
                 >
-                  ← Back to Part B
+                  {t('← Back to Part B')}
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('D')}
                   className="btn btn-primary !min-h-[44px] !px-5 text-sm font-bold flex items-center gap-1.5"
                 >
-                  <span>Next: Part D (PHQ-2)</span>
+                  <span>{t('Next: Part D (PHQ-2)')}</span>
                   <Icon name="chevron" size={16} />
                 </button>
               </div>
@@ -1865,10 +1865,10 @@ export function CbacScreening() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white text-sm font-bold">
                       D
                     </span>
-                    Part D: PHQ-2 (Mental Health Screening)
+                    {t('Part D: PHQ-2 (Mental Health Screening)')}
                   </h2>
                   <p className="text-xs sm:text-sm text-muted">
-                    Over the last 2 weeks, how often have you been bothered by the following problems?
+                    {t('Over the last 2 weeks, how often have you been bothered by the following problems?')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1882,7 +1882,7 @@ export function CbacScreening() {
               <div className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-line/60">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    1. Little interest or pleasure in doing things?
+                    {t('1. Little interest or pleasure in doing things?')}
                   </span>
                   {partD.phq1Score !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
@@ -1904,7 +1904,7 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/40'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.82rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.82rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
                           +{opt.points}
                         </span>
@@ -1918,7 +1918,7 @@ export function CbacScreening() {
               <div className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-line/60">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm sm:text-base text-ink">
-                    2. Feeling down, depressed or hopeless?
+                    {t('2. Feeling down, depressed or hopeless?')}
                   </span>
                   {partD.phq2Score !== undefined && (
                     <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-white">
@@ -1940,7 +1940,7 @@ export function CbacScreening() {
                             : 'bg-white text-ink border-line hover:border-brand/40'
                         }`}
                       >
-                        <span className="text-xs sm:text-[0.82rem]">{opt.label}</span>
+                        <span className="text-xs sm:text-[0.82rem]">{t(opt.label)}</span>
                         <span className={`text-[0.7rem] font-bold mt-1 ${isSelected ? 'text-teal-200' : 'text-muted'}`}>
                           +{opt.points}
                         </span>
@@ -1967,14 +1967,14 @@ export function CbacScreening() {
                   onClick={() => goToAssessmentSlide('C')}
                   className="btn btn-secondary !min-h-[46px] !px-4 text-sm font-semibold"
                 >
-                  ← Back to Part C
+                  {t('← Back to Part C')}
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('REFERRAL')}
                   className="btn btn-primary !min-h-[48px] !px-6 text-sm sm:text-base font-bold shadow-md flex items-center gap-2"
                 >
-                  <span>Next: Referral Details</span>
+                  <span>{t('Next: Referral Details')}</span>
                   <Icon name="chevron" size={18} />
                 </button>
               </div>
@@ -1992,10 +1992,10 @@ export function CbacScreening() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white text-sm font-bold">
                       📋
                     </span>
-                    Referral Plan & Facility Coordination
+                    {t('Referral Plan & Facility Coordination')}
                   </h2>
                   <p className="text-xs sm:text-sm text-muted">
-                    Destination facility, urgency, appointment scheduling, and patient intention.
+                    {t('Destination facility, urgency, appointment scheduling, and patient intention.')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2012,10 +2012,10 @@ export function CbacScreening() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-2">
                   <span className="font-bold text-sm sm:text-base text-brand flex items-center gap-1.5">
                     <Icon name="check" size={16} />
-                    Community Screening Status & Finding
+                    {t('Community Screening Status & Finding')}
                   </span>
                   <span className="text-[0.72rem] font-bold uppercase tracking-wider text-muted">
-                    New Referral Standard
+                    {t('New Referral Standard')}
                   </span>
                 </div>
 
@@ -2027,31 +2027,31 @@ export function CbacScreening() {
                     checked={referralForm.screeningCompleted}
                     onChange={(e) => setReferralForm((f) => ({ ...f, screeningCompleted: e.target.checked }))}
                   />
-                  <span>Community Screening Completed for Patient</span>
+                  <span>{t('Community Screening Completed for Patient')}</span>
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   {/* Screening Focus Area */}
                   <div>
                     <label className="block text-xs font-bold text-ink mb-1">
-                      Screening Focus Area
+                      {t('Screening Focus Area')}
                     </label>
                     <select
                       value={referralForm.screeningArea}
                       onChange={(e) => setReferralForm((f) => ({ ...f, screeningArea: e.target.value as ScreeningArea | '' }))}
                       className="!min-h-[40px] text-xs sm:text-sm"
                     >
-                      <option value="ncd">NCD / Chronic Disease Screening</option>
-                      <option value="oral">Oral Cancer Screening</option>
-                      <option value="breast">Clinical Breast Examination</option>
-                      <option value="cervical">Cervical Cancer Screening (VIA)</option>
+                      <option value="ncd">{t('NCD / Chronic Disease Screening')}</option>
+                      <option value="oral">{t('Oral Cancer Screening')}</option>
+                      <option value="breast">{t('Clinical Breast Examination')}</option>
+                      <option value="cervical">{t('Cervical Cancer Screening (VIA)')}</option>
                     </select>
                   </div>
 
                   {/* Screening Finding */}
                   <div>
                     <label className="block text-xs font-bold text-ink mb-1">
-                      Screening Finding / Clinical Assessment
+                      {t('Screening Finding / Clinical Assessment')}
                     </label>
                     <select
                       value={
@@ -2061,9 +2061,9 @@ export function CbacScreening() {
                       onChange={(e) => setReferralForm((f) => ({ ...f, screeningFinding: e.target.value as ScreeningFinding | '' }))}
                       className="!min-h-[40px] text-xs sm:text-sm"
                     >
-                      <option value="negative">Normal / Negative (Low Risk)</option>
-                      <option value="positive">Suspected / Positive (High Risk Flagged)</option>
-                      <option value="needs_review">Needs CHO / Medical Officer Review</option>
+                      <option value="negative">{t('Normal / Negative (Low Risk)')}</option>
+                      <option value="positive">{t('Suspected / Positive (High Risk Flagged)')}</option>
+                      <option value="needs_review">{t('Needs CHO / Medical Officer Review')}</option>
                     </select>
                   </div>
                 </div>
@@ -2072,15 +2072,15 @@ export function CbacScreening() {
               {/* Referral Decision (Yes / No) */}
               <div className="space-y-2 p-3.5 rounded-2xl bg-surface border border-line">
                 <span className="font-bold text-sm sm:text-base text-ink block">
-                  Does this patient require referral to a health facility?
+                  {t('Does this patient require referral to a health facility?')}
                 </span>
                 {(searchParams.get('tier') || 'asha') === 'asha' && (
                   <div className="text-xs text-muted space-y-1">
-                    <p>Part A risk score: <strong>{partA.totalScore}/12</strong>{!slideAComplete ? ' · Incomplete risk assessment' : ''}. {triage.highRiskNcd ? 'Score above 4: PHC referral recommended.' : triage.referralRequired ? 'Other screening flags recommend referral to PHC.' : 'No automatic referral flag from the current screening.'}</p>
+                    <p>{t('Part A risk score:')} <strong>{partA.totalScore}/12</strong>{!slideAComplete ? ' · Incomplete risk assessment' : ''}. {triage.highRiskNcd ? 'Score above 4: PHC referral recommended.' : triage.referralRequired ? 'Other screening flags recommend referral to PHC.' : 'No automatic referral flag from the current screening.'}</p>
                     <button type="button" className="font-semibold text-teal-700 underline" onClick={() => {
                       const index = interviewQuestions.findIndex(question => question.id === 'initiate_referral');
                       if (index >= 0) { setVoicePanelOpen(true); startInterview(index); }
-                    }}>Ask referral decision by voice</button>
+                    }}>{t('Ask referral decision by voice')}</button>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2" role="radiogroup">
@@ -2091,7 +2091,7 @@ export function CbacScreening() {
                       referralForm.referralRequired === 'yes' ? 'btn-primary' : 'btn-secondary'
                     }`}
                   >
-                    Yes — Initiate Referral
+                    {t('Yes — Initiate Referral')}
                   </button>
                   <button
                     type="button"
@@ -2100,7 +2100,7 @@ export function CbacScreening() {
                       referralForm.referralRequired === 'no' ? 'btn-primary' : 'btn-secondary'
                     }`}
                   >
-                    No — Routine Community Care
+                    {t('No — Routine Community Care')}
                   </button>
                 </div>
               </div>
@@ -2110,18 +2110,18 @@ export function CbacScreening() {
                   {/* Reason for referral */}
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                      Reason for Referral *
+                      {t('Reason for Referral *')}
                     </label>
                     <input
                       type="text"
                       value={referralForm.reason}
-                      placeholder="e.g. High NCD Risk (Score: 7/12) · TB Suspect: Cough > 2 wks"
+                      placeholder={t('e.g. High NCD Risk (Score: 7/12) · TB Suspect: Cough > 2 wks')}
                       onChange={(e) => setReferralForm((f) => ({ ...f, reason: e.target.value }))}
                       required
                     />
                     {triage.reasons.length > 0 && (
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-                        <span className="font-semibold">AI Triage Suggestion:</span>
+                        <span className="font-semibold">{t('AI Triage Suggestion:')}</span>
                         <button
                           type="button"
                           onClick={() => setReferralForm((f) => ({ ...f, reason: triage.reasons.join(' · ') }))}
@@ -2136,12 +2136,12 @@ export function CbacScreening() {
                   {/* Destination Facility */}
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                      Destination Facility *
+                      {t('Destination Facility *')}
                     </label>
                     <input
                       list="cbac-facilities"
                       value={referralForm.destinationFacility}
-                      placeholder="Select or type facility name (e.g. CHC Bero)"
+                      placeholder={t('Select or type facility name (e.g. CHC Bero)')}
                       onChange={(e) => setReferralForm((f) => ({ ...f, destinationFacility: e.target.value }))}
                       required
                     />
@@ -2156,7 +2156,7 @@ export function CbacScreening() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                        Referral Date *
+                        {t('Referral Date *')}
                       </label>
                       <input
                         type="date"
@@ -2168,7 +2168,7 @@ export function CbacScreening() {
 
                     <div>
                       <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                        Urgency *
+                        {t('Urgency *')}
                       </label>
                       <div className="grid grid-cols-3 gap-1.5" role="radiogroup">
                         {(['routine', 'soon', 'urgent'] as Urgency[]).map((u) => {
@@ -2200,7 +2200,7 @@ export function CbacScreening() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                        Expected / Scheduled Appointment Date
+                        {t('Expected / Scheduled Appointment Date')}
                       </label>
                       <input
                         type="date"
@@ -2211,16 +2211,16 @@ export function CbacScreening() {
 
                     <div>
                       <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                        Patient Intention
+                        {t('Patient Intention')}
                       </label>
                       <select
                         value={referralForm.patientIntention}
                         onChange={(e) => setReferralForm((f) => ({ ...f, patientIntention: e.target.value as Intention | '' }))}
                       >
-                        <option value="">Unknown / Not discussed</option>
-                        <option value="will_attend">Will attend facility visit</option>
-                        <option value="unsure">Unsure / Hesitant</option>
-                        <option value="will_not_attend">Will not attend / Refused</option>
+                        <option value="">{t('Unknown / Not discussed')}</option>
+                        <option value="will_attend">{t('Will attend facility visit')}</option>
+                        <option value="unsure">{t('Unsure / Hesitant')}</option>
+                        <option value="will_not_attend">{t('Will not attend / Refused')}</option>
                       </select>
                     </div>
                   </div>
@@ -2228,7 +2228,7 @@ export function CbacScreening() {
                   {/* Worker Notes */}
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <label htmlFor="worker-clinical-notes" className="text-xs sm:text-sm font-bold text-ink">Frontline Worker Clinical Notes</label>
+                      <label htmlFor="worker-clinical-notes" className="text-xs sm:text-sm font-bold text-ink">{t('Frontline Worker Clinical Notes')}</label>
                       <button type="button" className="btn btn-secondary text-xs !min-h-[32px]" disabled={generatingNotes} onClick={handleGenerateNotes}>
                         <Icon name="spark" size={14} /> {generatingNotes ? 'Generating…' : 'AI generate'}
                       </button>
@@ -2237,17 +2237,17 @@ export function CbacScreening() {
                       id="worker-clinical-notes"
                       rows={3}
                       value={referralForm.notes}
-                      placeholder="Add details on patient condition, family member escorting, transportation plan, etc."
+                      placeholder={t('Add details on patient condition, family member escorting, transportation plan, etc.')}
                       onChange={(e) => setReferralForm((f) => ({ ...f, notes: e.target.value }))}
                     />
-                    <p className="text-[11px] text-muted mt-1">Groq AI uses screening findings and the referral plan. Names and contact details are excluded.</p>
-                    {notesError && <p role="alert" className="text-xs text-danger mt-2">{notesError}</p>}
+                    <p className="text-[11px] text-muted mt-1">{t('Groq AI uses screening findings and the referral plan. Names and contact details are excluded.')}</p>
+                    {notesError && <p role="alert" className="text-xs text-danger mt-2">{t(notesError)}</p>}
                     {notesDraft && <div className="rounded-lg border border-teal-200 bg-teal-50 p-3 mt-2 space-y-2">
-                      <p className="text-xs font-semibold text-teal-800">Clinical notes draft · Review before using</p>
+                      <p className="text-xs font-semibold text-teal-800">{t('Clinical notes draft · Review before using')}</p>
                       <p className="text-sm whitespace-pre-wrap">{notesDraft}</p>
                       <div className="flex gap-2">
-                        <button type="button" className="btn btn-primary text-xs" onClick={() => { setReferralForm(previous => ({ ...previous, notes: [previous.notes.trim(), notesDraft].filter(Boolean).join('\n\n') })); setNotesDraft(''); }}>Use draft{referralForm.notes.trim() ? ' · append to notes' : ''}</button>
-                        <button type="button" className="btn btn-secondary text-xs" onClick={() => setNotesDraft('')}>Discard</button>
+                        <button type="button" className="btn btn-primary text-xs" onClick={() => { setReferralForm(previous => ({ ...previous, notes: [previous.notes.trim(), notesDraft].filter(Boolean).join('\n\n') })); setNotesDraft(''); }}>{t('Use draft')}{referralForm.notes.trim() ? ' · append to notes' : ''}</button>
+                        <button type="button" className="btn btn-secondary text-xs" onClick={() => setNotesDraft('')}>{t('Discard')}</button>
                       </div>
                     </div>}
 
@@ -2258,14 +2258,14 @@ export function CbacScreening() {
                     <div className="rounded-xl bg-warn-soft p-3 text-xs sm:text-sm space-y-1" data-testid="gap-preview">
                       <div className="flex items-center gap-1.5 font-bold text-warn">
                         <Icon name="alert" size={16} />
-                        AI Care Coordinator Flag:
+                        {t('AI Care Coordinator Flag:')}
                       </div>
                       <div className="mt-1">
                         <CareStateChip state={preview.careState} />
                       </div>
                       <p className="text-ink">{t(preview.reason.key, preview.reason.params)}</p>
                       <p className="font-semibold text-brand">
-                        Suggested Follow-Up: {t(`action.${preview.action}`)}
+                        {t('Suggested Follow-Up:')} {t(`action.${preview.action}`)}
                       </p>
                     </div>
                   )}
@@ -2274,10 +2274,10 @@ export function CbacScreening() {
                 <div className="p-4 rounded-2xl bg-ok-soft/70 border border-ok/30 text-xs sm:text-sm text-ok-dark space-y-1">
                   <div className="font-bold flex items-center gap-1.5 text-ok">
                     <Icon name="check" size={16} />
-                    Routine Community Care Confirmed
+                    {t('Routine Community Care Confirmed')}
                   </div>
                   <p className="text-muted">
-                    Individual risk score is low (Score: {partA.totalScore}/12) and no danger symptoms were identified.
+                    {t('Individual risk score is low (Score:')} {partA.totalScore}/12) {t('and no danger symptoms were identified.')}
                     The assessment will be recorded and queued for sync. Next routine assessment in 1 year.
                   </p>
                 </div>
@@ -2290,7 +2290,7 @@ export function CbacScreening() {
                   onClick={() => goToAssessmentSlide('D')}
                   className="btn btn-secondary !min-h-[46px] !px-4 text-sm font-semibold"
                 >
-                  ← Back to Part D
+                  {t('← Back to Part D')}
                 </button>
                 <button
                   type="button"
@@ -2321,17 +2321,17 @@ export function CbacScreening() {
             <div className="border-b border-line pb-2 flex items-center justify-between">
               <h3 className="font-bold text-sm sm:text-base text-brand flex items-center gap-1.5">
                 <Icon name="spark" size={16} className="text-accent" />
-                Live Assessment Summary
+                {t('Live Assessment Summary')}
               </h3>
               <span className="text-[0.72rem] font-bold text-muted uppercase tracking-wider">
-                Real-Time
+                {t('Real-Time')}
               </span>
             </div>
 
             {/* Part A Score Gauge */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-muted">Part A Risk Score:</span>
+                <span className="font-bold text-muted">{t('Part A Risk Score:')}</span>
                 <span className="font-black text-sm text-ink">{partA.totalScore} / 12</span>
               </div>
               <div className="h-2.5 w-full bg-line rounded-full overflow-hidden">
@@ -2343,7 +2343,7 @@ export function CbacScreening() {
                 />
               </div>
               <div className="flex items-center justify-between text-[0.7rem]">
-                <span className="text-muted">Threshold: 4 pts</span>
+                <span className="text-muted">{t('Threshold: 4 pts')}</span>
                 <span className={`font-bold ${triage.highRiskNcd ? 'text-danger' : 'text-ok'}`}>
                   {triage.highRiskNcd ? 'High NCD Risk (>4)' : 'Routine Screening (≤4)'}
                 </span>
@@ -2354,7 +2354,7 @@ export function CbacScreening() {
             {/* Part D PHQ-2 Score */}
             <div className="space-y-1.5 pt-2 border-t border-line/60">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-muted">Part D PHQ-2:</span>
+                <span className="font-bold text-muted">{t('Part D PHQ-2:')}</span>
                 <span className="font-black text-sm text-ink">{partD.totalScore} / 6</span>
               </div>
               <div className="h-2 w-full bg-line rounded-full overflow-hidden">
@@ -2373,15 +2373,15 @@ export function CbacScreening() {
             {/* Clinical Alert Badges */}
             <div className="space-y-1.5 pt-2 border-t border-line/60">
               <span className="text-[0.75rem] font-bold text-muted uppercase tracking-wider block">
-                Clinical Triage Alerts:
+                {t('Clinical Triage Alerts:')}
               </span>
               {triage.tbSuspectAlert && (
                 <div className="rounded-xl bg-danger-soft p-2.5 text-xs text-danger font-semibold flex items-start gap-1.5">
                   <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-bold">🚨 TB Suspect Alert</div>
+                    <div className="font-bold">{t('🚨 TB Suspect Alert')}</div>
                     <div className="text-[0.72rem] text-danger/90">
-                      Sputum collection & transport to nearest TB center
+                      {t('Sputum collection & transport to nearest TB center')}
                     </div>
                   </div>
                 </div>
@@ -2390,25 +2390,25 @@ export function CbacScreening() {
                 <div className="rounded-xl bg-warn-soft p-2.5 text-xs text-warn font-semibold flex items-start gap-1.5">
                   <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-bold">TB Contact Alert</div>
-                    <div className="text-[0.72rem] text-warn/90">Family tracing by ANM/MPW</div>
+                    <div className="font-bold">{t('TB Contact Alert')}</div>
+                    <div className="text-[0.72rem] text-warn/90">{t('Family tracing by ANM/MPW')}</div>
                   </div>
                 </div>
               )}
               {triage.highRiskNcd && (
                 <div className="rounded-xl bg-warn-soft p-2 text-xs text-warn font-semibold">
-                  ⚡ Prioritize for Weekly NCD Screening Day
+                  {t('⚡ Prioritize for Weekly NCD Screening Day')}
                 </div>
               )}
               {triage.symptomAlert && !triage.tbSuspectAlert && (
                 <div className="rounded-xl bg-info-soft p-2 text-xs text-brand font-semibold">
-                  ⚠️ Symptoms present: Medical Officer referral advised
+                  {t('⚠️ Symptoms present: Medical Officer referral advised')}
                 </div>
               )}
               {!triage.referralRequired && (
                 <div className="rounded-xl bg-ok-soft p-2 text-xs text-ok font-semibold flex items-center gap-1.5">
                   <Icon name="check" size={14} />
-                  <span>No critical flags · Routine annual screening</span>
+                  <span>{t('No critical flags · Routine annual screening')}</span>
                 </div>
               )}
             </div>
@@ -2416,13 +2416,13 @@ export function CbacScreening() {
             {/* Live Referral Summary */}
             <div className="rounded-xl bg-surface p-2.5 border border-line text-xs space-y-1">
               <div className="font-bold text-brand flex items-center justify-between">
-                <span>Screening Focus:</span>
+                <span>{t('Screening Focus:')}</span>
                 <span className="font-semibold text-ink uppercase text-[0.72rem]">
                   {referralForm.screeningArea || 'NCD'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-[0.75rem] text-muted">
-                <span>Clinical Finding:</span>
+                <span>{t('Clinical Finding:')}</span>
                 <span
                   className={`font-bold ${
                     (referralForm.screeningFinding || (triage.highRiskNcd || triage.symptomAlert ? 'positive' : 'negative')) === 'positive'
@@ -2440,13 +2440,13 @@ export function CbacScreening() {
               {referralForm.referralRequired === 'yes' && (
                 <>
                   <div className="font-bold text-brand flex items-center justify-between pt-1 border-t border-line/50">
-                    <span>Facility:</span>
+                    <span>{t('Facility:')}</span>
                     <span className="font-semibold text-ink truncate max-w-[140px]">
                       {referralForm.destinationFacility || 'Not specified'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[0.75rem] text-muted">
-                    <span>Urgency:</span>
+                    <span>{t('Urgency:')}</span>
                     <span
                       className={`font-bold uppercase ${
                         referralForm.urgency === 'urgent'
@@ -2461,13 +2461,13 @@ export function CbacScreening() {
                   </div>
                   {referralForm.appointmentDate && (
                     <div className="flex items-center justify-between text-[0.75rem] text-muted">
-                      <span>Appt Date:</span>
+                      <span>{t('Appt Date:')}</span>
                       <span className="font-semibold text-ink">{referralForm.appointmentDate}</span>
                     </div>
                   )}
                   {referralForm.patientIntention && (
                     <div className="flex items-center justify-between text-[0.75rem] text-muted">
-                      <span>Intention:</span>
+                      <span>{t('Intention:')}</span>
                       <span className="font-semibold text-ink">{referralForm.patientIntention}</span>
                     </div>
                   )}
@@ -2478,7 +2478,7 @@ export function CbacScreening() {
             {/* Quick Slide Switcher in Sidebar */}
             <div className="pt-2 border-t border-line/60 space-y-1">
               <span className="text-[0.75rem] font-bold text-muted uppercase tracking-wider block">
-                Jump to Slide:
+                {t('Jump to Slide:')}
               </span>
               <div className="grid grid-cols-2 gap-1.5 text-xs">
                 <button
@@ -2486,35 +2486,35 @@ export function CbacScreening() {
                   onClick={() => goToAssessmentSlide('A')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'A' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  Part A ({partA.totalScore} pts)
+                  {t('Part A')} ({partA.totalScore} {t('pts')})
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('B')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'B' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  Part B ({totalSymptomsChecked} sym)
+                  {t('Part B')} ({totalSymptomsChecked} {t('sym')})
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('C')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'C' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  Part C ({partC.cookingFuel.length} fuel)
+                  {t('Part C')} ({partC.cookingFuel.length} {t('fuel')})
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('D')}
                   className={`btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'D' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  Part D ({partD.totalScore} pts)
+                  {t('Part D')} ({partD.totalScore} {t('pts')})
                 </button>
                 <button
                   type="button"
                   onClick={() => goToAssessmentSlide('REFERRAL')}
                   className={`col-span-2 btn !min-h-[34px] !py-1 text-xs ${activeSlide === 'REFERRAL' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  Referral Plan ({referralForm.referralRequired === 'yes' ? referralForm.destinationFacility || 'Required' : 'Screening Only'})
+                  {t('Referral Plan')} ({referralForm.referralRequired === 'yes' ? referralForm.destinationFacility || t('Required') : t('Screening Only')})
                 </button>
               </div>
             </div>

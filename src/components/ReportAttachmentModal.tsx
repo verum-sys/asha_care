@@ -1,3 +1,4 @@
+import { useLang } from '../i18n';
 import React, { useState, useRef } from 'react';
 import type { ReportAttachment } from '../db/types';
 import { addCaseAttachment, updateCaseAttachment } from '../db/repo';
@@ -20,6 +21,7 @@ export function ReportAttachmentModal({
   onClose,
   onSaved,
 }: ReportAttachmentModalProps) {
+  const { t } = useLang();
   const [title, setTitle] = useState(initialAttachment?.title || '');
   const [findings, setFindings] = useState(initialAttachment?.findings || '');
   const [fileName, setFileName] = useState(initialAttachment?.fileName || '');
@@ -105,11 +107,11 @@ export function ReportAttachmentModal({
                 category === 'radiology' ? 'bg-indigo-100 text-indigo-800' :
                 'bg-sky-100 text-sky-800'
               }`}>
-                {category.toUpperCase()} ATTACHMENT
+                {category.toUpperCase()} {t('ATTACHMENT')}
               </span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 mt-1">{categoryTitles[category]}</h2>
-            <p className="text-xs text-slate-500">Edit report details or select a PDF to attach or replace the saved file</p>
+            <p className="text-xs text-slate-500">{t('Edit report details or select a PDF to attach or replace the saved file')}</p>
           </div>
           <button
             type="button"
@@ -120,11 +122,11 @@ export function ReportAttachmentModal({
           </button>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-4">{error && <p role="alert" className="text-sm text-red-700">{error}</p>}{reading && <p role="status" className="text-sm text-teal-700">Reading PDF…</p>}
+        <form onSubmit={handleSave} className="space-y-4">{error && <p role="alert" className="text-sm text-red-700">{t(error)}</p>}{reading && <p role="status" className="text-sm text-teal-700">{t('Reading PDF…')}</p>}
           {/* File Upload Zone */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Select PDF File
+              {t('Select PDF File')}
             </label>
             <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-sky-500 bg-slate-50/50 transition-colors">
               <input
@@ -141,12 +143,12 @@ export function ReportAttachmentModal({
                 {fileName ? (
                   <div>
                     <span className="text-sm font-bold text-slate-800">{fileName}</span>
-                    <span className="block text-xs text-slate-500">{fileSize} · PDF Document</span>
+                    <span className="block text-xs text-slate-500">{fileSize} {t('· PDF Document')}</span>
                   </div>
                 ) : (
                   <div>
-                    <span className="text-xs font-semibold text-sky-700 underline">Browse PDF document</span>
-                    <span className="block text-[11px] text-slate-400 mt-0.5">PDF up to 25MB supported</span>
+                    <span className="text-xs font-semibold text-sky-700 underline">{t('Browse PDF document')}</span>
+                    <span className="block text-[11px] text-slate-400 mt-0.5">{t('PDF up to 25MB supported')}</span>
                   </div>
                 )}
               </label>
@@ -156,14 +158,14 @@ export function ReportAttachmentModal({
           {/* Report Title */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Report Title / Investigation Name
+              {t('Report Title / Investigation Name')}
             </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Histopathology Biopsy Report #HP-4482"
+              placeholder={t('e.g. Histopathology Biopsy Report #HP-4482')}
               className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
             />
           </div>
@@ -171,13 +173,13 @@ export function ReportAttachmentModal({
           {/* Clinical Findings / Highlights */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Diagnostic Summary & Key Clinical Findings
+              {t('Diagnostic Summary & Key Clinical Findings')}
             </label>
             <textarea
               rows={3}
               value={findings}
               onChange={(e) => setFindings(e.target.value)}
-              placeholder="Key pathological diagnosis, staging, impression, or abnormal values..."
+              placeholder={t('Key pathological diagnosis, staging, impression, or abnormal values...')}
               className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
             />
           </div>
@@ -189,7 +191,7 @@ export function ReportAttachmentModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"

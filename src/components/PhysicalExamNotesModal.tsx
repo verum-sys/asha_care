@@ -1,3 +1,4 @@
+import { useLang } from '../i18n';
 import React, { useState } from 'react';
 import type { CareTier, PhysicalExamNotes } from '../db/types';
 import { updateCaseClinical } from '../db/repo';
@@ -24,6 +25,7 @@ export function PhysicalExamNotesModal({
   onClose,
   onSaved,
 }: PhysicalExamNotesModalProps) {
+  const { t } = useLang();
   const [bpSys, setBpSys] = useState<string>(initialExam?.bpSystolic ? String(initialExam.bpSystolic) : '');
   const [bpDia, setBpDia] = useState<string>(initialExam?.bpDiastolic ? String(initialExam.bpDiastolic) : '');
   const [pulse, setPulse] = useState<string>(initialExam?.pulseRate ? String(initialExam.pulseRate) : '');
@@ -107,11 +109,11 @@ export function PhysicalExamNotesModal({
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sky-100 text-sky-800">
-                {tier.toUpperCase()} CLINICAL EXAMINATION
+                {tier.toUpperCase()} {t('CLINICAL EXAMINATION')}
               </span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mt-1 font-display">Notes (Physical Examination)</h2>
-            <p className="text-xs text-slate-500">Record baseline vitals, systemic evaluation, and tier-specific medical notes</p>
+            <h2 className="text-xl font-bold text-slate-900 mt-1 font-display">{t('Notes (Physical Examination)')}</h2>
+            <p className="text-xs text-slate-500">{t('Record baseline vitals, systemic evaluation, and tier-specific medical notes')}</p>
           </div>
           <button
             type="button"
@@ -126,11 +128,11 @@ export function PhysicalExamNotesModal({
           {/* Vitals Grid */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-              <span>Vital Signs & Anthropometry</span>
+              <span>{t('Vital Signs & Anthropometry')}</span>
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">BP Systolic</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('BP Systolic')}</label>
                 <div className="flex items-center">
                   <input
                     type="number"
@@ -143,7 +145,7 @@ export function PhysicalExamNotesModal({
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">BP Diastolic</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('BP Diastolic')}</label>
                 <div className="flex items-center">
                   <input
                     type="number"
@@ -156,7 +158,7 @@ export function PhysicalExamNotesModal({
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Pulse Rate</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('Pulse Rate')}</label>
                 <div className="flex items-center">
                   <input
                     type="number"
@@ -169,7 +171,7 @@ export function PhysicalExamNotesModal({
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">SpO2 Level</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('SpO2 Level')}</label>
                 <div className="flex items-center">
                   <input
                     type="number"
@@ -182,7 +184,7 @@ export function PhysicalExamNotesModal({
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Weight (kg)</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('Weight (kg)')}</label>
                 <input
                   type="number"
                   value={weight}
@@ -192,7 +194,7 @@ export function PhysicalExamNotesModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Height (cm)</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('Height (cm)')}</label>
                 <input
                   type="number"
                   value={height}
@@ -202,7 +204,7 @@ export function PhysicalExamNotesModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Body Temp</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('Body Temp')}</label>
                 <div className="flex items-center">
                   <input
                     type="number"
@@ -216,7 +218,7 @@ export function PhysicalExamNotesModal({
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Calculated BMI</label>
+                <label className="block text-[11px] font-semibold text-slate-600">{t('Calculated BMI')}</label>
                 <div className="text-sm font-bold text-slate-800 py-1.5">
                   {weight && height
                     ? (parseFloat(weight) / Math.pow(parseFloat(height) / 100, 2)).toFixed(1)
@@ -229,12 +231,12 @@ export function PhysicalExamNotesModal({
           {/* Clinical Examination Notes */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-t border-slate-100 pt-3">
-              Detailed Clinical Examination
+              {t('Detailed Clinical Examination')}
             </h3>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                General Physical Examination (Pallor, Icterus, Cyanosis, Lymphadenopathy, Edema)
+                {t('General Physical Examination (Pallor, Icterus, Cyanosis, Lymphadenopathy, Edema)')}
               </label>
               <textarea
                 rows={2}
@@ -246,7 +248,7 @@ export function PhysicalExamNotesModal({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Systemic Examination (Chest / CVS / Abdomen / CNS)
+                {t('Systemic Examination (Chest / CVS / Abdomen / CNS)')}
               </label>
               <textarea
                 rows={2}
@@ -259,7 +261,7 @@ export function PhysicalExamNotesModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Oral Cavity Examination (Lesions / Leukoplakia)
+                  {t('Oral Cavity Examination (Lesions / Leukoplakia)')}
                 </label>
                 <textarea
                   rows={2}
@@ -270,7 +272,7 @@ export function PhysicalExamNotesModal({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Breast / Cervical Local Examination
+                  {t('Breast / Cervical Local Examination')}
                 </label>
                 <textarea
                   rows={2}
@@ -282,22 +284,22 @@ export function PhysicalExamNotesModal({
             </div>
           </div>
 
-          <div><label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="cervical-exam">Cervical examination findings</label><textarea id="cervical-exam" value={cervicalExamFindings} onChange={e => setCervicalExamFindings(e.target.value)} /></div>
-          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+          <div><label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="cervical-exam">{t('Cervical examination findings')}</label><textarea id="cervical-exam" value={cervicalExamFindings} onChange={e => setCervicalExamFindings(e.target.value)} /></div>
+          {error && <p role="alert" className="text-sm text-red-700">{t(error)}</p>}
           {/* Tier Specific Notes */}
           {(tier === 'dh' || tier === 'tcc') && (
             <div className="border-t border-slate-100 pt-3 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                  DH SPECIALIST SECTION
+                  {t('DH SPECIALIST SECTION')}
                 </span>
-                <span className="text-xs font-bold text-slate-800">District Hospital (DH) Notes</span>
+                <span className="text-xs font-bold text-slate-800">{t('District Hospital (DH) Notes')}</span>
               </div>
               <textarea
                 rows={2}
                 value={dhNotes}
                 onChange={(e) => setDhNotes(e.target.value)}
-                placeholder="District Hospital specialist staging, biopsy review, radiology consultation notes..."
+                placeholder={t('District Hospital specialist staging, biopsy review, radiology consultation notes...')}
                 className="w-full text-sm rounded-xl border border-amber-200 bg-amber-50/20 px-3 py-2 outline-none focus:border-amber-500"
               />
             </div>
@@ -307,15 +309,15 @@ export function PhysicalExamNotesModal({
             <div className="border-t border-slate-100 pt-3 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
-                  TERTIARY ONCOLOGY SECTION
+                  {t('TERTIARY ONCOLOGY SECTION')}
                 </span>
-                <span className="text-xs font-bold text-slate-800">Tertiary Care Centre (TCC) Notes</span>
+                <span className="text-xs font-bold text-slate-800">{t('Tertiary Care Centre (TCC) Notes')}</span>
               </div>
               <textarea
                 rows={3}
                 value={tccNotes}
                 onChange={(e) => setTccNotes(e.target.value)}
-                placeholder="Tumor Board review consensus, Chemotherapy/Radiotherapy protocol, Surgical plan..."
+                placeholder={t('Tumor Board review consensus, Chemotherapy/Radiotherapy protocol, Surgical plan...')}
                 className="w-full text-sm rounded-xl border border-rose-200 bg-rose-50/20 px-3 py-2 outline-none focus:border-rose-500"
               />
             </div>
@@ -328,7 +330,7 @@ export function PhysicalExamNotesModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"

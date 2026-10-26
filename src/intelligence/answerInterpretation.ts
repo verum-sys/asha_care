@@ -21,7 +21,7 @@ export async function interpretInterviewAnswer(questionId: string, answer: strin
     const token = await getToken();
     if (!token) return { ok: false, error: 'Please sign in to interpret this wording, or select a quick answer.' };
     const response = await fetch('/api/interpret-answer', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ questionId, answer, ...(alternatives.length ? { alternatives: alternatives.slice(0, 5) } : {}) }), signal });
-    if (!response.ok) return { ok: false, error: `${local.ok ? 'Please clarify this answer.' : local.error} AI interpretation is unavailable; use a quick answer or edit the form.` };
+    if (!response.ok) return { ok: false, error: local.ok ? 'Please clarify this answer. AI interpretation is unavailable; use a quick answer or edit the form.' : local.error };
     const interpreted: unknown = await response.json();
     if (!validateInterpretation(interpreted) || interpreted.needsClarification || interpreted.confidence < 0.85) return { ok: false, error: 'Please clarify this answer or select a quick answer. No fields were changed.' };
     const parsed = parseCbacInterviewAnswer(questionId, interpreted.normalizedAnswer, sex, age);

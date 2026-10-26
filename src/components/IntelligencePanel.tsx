@@ -62,7 +62,7 @@ export function IntelligencePanel({ intel, referralId }: { intel: Intelligence; 
         : `/case/${referralId}/follow-up?suggested=${intel.action}`;
 
   return (
-    <section className="overflow-hidden rounded-2xl border-2 border-accent/40 bg-white" aria-label="Intelligence">
+    <section className="overflow-hidden rounded-2xl border-2 border-accent/40 bg-white" aria-label={t('Intelligence')}>
       <div className="space-y-4 p-4">
         <div>
           <div className="mb-1 text-[0.85rem] font-semibold uppercase tracking-wide text-muted">{t('intel.careState')}</div>

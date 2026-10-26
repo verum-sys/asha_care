@@ -1,3 +1,4 @@
+import { useLang } from '../i18n';
 import type { ReportAttachment } from '../db/types';
 import { Icon } from './Icon';
 
@@ -16,6 +17,7 @@ export function PdfViewerModal({
   isOpen,
   onClose,
 }: PdfViewerModalProps) {
+  const { t } = useLang();
   if (!isOpen || !attachment) return null;
 
   const handleDownload = () => {
@@ -58,7 +60,7 @@ export function PdfViewerModal({
               onClick={handleDownload}
               className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white flex items-center gap-1.5 shadow-sm transition-all"
             >
-              <span>Download</span>
+              <span>{t('Download')}</span>
               <Icon name="check" size={14} />
             </button>
             <button
@@ -106,7 +108,7 @@ export function PdfViewerModal({
                 <span className="font-semibold text-slate-700">{attachment.title}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Report Category</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('Report Category')}</span>
                 <span className="font-semibold text-slate-700 uppercase">{attachment.category} (PDF ATTACHMENT)</span>
               </div>
             </div>
@@ -151,7 +153,7 @@ export function PdfViewerModal({
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
           >
-            Close Viewer
+            {t('Close Viewer')}
           </button>
         </div>
       </div>

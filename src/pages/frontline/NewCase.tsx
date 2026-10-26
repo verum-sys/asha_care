@@ -441,7 +441,7 @@ export function NewCase() {
               </span>
               {!online && !isListening && (
                 <span className="shrink-0 rounded bg-brand/10 px-1.5 py-0.5 text-[0.68rem] font-bold text-brand uppercase tracking-wider">
-                  Offline
+                  {t('Offline')}
                 </span>
               )}
             </button>
@@ -576,17 +576,17 @@ export function NewCase() {
             <div>
               <div className="font-bold text-sm sm:text-base text-brand flex items-center gap-1.5">
                 <Icon name="spark" size={18} className="text-accent" />
-                Community Based Assessment Checklist (CBAC)
+                {t('Community Based Assessment Checklist (CBAC)')}
               </div>
               <p className="text-xs sm:text-[0.82rem] text-muted">
-                Complete slide-based Parts A–D with smart age and waist auto-clicking.
+                {t('Complete slide-based Parts A–D with smart age and waist auto-clicking.')}
               </p>
             </div>
             <Link
               to={id ? `/case/${id}/cbac` : `/cbac?name=${encodeURIComponent(form.name)}&age=${encodeURIComponent(form.age)}&sex=${encodeURIComponent(form.sex)}`}
               className="btn btn-accent !min-h-[40px] text-xs sm:text-sm font-bold shrink-0 flex items-center gap-1.5"
             >
-              <span>Launch Smart CBAC</span>
+              <span>{t('Launch Smart CBAC')}</span>
               <Icon name="chevron" size={16} />
             </Link>
           </div>
@@ -707,7 +707,7 @@ export function NewCase() {
           </Field>
         </fieldset>
 
-        {error && <p className="rounded-xl bg-danger-soft px-3 py-2 font-semibold text-danger">{error}</p>}
+        {error && <p className="rounded-xl bg-danger-soft px-3 py-2 font-semibold text-danger">{t(error)}</p>}
 
         {!editing && !canSaveNew && (
           <p className="rounded-xl bg-info-soft px-3 py-2 text-[0.9rem] text-brand">{t('new.reviewRequired')}</p>

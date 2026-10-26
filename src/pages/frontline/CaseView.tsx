@@ -87,7 +87,7 @@ export function CaseView() {
             className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
           >
             <Icon name="spark" size={14} />
-            <span>AI Summary</span>
+            <span>{t('AI Summary')}</span>
           </button>
 
           {currentTier !== 'tcc' && (
@@ -110,11 +110,11 @@ export function CaseView() {
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-current animate-pulse" />
           <span className={`text-xs font-extrabold uppercase tracking-wider ${tierColors[currentTier].text}`}>
-            {tierColors[currentTier].label} · Unit {currentUnit.toUpperCase()}
+            {t(tierColors[currentTier].label)} {t('· Unit')} {currentUnit.toUpperCase()}
           </span>
         </div>
         <div className="text-xs text-slate-600 font-semibold">
-          Facility: <span className="font-bold text-slate-800">{referral.destinationFacility || 'Local Sub-centre'}</span>
+          {t('Facility:')} <span className="font-bold text-slate-800">{referral.destinationFacility || t('Local Sub-centre')}</span>
         </div>
       </div>
 
@@ -194,7 +194,7 @@ export function CaseView() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Icon name="spark" size={20} className="text-accent" />
-            <span>CBAC Assessment {currentTier !== 'asha' ? '(Editable)' : ''}</span>
+            <span>{t('CBAC Assessment')} {currentTier !== 'asha' ? '(Editable)' : ''}</span>
           </h2>
           <Link
             to={`/case/${referral.id}/cbac?tier=${currentTier}&unit=${currentUnit}`}
@@ -210,7 +210,7 @@ export function CaseView() {
           <div className="space-y-2 text-xs sm:text-sm">
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 rounded-xl bg-surface border border-line">
-                <span className="text-muted block text-xs">Part A NCD Score</span>
+                <span className="text-muted block text-xs">{t('Part A NCD Score')}</span>
                 <span className="font-bold text-base text-ink">
                   {referral.screening.cbac.partA.totalScore} / 12
                 </span>
@@ -223,7 +223,7 @@ export function CaseView() {
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-surface border border-line">
-                <span className="text-muted block text-xs">Part D PHQ-2 Mental Score</span>
+                <span className="text-muted block text-xs">{t('Part D PHQ-2 Mental Score')}</span>
                 <span className="font-bold text-base text-ink">
                   {referral.screening.cbac.partD.totalScore} / 6
                 </span>
@@ -240,13 +240,13 @@ export function CaseView() {
             {referral.screening.cbac.tbSuspectAlert && (
               <div className="rounded-xl bg-danger-soft p-2.5 text-xs text-danger font-semibold flex items-center gap-1.5">
                 <Icon name="alert" size={16} />
-                <span>🚨 TB Suspect: Sputum collection & transport required</span>
+                <span>{t('🚨 TB Suspect: Sputum collection & transport required')}</span>
               </div>
             )}
           </div>
         ) : (
           <p className="text-xs sm:text-sm text-muted">
-            No CBAC checklist recorded for this patient yet. Tap above to launch the slide-based checklist.
+            {t('No CBAC checklist recorded for this patient yet. Tap above to launch the slide-based checklist.')}
           </p>
         )}
       </section>
@@ -254,13 +254,13 @@ export function CaseView() {
       <CareJourneySummary record={data} onEditSummary={() => setShowAiModal(true)} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />
 
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>Recorded acceptance: <strong>{referral.worker.facilityResponse ?? referral.facility.response}</strong> · Appointment: {referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>Acceptance & appointment</button></div>
+      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Recorded acceptance:')} <strong>{referral.worker.facilityResponse ?? referral.facility.response}</strong> {t('· Appointment:')} {referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Acceptance & appointment')}</button></div>
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Icon name="user" size={20} className="text-sky-600" />
-            <span>Notes (Physical Examination)</span>
+            <span>{t('Notes (Physical Examination)')}</span>
           </h2>
           <button
             type="button"
@@ -278,25 +278,25 @@ export function CaseView() {
             {/* Findings list */}
             <div className="space-y-1.5 text-xs text-slate-700">
               {referral.physicalExam.generalFindings && (
-                <p><strong>General Examination:</strong> {referral.physicalExam.generalFindings}</p>
+                <p><strong>{t('General Examination:')}</strong> {referral.physicalExam.generalFindings}</p>
               )}
               {referral.physicalExam.systemicExam && (
-                <p><strong>Systemic Examination:</strong> {referral.physicalExam.systemicExam}</p>
+                <p><strong>{t('Systemic Examination:')}</strong> {referral.physicalExam.systemicExam}</p>
               )}
               {referral.physicalExam.oralCavityFindings && (
-                <p><strong>Oral Cavity:</strong> {referral.physicalExam.oralCavityFindings}</p>
+                <p><strong>{t('Oral Cavity:')}</strong> {referral.physicalExam.oralCavityFindings}</p>
               )}
               {referral.physicalExam.breastExamFindings && (
-                <p><strong>Breast / Cervical:</strong> {referral.physicalExam.breastExamFindings}</p>
+                <p><strong>{t('Breast / Cervical:')}</strong> {referral.physicalExam.breastExamFindings}</p>
               )}
               {referral.physicalExam.recordedBy && (
-                <p className="text-[11px] text-slate-400 pt-1">Recorded by: {referral.physicalExam.recordedBy}</p>
+                <p className="text-[11px] text-slate-400 pt-1">{t('Recorded by:')} {referral.physicalExam.recordedBy}</p>
               )}
             </div>
           </div>
         ) : (
           <p className="text-xs sm:text-sm text-muted">
-            No physical examination recorded yet. Click above to log vitals, systemic, and local examination findings.
+            {t('No physical examination recorded yet. Click above to log vitals, systemic, and local examination findings.')}
           </p>
         )}
       </section>
@@ -307,9 +307,9 @@ export function CaseView() {
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Icon name="info" size={20} className="text-indigo-600" />
-              <span>Diagnostic Reports (PDF Attachments)</span>
+              <span>{t('Diagnostic Reports (PDF Attachments)')}</span>
             </h2>
-            <p className="text-xs text-slate-500">General lab, Biopsy (histopathology), and Radiology imaging reports</p>
+            <p className="text-xs text-slate-500">{t('General lab, Biopsy (histopathology), and Radiology imaging reports')}</p>
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -317,21 +317,21 @@ export function CaseView() {
               onClick={() => setAttachmentCat('general')}
               className="btn btn-secondary !min-h-[34px] !px-2.5 text-xs font-semibold"
             >
-              + Lab PDF
+              {t('+ Lab PDF')}
             </button>
             <button
               type="button"
               onClick={() => setAttachmentCat('biopsy')}
               className="btn btn-secondary !min-h-[34px] !px-2.5 text-xs font-semibold text-amber-800 bg-amber-50"
             >
-              + Biopsy PDF
+              {t('+ Biopsy PDF')}
             </button>
             <button
               type="button"
               onClick={() => setAttachmentCat('radiology')}
               className="btn btn-secondary !min-h-[34px] !px-2.5 text-xs font-semibold text-indigo-800 bg-indigo-50"
             >
-              + Radiology PDF
+              {t('+ Radiology PDF')}
             </button>
           </div>
         </div>
@@ -363,14 +363,14 @@ export function CaseView() {
                   <p className="text-[11px] text-slate-500 line-clamp-2">{att.findings || att.fileName}</p>
                 </div>
                 <div className="text-sky-600 text-xs font-bold shrink-0 mt-1">
-                  <button type="button" className="underline mr-3" onClick={event => { event.stopPropagation(); setEditReport(att); }}>Edit report</button>View PDF →
+                  <button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold mr-3" onClick={event => { event.stopPropagation(); setEditReport(att); }}>{t('✎ Edit report')}</button>{t('View PDF →')}
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <p className="text-xs sm:text-sm text-muted">
-            No diagnostic PDF reports attached yet. Use the buttons above to attach General Lab, Biopsy, or Radiology reports.
+            {t('No diagnostic PDF reports attached yet. Use the buttons above to attach General Lab, Biopsy, or Radiology reports.')}
           </p>
         )}
       </section>
@@ -378,16 +378,16 @@ export function CaseView() {
       {/* Tier Specific Notes (DH Notes / TCC Notes) */}
       {(referral.dhNotes || referral.tccNotes) && (
         <section className="card space-y-3">
-          <h2 className="text-lg font-bold">Specialist Tier Notes</h2>
+          <h2 className="text-lg font-bold">{t('Specialist Tier Notes')}</h2>
           {referral.dhNotes && (
             <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1">
-              <span className="text-xs font-bold text-amber-900 uppercase">District Hospital (DH) Notes</span>
+              <span className="text-xs font-bold text-amber-900 uppercase">{t('District Hospital (DH) Notes')}</span>
               <p className="text-xs text-amber-950 whitespace-pre-wrap">{referral.dhNotes}</p>
             </div>
           )}
           {referral.tccNotes && (
             <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 space-y-1">
-              <span className="text-xs font-bold text-rose-900 uppercase">Tertiary Care Centre (TCC) Notes</span>
+              <span className="text-xs font-bold text-rose-900 uppercase">{t('Tertiary Care Centre (TCC) Notes')}</span>
               <p className="text-xs text-rose-950 whitespace-pre-wrap">{referral.tccNotes}</p>
             </div>
           )}
