@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLang } from '../i18n';
 import { getQuestionHint, getQuestionText, type InterviewQuestion } from '../intelligence/cbacInterviewQuestions';
 import { joinAnswers, manualControlFor, type ManualOption } from '../intelligence/cbacManualOptions';
 import { COOKING_FUELS, CBAC_B1_SYMPTOMS, CBAC_B2_SYMPTOMS, CBAC_B3_SYMPTOMS, PHQ2_OPTIONS, type CbacGeneralInfo, type CbacPartA, type CbacPartB, type CbacPartC, type CbacPartD } from '../intelligence/cbacTypes';
+import type { SavedAnswer } from '../intelligence/cbacSavedAnswer';
 import type { Sex } from '../db/types';
 import { Icon } from './Icon';
 
@@ -29,7 +30,11 @@ export function GuidedStart({ onVoice, onManual, onFullForm }: { onVoice: () => 
 
 interface QuestionProps {
   question: InterviewQuestion; index: number; total: number; mode: 'voice' | 'manual';
+  /** Position inside the current section, e.g. question 1 of 3 in Section B. */
+  sectionIndex: number; sectionTotal: number;
   sex: Sex | ''; age: number | '';
+  /** The worker's earlier answer to this question, shown highlighted / filled in when they come back to it. */
+  saved?: SavedAnswer;
   currentAnswer: string; setCurrentAnswer: (value: string) => void;
   onAnswer: (answer: string, trusted: boolean) => void;
   interpreting: boolean; answerError: string;
@@ -38,18 +43,39 @@ interface QuestionProps {
   onSwitchMode: () => void;
 }
 
+const SECTION_NAMES: Record<string, string> = { A: 'Risk', B: 'Symptoms', C: 'COPD', D: 'PHQ-2' };
+function sectionTitle(slide: string, t: (key: string) => string) {
+  return slide === 'REFERRAL' ? t('Referral') : `${t('Section')} ${slide} · ${t(SECTION_NAMES[slide] || '')}`;
+}
+
 export function GuidedQuestionCard(props: QuestionProps) {
   const { t, lang } = useLang();
   const { question, index, total, mode, sex, age, interpreting, answerError, voice } = props;
   const control = manualControlFor(question, sex, age);
-  const [picked, setPicked] = useState<ManualOption[]>([]);
+  const savedMulti = props.saved && 'multi' in props.saved ? props.saved : undefined;
+  const [picked, setPicked] = useState<ManualOption[]>(() => control.kind === 'multi' && savedMulti ? control.options.filter(o => savedMulti.multi.includes(o.answer)) : []);
+  const savedText = props.saved && 'text' in props.saved ? props.saved.text : '';
+  const savedSingle = props.saved && 'single' in props.saved ? props.saved.single : undefined;
+  // Fill the box with the earlier value when the question is revisited (the card remounts per question).
+  useEffect(() => { if (savedText && !props.currentAnswer) props.setCurrentAnswer(savedText); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (option: ManualOption) => setPicked(current => current.some(o => o.answer === option.answer) ? current.filter(o => o.answer !== option.answer) : [...current, option]);
+  // Next saves anything typed or ticked that differs from the earlier answer, otherwise just moves on (also for unanswered questions).
+  const goNext = () => {
+    const typed = props.currentAnswer.trim();
+    if ((control.kind === 'text' || control.kind === 'number') && typed && typed !== savedText) return props.onAnswer(typed, false);
+    if (control.kind === 'multi' && picked.length && picked.map(o => o.answer).sort().join() !== (savedMulti?.multi ?? []).slice().sort().join()) return props.onAnswer(joinAnswers(picked), true);
+    props.onSkip();
+  };
   const percent = Math.round((index / total) * 100);
   const submitTyped = (event: React.FormEvent) => { event.preventDefault(); if (props.currentAnswer.trim()) props.onAnswer(props.currentAnswer, false); };
   return <section className="card space-y-4" aria-live="polite">
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs font-semibold text-muted">
-        <span>{t('Question')} {index + 1} {t('of')} {total}</span>
+      <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted">
+        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="rounded-full bg-brand/10 px-2.5 py-0.5 font-bold text-brand">{sectionTitle(question.slide, t)}</span>
+          <span>{t('Question')} {props.sectionIndex + 1} {t('of')} {props.sectionTotal}</span>
+          <span className="font-normal">· {index + 1}/{total} {t('overall')}</span>
+        </span>
         <button type="button" onClick={props.onSwitchMode} className="text-teal-700 underline">{mode === 'voice' ? t('Switch to manual') : t('Switch to voice')}</button>
       </div>
       <div className="h-1.5 rounded-full bg-surface overflow-hidden" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}><div className="h-full bg-brand transition-all" style={{ width: `${percent}%` }} /></div>
@@ -74,12 +100,14 @@ export function GuidedQuestionCard(props: QuestionProps) {
       <label htmlFor="guided-answer" className="sr-only">{t('Answer to the current question')}</label>
       <input id="guided-answer" autoFocus={mode === 'manual'} className="flex-1 min-w-0 text-base" inputMode={control.kind === 'number' ? 'numeric' : 'text'} value={props.currentAnswer}
         onChange={event => props.setCurrentAnswer(event.target.value)} placeholder={control.kind === 'number' ? (control.unit === 'cm' ? 'cm' : t('years')) : t('Type here')} disabled={interpreting} />
-      <button type="submit" className="btn btn-primary" disabled={interpreting || !props.currentAnswer.trim()}>{t('Next →')}</button>
     </form>}
 
     {control.kind === 'single' && <div className="grid gap-2 sm:grid-cols-2">
-      {control.options.map(option => <button key={option.answer} type="button" disabled={interpreting} onClick={() => props.onAnswer(option.answer, true)}
-        className="btn btn-secondary !min-h-[52px] text-sm sm:text-base font-semibold justify-start text-left">{t(option.label)}</button>)}
+      {control.options.map(option => {
+        const chosen = savedSingle === option.answer;
+        return <button key={option.answer} type="button" disabled={interpreting} aria-pressed={chosen} onClick={() => props.onAnswer(option.answer, true)}
+          className={`btn !min-h-[52px] text-sm sm:text-base font-semibold justify-start text-left ${chosen ? 'btn-primary ring-2 ring-brand/40' : 'btn-secondary'}`}>{chosen ? '✓ ' : ''}{t(option.label)}</button>;
+      })}
     </div>}
 
     {control.kind === 'multi' && <div className="space-y-2">
@@ -91,8 +119,7 @@ export function GuidedQuestionCard(props: QuestionProps) {
         })}
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary" disabled={interpreting || !picked.length} onClick={() => props.onAnswer(joinAnswers(picked), true)}>{t('Continue')}</button>
-        {control.noneAnswer && <button type="button" className="btn btn-secondary" disabled={interpreting} onClick={() => props.onAnswer(control.noneAnswer!.answer, true)}>{t(control.noneAnswer.label)}</button>}
+        {control.noneAnswer && <button type="button" aria-pressed={!!savedMulti?.none} className={`btn ${savedMulti?.none ? 'btn-primary ring-2 ring-brand/40' : 'btn-secondary'}`} disabled={interpreting} onClick={() => props.onAnswer(control.noneAnswer!.answer, true)}>{savedMulti?.none ? '✓ ' : ''}{t(control.noneAnswer.label)}</button>}
       </div>
     </div>}
 
@@ -100,7 +127,7 @@ export function GuidedQuestionCard(props: QuestionProps) {
     {answerError && <p role="alert" className="text-sm text-danger">{t(answerError)}</p>}
     <div className="flex items-center justify-between border-t border-line pt-3">
       <button type="button" className="btn btn-secondary !min-h-[40px] text-sm" disabled={!props.canGoBack || interpreting} onClick={props.onBack}>{t('← Previous')}</button>
-      <button type="button" className="btn btn-ghost !min-h-[40px] text-sm" disabled={interpreting} onClick={props.onSkip}>{t('Skip')} →</button>
+      <button type="button" className="btn btn-primary !min-h-[44px] !px-6 text-sm font-bold" disabled={interpreting} onClick={goNext}>{index === total - 1 ? t('View report →') : t('Next →')}</button>
     </div>
   </section>;
 }

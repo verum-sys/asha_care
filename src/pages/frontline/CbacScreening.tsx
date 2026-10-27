@@ -52,6 +52,7 @@ import { useSettings } from '../../settings';
 import { listenForInterviewAnswer } from '../../voice/interviewRecognition';
 import { buildInterviewQuestions, type PartBCategory } from '../../intelligence/cbacPartBInterview';
 import { CbacReport, GuidedQuestionCard, GuidedStart, type GuidedMode } from '../../components/GuidedCbac';
+import { savedAnswerFor } from '../../intelligence/cbacSavedAnswer';
 import { parseCbacInterviewAnswer } from '../../intelligence/cbacInterviewAnswers';
 import { useSpeak } from '../../voice/useSpeak';
 import { getInterviewStartIndex, getQuestionText, getQuestionHint } from '../../intelligence/cbacInterviewQuestions';
@@ -916,7 +917,8 @@ export function CbacScreening() {
 
       {guided === 'choose' && <GuidedStart onVoice={startGuidedVoice} onManual={startGuidedManual} onFullForm={openFullForm} />}
       {(guided === 'voice' || guided === 'manual') && currentQuestion && <GuidedQuestionCard key={currentQuestion.id} question={currentQuestion} index={interviewIndex} total={interviewQuestions.length} mode={guided}
-        sex={general.sex} age={general.age} currentAnswer={currentAnswer} setCurrentAnswer={setCurrentAnswer}
+        sectionIndex={interviewQuestions.filter(q => q.slide === currentQuestion.slide).findIndex(q => q.id === currentQuestion.id)} sectionTotal={interviewQuestions.filter(q => q.slide === currentQuestion.slide).length}
+        sex={general.sex} age={general.age} saved={savedAnswerFor(currentQuestion.id, { general, partA, partB, partC, partD, bCategories, referralRequired: referralForm.referralRequired })} currentAnswer={currentAnswer} setCurrentAnswer={setCurrentAnswer}
         onAnswer={(answer, trusted) => void handleInterviewAnswer(answer, [], trusted)} interpreting={interpreting} answerError={answerError}
         canGoBack={interviewIndex > 0} onBack={() => goToInterviewQuestion(interviewIndex - 1)} onSkip={skipGuidedQuestion} onSwitchMode={switchGuidedMode}
         voice={{ active: interviewActive, speaking, listening: isInterviewListening, onStart: () => startInterview(interviewIndex), onRepeat: () => speakQuestion(interviewIndex), onToggleMic: () => (isInterviewListening ? stopInterviewListening() : startInterviewListening()), onStop: stopInterview }} />}

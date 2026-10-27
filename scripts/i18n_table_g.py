@@ -29,3 +29,6 @@ TABLE_G["Please select whether a referral is needed, and its urgency, before sav
 TABLE_G["Answer whether a referral is needed (Edit) to save."] = "सहेजने के लिए बताएं कि रेफरल चाहिए या नहीं (संपादित करें)।"
 TABLE_G["Please enter the locality and the village / ward name."] = "कृपया इलाका और गांव / वार्ड का नाम दर्ज करें।"
 TABLE_G["Please select the patient intention before saving."] = "सहेजने से पहले कृपया मरीज़ की मंशा चुनें।"
+TABLE_G["Section"] = "भाग"
+TABLE_G["overall"] = "कुल"
+TABLE_G["View report →"] = "रिपोर्ट देखें →"

@@ -6,7 +6,7 @@ import { CBAC_B1_SYMPTOMS } from '../intelligence/cbacTypes';
 
 const questions = buildInterviewQuestions('F', 45, ['tb']);
 const baseProps = {
-  index: 0, total: questions.length, mode: 'manual' as const, sex: 'F' as const, age: 45 as const, currentAnswer: '', setCurrentAnswer: vi.fn(),
+  index: 0, total: questions.length, sectionIndex: 0, sectionTotal: 8, mode: 'manual' as const, sex: 'F' as const, age: 45 as const, currentAnswer: '', setCurrentAnswer: vi.fn(),
   onAnswer: vi.fn(), interpreting: false, answerError: '', canGoBack: false, onBack: vi.fn(), onSkip: vi.fn(), onSwitchMode: vi.fn(),
   voice: { active: false, speaking: false, listening: false, onStart: vi.fn(), onRepeat: vi.fn(), onToggleMic: vi.fn(), onStop: vi.fn() },
 };
@@ -18,7 +18,8 @@ describe('guided question card', () => {
     expect(html).toContain('Never');
     expect(html).toContain('Daily');
     expect(html).toContain('role="progressbar"');
-    expect(html).toContain('Skip');
+    expect(html).toContain('Section A');
+    expect(html).toContain('Next →');
   });
   it('uses a text box for name and numeric keypad for age', () => {
     expect(renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'name')!} />)).toContain('id="guided-answer"');
@@ -28,12 +29,25 @@ describe('guided question card', () => {
     const html = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} />);
     expect(html).toContain('TB or cough');
     expect(html).toContain('None of these');
-    expect(html).toContain('Continue');
+    expect(html).not.toContain('Continue');
+    expect(html).toContain('Next →');
   });
   it('shows voice controls only in voice mode', () => {
     const q = questions[0];
     expect(renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={q} />)).not.toContain('Start voice');
     expect(renderToStaticMarkup(<GuidedQuestionCard {...baseProps} mode="voice" question={q} />)).toContain('Start voice');
+  });
+});
+
+describe('returning to an answered question', () => {
+  it('highlights the earlier choice and fills earlier multi-select picks', () => {
+    const smoke = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'smoke')!} saved={{ single: 'Daily' }} />);
+    expect(smoke).toMatch(/aria-pressed="true"[^>]*>✓ <!-- -->Daily|aria-pressed="true"[^>]*>✓ Daily/);
+    expect(smoke).toContain('aria-pressed="false"');
+    const cats = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} saved={{ multi: ['TB or cough'] }} />);
+    expect(cats).toMatch(/aria-pressed="true"[^>]*>✓ <!-- -->TB or cough|aria-pressed="true"[^>]*>✓ TB or cough/);
+    const none = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} saved={{ multi: [], none: true }} />);
+    expect(none).toMatch(/aria-pressed="true"[^>]*>✓ <!-- -->None of these|aria-pressed="true"[^>]*>✓ None of these/);
   });
 });
 
