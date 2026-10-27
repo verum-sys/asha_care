@@ -564,5 +564,7 @@ export const hiExtra: Record<string, string> = {
   "Soon": "जल्द",
   "Urgent": "अत्यावश्यक",
   "Please select whether a referral is needed, and its urgency, before saving.": "सहेजने से पहले कृपया चुनें कि रेफरल चाहिए या नहीं, और उसकी तात्कालिकता।",
-  "Answer whether a referral is needed (Edit) to save.": "सहेजने के लिए बताएं कि रेफरल चाहिए या नहीं (संपादित करें)।"
+  "Answer whether a referral is needed (Edit) to save.": "सहेजने के लिए बताएं कि रेफरल चाहिए या नहीं (संपादित करें)।",
+  "Please enter the locality and the village / ward name.": "कृपया इलाका और गांव / वार्ड का नाम दर्ज करें।",
+  "Please select the patient intention before saving.": "सहेजने से पहले कृपया मरीज़ की मंशा चुनें।"
 };

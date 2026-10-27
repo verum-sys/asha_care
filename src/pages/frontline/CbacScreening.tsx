@@ -170,7 +170,10 @@ export function CbacScreening() {
   const [b1Category, setB1Category] = useState<'all' | 'tb' | 'mouth' | 'vision_nerve' | 'skin'>('all');
   const [b1Filter, setB1Filter] = useState('');
   const [saving, setSaving] = useState(false);
-  const [referralForm, setReferralForm] = useState<ReferralFormState>(INITIAL_REFERRAL);
+  // Facility tiers (PHC, DH, TCC) cannot make the clinical call at screening, so findings default to Medical Officer review. ASHA must choose.
+  const isPhcForm = searchParams.get('tier') === 'phc';
+  const defaultFinding: ScreeningFinding | '' = ['phc', 'dh', 'tcc'].includes(searchParams.get('tier') || '') ? 'needs_review' : '';
+  const [referralForm, setReferralForm] = useState<ReferralFormState>({ ...INITIAL_REFERRAL, screeningFinding: defaultFinding });
 
   const [interviewIndex, setInterviewIndex] = useState<number>(0);
   const [interviewActive, setInterviewActive] = useState<boolean>(false);
@@ -206,7 +209,7 @@ export function CbacScreening() {
         setReferralForm({
           screeningCompleted: r.screening?.completed ?? true,
           screeningArea: r.screening?.area || 'ncd',
-          screeningFinding: r.screening?.finding || '',
+          screeningFinding: r.screening?.finding || defaultFinding,
           referralRequired: r.screening?.referralRequired || 'yes',
           destinationFacility: r.destinationFacility || 'CHC Bero',
           reason: r.reason || '',
@@ -790,6 +793,10 @@ export function CbacScreening() {
       setShowGeneralDetails(true);
       return;
     }
+    if (isPhcForm && (!general.address.trim() || !general.villageWard.trim())) {
+      alert(t('Please enter the locality and the village / ward name.'));
+      return;
+    }
     // The finding is the worker's judgement; it is never pre-filled from the score.
     if (!referralForm.screeningFinding) {
       alert(t('Please select the screening finding before saving.'));
@@ -801,6 +808,11 @@ export function CbacScreening() {
       alert(t('Please select whether a referral is needed, and its urgency, before saving.'));
       if (guided !== 'form') setGuided('report');
       else setActiveSlide('REFERRAL');
+      return;
+    }
+    if (isPhcForm && referralForm.referralRequired === 'yes' && !referralForm.patientIntention) {
+      alert(t('Please select the patient intention before saving.'));
+      setActiveSlide('REFERRAL');
       return;
     }
     setSaving(true);
@@ -1091,11 +1103,12 @@ export function CbacScreening() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-line/50">
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              {t('Locality / Village / Ward')}
+              {t('Locality / Village / Ward')}{isPhcForm && ' *'}
             </label>
             <input
               type="text"
               value={general.address}
+              required={isPhcForm}
               placeholder={t('Village locality, hamlet, or tola')}
               onChange={(e) => setGeneral({ ...general, address: e.target.value })}
               className="!min-h-[40px] text-xs sm:text-sm"
@@ -1103,11 +1116,12 @@ export function CbacScreening() {
           </div>
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              {t('Village / Ward Name')}
+              {t('Village / Ward Name')}{isPhcForm && ' *'}
             </label>
             <input
               type="text"
               value={general.villageWard}
+              required={isPhcForm}
               placeholder={t('e.g. Bero')}
               onChange={(e) => setGeneral({ ...general, villageWard: e.target.value })}
               className="!min-h-[40px] text-xs sm:text-sm"
@@ -2225,9 +2239,10 @@ export function CbacScreening() {
 
                     <div>
                       <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
-                        {t('Patient Intention')}
+                        {t('Patient Intention')}{isPhcForm && ' *'}
                       </label>
                       <select
+                        required={isPhcForm}
                         value={referralForm.patientIntention}
                         onChange={(e) => setReferralForm((f) => ({ ...f, patientIntention: e.target.value as Intention | '' }))}
                       >
