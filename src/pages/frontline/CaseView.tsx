@@ -122,7 +122,7 @@ export function CaseView() {
       <section className="card">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h1 className="text-[1.4rem] font-bold text-slate-900">{patient.name || '—'}</h1>
+            <h1 className="text-[1.4rem] font-bold text-slate-900">{patient.name?.trim() || t('Community member')}</h1>
             <div className="text-muted text-sm">
               {patient.id}
               {patient.age !== undefined && ` · ${t('case.years', { n: patient.age })}`}
@@ -421,7 +421,7 @@ export function CaseView() {
       {previewPdf && (
         <PdfViewerModal
           attachment={previewPdf}
-          patientName={patient.name}
+          patientName={patient.name?.trim() || t('Community member')}
           patientId={patient.id}
           isOpen={true}
           onClose={() => setPreviewPdf(null)}
@@ -443,7 +443,7 @@ export function CaseView() {
       {showReferralModal && (
         <TierReferralModal
           referralId={referral.id}
-          patientName={patient.name}
+          patientName={patient.name?.trim() || t('Community member')}
           currentTier={currentTier}
           savedSummary={referral.aiSummaryOverride}
           onEditSummary={() => setShowAiModal(true)}

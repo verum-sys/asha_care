@@ -51,6 +51,8 @@ import {
 import { useSettings } from '../../settings';
 import { listenForInterviewAnswer } from '../../voice/interviewRecognition';
 import { buildInterviewQuestions, type PartBCategory } from '../../intelligence/cbacPartBInterview';
+import { CbacReport, GuidedQuestionCard, GuidedStart, type GuidedMode } from '../../components/GuidedCbac';
+import { parseCbacInterviewAnswer } from '../../intelligence/cbacInterviewAnswers';
 import { useSpeak } from '../../voice/useSpeak';
 import { getInterviewStartIndex, getQuestionText, getQuestionHint } from '../../intelligence/cbacInterviewQuestions';
 
@@ -70,11 +72,11 @@ interface ReferralFormState {
   screeningCompleted: boolean;
   screeningArea: ScreeningArea | '';
   screeningFinding: ScreeningFinding | '';
-  referralRequired: ReferralRequiredAnswer;
+  referralRequired: ReferralRequiredAnswer | '';
   destinationFacility: string;
   reason: string;
   referralDate: string;
-  urgency: Urgency;
+  urgency: Urgency | '';
   appointmentDate: string;
   patientIntention: Intention | '';
   notes: string;
@@ -85,11 +87,11 @@ const INITIAL_REFERRAL: ReferralFormState = {
   screeningCompleted: true,
   screeningArea: 'ncd',
   screeningFinding: '',
-  referralRequired: 'no',
+  referralRequired: '',
   destinationFacility: 'CHC Bero',
   reason: '',
   referralDate: today(),
-  urgency: 'routine',
+  urgency: '',
   appointmentDate: '',
   patientIntention: '',
   notes: '',
@@ -173,6 +175,9 @@ export function CbacScreening() {
   const [interviewIndex, setInterviewIndex] = useState<number>(0);
   const [interviewActive, setInterviewActive] = useState<boolean>(false);
   const [bCategories, setBCategories] = useState<PartBCategory[] | undefined>();
+  // ASHA registrations start with a guided, one-question-at-a-time flow; editing an existing case or other tiers open the full form.
+  const [guided, setGuided] = useState<GuidedMode>(() => (id || (searchParams.get('tier') || 'asha') !== 'asha' ? 'form' : 'choose'));
+  const [cameFromGuided, setCameFromGuided] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [generatingNotes, setGeneratingNotes] = useState(false);
@@ -371,7 +376,7 @@ export function CbacScreening() {
     setCurrentAnswer('');
   }, [stopSpeak, stopInterviewListening, clearTransition]);
 
-  async function handleInterviewAnswer(answerText: string, alternatives: string[] = []) {
+  async function handleInterviewAnswer(answerText: string, alternatives: string[] = [], trusted = false) {
     if (!answerText.trim() || answerPendingRef.current) return;
     const answeredIndex = questionIndexRef.current;
     const currentQ = questionsRef.current[answeredIndex];
@@ -396,11 +401,11 @@ export function CbacScreening() {
         ...(decision === 'yes' ? {
           destinationFacility: previous.destinationFacility || general.phcUphc || 'PHC',
           reason: previous.reason || triage.reasons.join(' · ') || `CBAC Part A risk score ${partA.totalScore}/12; referral requested`,
-          urgency: triage.referralRequired ? triage.urgency : previous.urgency,
         } : {}),
       }));
     } else {
-      const parsed = await interpretInterviewAnswer(currentQ.id, answerText, general.sex, () => getToken(), controller.signal, general.age, alternatives);
+      // Tapped options are already canonical, so they skip the AI round trip.
+      const parsed = trusted ? parseCbacInterviewAnswer(currentQ.id, answerText, general.sex, general.age) : await interpretInterviewAnswer(currentQ.id, answerText, general.sex, () => getToken(), controller.signal, general.age, alternatives);
       if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
       setInterpreting(false);
       if (!parsed.ok) {
@@ -429,6 +434,7 @@ export function CbacScreening() {
         interviewActiveRef.current = false;
         setInterviewActive(false);
         setActiveSlide('REFERRAL');
+        setGuided(mode => { if (mode === 'voice' || mode === 'manual') setCameFromGuided(true); return mode === 'voice' || mode === 'manual' ? 'report' : mode; });
         if (interviewActive) void speak([{ text: lang === 'hi' ? 'सभी प्रश्न पूरे हो गए। कृपया रेफरल योजना जांच कर फॉर्म सेव करें।' : 'All interview questions are complete. Please review the referral plan and save the form.' }]);
       }
     }, 150);
@@ -709,8 +715,6 @@ export function CbacScreening() {
     if (triage.referralRequired) {
       setReferralForm((prev) => ({
         ...prev,
-        referralRequired: 'yes',
-        urgency: prev.urgency === 'routine' ? triage.urgency : prev.urgency,
         reason: prev.reason || triage.reasons.join(' · '),
         destinationFacility:
           prev.destinationFacility ||
@@ -736,7 +740,7 @@ export function CbacScreening() {
       reason: referralForm.reason.trim(),
       destinationFacility: referralForm.destinationFacility.trim(),
       referralDate: referralForm.referralDate,
-      urgency: referralForm.urgency,
+      urgency: referralForm.urgency || 'routine', // preview only; the saved value is always the worker's choice
       notes: referralForm.notes.trim(),
       patientIntention: referralForm.patientIntention || undefined,
       worker: {
@@ -767,10 +771,36 @@ export function CbacScreening() {
   }
 
   // Save CBAC Assessment
+  function startGuidedVoice() { setGuided('voice'); startInterview(0); }
+  function startGuidedManual() { stopInterview(); setGuided('manual'); goToInterviewQuestion(0); }
+  function switchGuidedMode() {
+    if (guided === 'voice') { stopInterview(); setGuided('manual'); }
+    else { setGuided('voice'); startInterview(interviewIndex); }
+  }
+  function openFullForm() { stopInterview(); setGuided('form'); setActiveSlide('A'); }
+  function skipGuidedQuestion() {
+    const next = interviewIndex + 1;
+    if (next >= interviewQuestions.length) { stopInterview(); setCameFromGuided(true); setGuided('report'); }
+    else goToInterviewQuestion(next);
+  }
+
   async function handleSaveAssessment() {
     if (!general.name.trim()) {
       alert('Please enter patient name.');
       setShowGeneralDetails(true);
+      return;
+    }
+    // The finding is the worker's judgement; it is never pre-filled from the score.
+    if (!referralForm.screeningFinding) {
+      alert(t('Please select the screening finding before saving.'));
+      if (guided !== 'form') setGuided('report');
+      else setActiveSlide('REFERRAL');
+      return;
+    }
+    if (!referralForm.referralRequired || (referralForm.referralRequired === 'yes' && !referralForm.urgency)) {
+      alert(t('Please select whether a referral is needed, and its urgency, before saving.'));
+      if (guided !== 'form') setGuided('report');
+      else setActiveSlide('REFERRAL');
       return;
     }
     setSaving(true);
@@ -808,7 +838,7 @@ export function CbacScreening() {
         ? (referralForm.destinationFacility.trim() || 'CHC Bero')
         : '',
       referralDate: referralForm.referralDate || today(),
-      urgency: isReferralYes ? referralForm.urgency : 'routine',
+      urgency: (isReferralYes ? referralForm.urgency : 'routine') as Urgency,
       notes: referralForm.notes.trim() || `CBAC Part A Score: ${partA.totalScore}/12. PHQ-2 Score: ${partD.totalScore}/6. ${triage.reasons.join('; ')}`,
       patientIntention: isReferralYes ? referralForm.patientIntention || undefined : undefined,
       appointmentDate: isReferralYes ? referralForm.appointmentDate || undefined : undefined,
@@ -820,7 +850,7 @@ export function CbacScreening() {
       screening: {
         completed: referralForm.screeningCompleted,
         area: (referralForm.screeningArea || 'ncd') as ScreeningArea,
-        finding: (referralForm.screeningFinding || (triage.highRiskNcd || triage.symptomAlert ? 'positive' : 'negative')) as ScreeningFinding,
+        finding: referralForm.screeningFinding as ScreeningFinding,
         referralRequired: referralForm.referralRequired,
         cbac: fullAssessment,
       },
@@ -850,14 +880,14 @@ export function CbacScreening() {
           <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
             {t('MoHFW / Dell CBAC standard')}
           </span>
-          <button
+          {guided === 'form' && (<button
             type="button"
             onClick={() => setShowGeneralDetails(!showGeneralDetails)}
             className="btn btn-secondary !min-h-[38px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5"
           >
             <Icon name="user" size={16} />
             <span>{showGeneralDetails ? 'Hide Patient Info' : 'Patient & ASHA Details'}</span>
-          </button>
+          </button>)}
         </div>
       </div>
 
@@ -872,6 +902,16 @@ export function CbacScreening() {
         </p>
       </div>
 
+      {guided === 'choose' && <GuidedStart onVoice={startGuidedVoice} onManual={startGuidedManual} onFullForm={openFullForm} />}
+      {(guided === 'voice' || guided === 'manual') && currentQuestion && <GuidedQuestionCard key={currentQuestion.id} question={currentQuestion} index={interviewIndex} total={interviewQuestions.length} mode={guided}
+        sex={general.sex} age={general.age} currentAnswer={currentAnswer} setCurrentAnswer={setCurrentAnswer}
+        onAnswer={(answer, trusted) => void handleInterviewAnswer(answer, [], trusted)} interpreting={interpreting} answerError={answerError}
+        canGoBack={interviewIndex > 0} onBack={() => goToInterviewQuestion(interviewIndex - 1)} onSkip={skipGuidedQuestion} onSwitchMode={switchGuidedMode}
+        voice={{ active: interviewActive, speaking, listening: isInterviewListening, onStart: () => startInterview(interviewIndex), onRepeat: () => speakQuestion(interviewIndex), onToggleMic: () => (isInterviewListening ? stopInterviewListening() : startInterviewListening()), onStop: stopInterview }} />}
+      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} onEdit={openFullForm} onSave={handleSaveAssessment} />}
+      {guided === 'form' && cameFromGuided && <button type="button" onClick={() => setGuided('report')} className="btn btn-secondary !min-h-[40px] text-sm">← {t('Back to report')}</button>}
+
+      {guided === 'form' && (<>
       {/* Compact optional voice controls keep manual entry within reach. */}
       <section className="rounded-xl border border-line bg-white p-2.5 sm:p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -2054,13 +2094,11 @@ export function CbacScreening() {
                       {t('Screening Finding / Clinical Assessment')}
                     </label>
                     <select
-                      value={
-                        referralForm.screeningFinding ||
-                        (triage.highRiskNcd || triage.symptomAlert ? 'positive' : 'negative')
-                      }
+                      value={referralForm.screeningFinding}
                       onChange={(e) => setReferralForm((f) => ({ ...f, screeningFinding: e.target.value as ScreeningFinding | '' }))}
                       className="!min-h-[40px] text-xs sm:text-sm"
                     >
+                      <option value="">{t('Please select')}</option>
                       <option value="negative">{t('Normal / Negative (Low Risk)')}</option>
                       <option value="positive">{t('Suspected / Positive (High Risk Flagged)')}</option>
                       <option value="needs_review">{t('Needs CHO / Medical Officer Review')}</option>
@@ -2083,26 +2121,16 @@ export function CbacScreening() {
                     }}>{t('Ask referral decision by voice')}</button>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-2" role="radiogroup">
-                  <button
-                    type="button"
-                    onClick={() => setReferralForm((f) => ({ ...f, referralRequired: 'yes' }))}
-                    className={`btn !min-h-[44px] text-xs sm:text-sm font-bold ${
-                      referralForm.referralRequired === 'yes' ? 'btn-primary' : 'btn-secondary'
-                    }`}
-                  >
-                    {t('Yes — Initiate Referral')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReferralForm((f) => ({ ...f, referralRequired: 'no' }))}
-                    className={`btn !min-h-[44px] text-xs sm:text-sm font-bold ${
-                      referralForm.referralRequired === 'no' ? 'btn-primary' : 'btn-secondary'
-                    }`}
-                  >
-                    {t('No — Routine Community Care')}
-                  </button>
-                </div>
+                <select
+                  aria-label={t('Does this patient require referral to a health facility?')}
+                  value={referralForm.referralRequired}
+                  onChange={(e) => setReferralForm((f) => ({ ...f, referralRequired: e.target.value as ReferralRequiredAnswer | '' }))}
+                  className="!min-h-[44px] text-xs sm:text-sm font-semibold"
+                >
+                  <option value="">{t('Please select')}</option>
+                  <option value="yes">{t('Yes — Initiate Referral')}</option>
+                  <option value="no">{t('No — Routine Community Care')}</option>
+                </select>
               </div>
 
               {referralForm.referralRequired === 'yes' ? (
@@ -2170,29 +2198,15 @@ export function CbacScreening() {
                       <label className="block text-xs sm:text-sm font-bold text-ink mb-1">
                         {t('Urgency *')}
                       </label>
-                      <div className="grid grid-cols-3 gap-1.5" role="radiogroup">
-                        {(['routine', 'soon', 'urgent'] as Urgency[]).map((u) => {
-                          const isSel = referralForm.urgency === u;
-                          return (
-                            <button
-                              key={u}
-                              type="button"
-                              onClick={() => setReferralForm((f) => ({ ...f, urgency: u }))}
-                              className={`btn !min-h-[42px] text-xs font-bold uppercase tracking-wider ${
-                                isSel
-                                  ? u === 'urgent'
-                                    ? 'bg-danger text-white'
-                                    : u === 'soon'
-                                      ? 'bg-warn text-white'
-                                      : 'btn-primary'
-                                  : 'btn-secondary'
-                              }`}
-                            >
-                              {u}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <select
+                        value={referralForm.urgency}
+                        onChange={(e) => setReferralForm((f) => ({ ...f, urgency: e.target.value as Urgency | '' }))}
+                      >
+                        <option value="">{t('Please select')}</option>
+                        <option value="routine">{t('Routine')}</option>
+                        <option value="soon">{t('Soon')}</option>
+                        <option value="urgent">{t('Urgent')}</option>
+                      </select>
                     </div>
                   </div>
 
@@ -2217,7 +2231,7 @@ export function CbacScreening() {
                         value={referralForm.patientIntention}
                         onChange={(e) => setReferralForm((f) => ({ ...f, patientIntention: e.target.value as Intention | '' }))}
                       >
-                        <option value="">{t('Unknown / Not discussed')}</option>
+                        <option value="">{t('Please select')}</option>
                         <option value="will_attend">{t('Will attend facility visit')}</option>
                         <option value="unsure">{t('Unsure / Hesitant')}</option>
                         <option value="will_not_attend">{t('Will not attend / Refused')}</option>
@@ -2270,7 +2284,7 @@ export function CbacScreening() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : referralForm.referralRequired === 'no' ? (
                 <div className="p-4 rounded-2xl bg-ok-soft/70 border border-ok/30 text-xs sm:text-sm text-ok-dark space-y-1">
                   <div className="font-bold flex items-center gap-1.5 text-ok">
                     <Icon name="check" size={16} />
@@ -2281,7 +2295,7 @@ export function CbacScreening() {
                     The assessment will be recorded and queued for sync. Next routine assessment in 1 year.
                   </p>
                 </div>
-              )}
+              ) : null}
 
               {/* Bottom Navigation */}
               <div className="flex items-center justify-between pt-4 border-t border-line">
@@ -2425,16 +2439,10 @@ export function CbacScreening() {
                 <span>{t('Clinical Finding:')}</span>
                 <span
                   className={`font-bold ${
-                    (referralForm.screeningFinding || (triage.highRiskNcd || triage.symptomAlert ? 'positive' : 'negative')) === 'positive'
-                      ? 'text-danger'
-                      : 'text-ok'
+                    !referralForm.screeningFinding ? 'text-muted' : referralForm.screeningFinding === 'positive' ? 'text-danger' : 'text-ok'
                   }`}
                 >
-                  {referralForm.screeningFinding
-                    ? referralForm.screeningFinding.toUpperCase()
-                    : triage.highRiskNcd || triage.symptomAlert
-                      ? 'POSITIVE (RISK)'
-                      : 'NEGATIVE (NORMAL)'}
+                  {referralForm.screeningFinding ? referralForm.screeningFinding.toUpperCase() : t('Please select')}
                 </span>
               </div>
               {referralForm.referralRequired === 'yes' && (
@@ -2548,6 +2556,7 @@ export function CbacScreening() {
           </div>
         </aside>
       </div>
+      </>)}
     </div>
   );
 }

@@ -61,7 +61,7 @@ export function Inbox() {
           <Link key={referral.id} to={`/facility/referral/${referral.id}`} className="card block hover:border-brand/40" data-testid="inbox-card">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="text-lg font-bold">{patient.name}</div>
+                <div className="text-lg font-bold">{patient.name?.trim() || t('Community member')}</div>
                 <div className="text-[0.85rem] text-muted">
                   {patient.id} · {referral.id}
                 </div>

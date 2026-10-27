@@ -62,7 +62,7 @@ export function ReferralDetail() {
       <h1 className="text-[1.4rem] font-bold">{t('facility.detail')}</h1>
 
       <section className="card">
-        <div className="text-xl font-bold">{patient.name}</div>
+        <div className="text-xl font-bold">{patient.name?.trim() || t('Community member')}</div>
         <dl className="mt-1 divide-y divide-line/70">
           <Row label={t('facility.patientId')}>{patient.id}</Row>
           {patient.age !== undefined && <Row label={t('form.age')}>{t('case.years', { n: patient.age })}</Row>}

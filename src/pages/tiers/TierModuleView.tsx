@@ -105,9 +105,17 @@ export function TierModuleView() {
             <span className="text-xs font-bold uppercase tracking-widest text-white/80 block">
               {activeTier.toUpperCase()} {t('OPERATIONAL MODULE')}
             </span>
-            <h1 className="text-2xl font-black font-display tracking-tight text-white mt-1">
-              {t(currentMeta.name)}
-            </h1>
+            <div className="relative mt-2 w-full min-w-[240px] sm:w-[360px]">
+              <input
+                type="text"
+                placeholder={t('Search patients...')}
+                aria-label={t('Search patients...')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border-0 bg-white/95 py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-white"
+              />
+              <div className="absolute left-3 top-3 text-slate-400"><Icon name="spark" size={14} /></div>
+            </div>
           </div>
 
           {/* Prominent "+ Add New CBAC Form" button */}
@@ -117,27 +125,11 @@ export function TierModuleView() {
             className="btn !min-h-[44px] px-4 rounded-xl text-xs sm:text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md flex items-center gap-2 active:scale-95 transition-all"
           >
             <Icon name="spark" size={16} className="text-teal-600" />
-            <span>{t('+ Add New CBAC Form')}</span>
+            <span>{t('New CBAC Registration')}</span>
           </button>
         </div>
 
 
-      </div>
-
-      <div className="flex justify-end bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-        {/* Search */}
-        <div className="relative min-w-[220px]">
-          <input
-            type="text"
-            placeholder={t('Search patients...')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full text-xs rounded-xl border border-slate-200 pl-8 pr-3 py-2 outline-none focus:border-sky-500"
-          />
-          <div className="absolute left-2.5 top-2.5 text-slate-400">
-            <Icon name="spark" size={13} />
-          </div>
-        </div>
       </div>
 
       {/* Patient List in this Module */}
@@ -150,14 +142,6 @@ export function TierModuleView() {
             </span>
           </h2>
 
-          <button
-            type="button"
-            onClick={() => navigate(`/cbac?tier=${activeTier}`)}
-            className="btn btn-primary !min-h-[40px] px-4 text-sm font-bold flex items-center gap-1.5 shadow-xs"
-          >
-            <Icon name="spark" size={14} />
-            <span>{t('+ Add New CBAC Form to this Unit')}</span>
-          </button>
         </div>
 
         {tierCases.length === 0 ? (
@@ -185,12 +169,12 @@ export function TierModuleView() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <div className="h-9 w-9 rounded-xl bg-slate-900 text-white font-bold flex items-center justify-center text-xs">
-                        {c.patient.name ? c.patient.name.charAt(0) : 'P'}
+                        {(c.patient.name?.trim() || 'C').charAt(0)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <Link to={`/case/${c.referral.id}`} className="font-bold text-sm text-slate-900 hover:underline">
-                            {c.patient.name}
+                            {c.patient.name?.trim() || t('Community member')}
                           </Link>
                           <span className="text-xs font-mono text-slate-400">({c.patient.id})</span>
                           {c.referral.urgency === 'urgent' && (
@@ -242,7 +226,7 @@ export function TierModuleView() {
                           onClick={() =>
                             setActivePdfPreview({
                               attachment: att,
-                              patientName: c.patient.name,
+                              patientName: c.patient.name?.trim() || t('Community member'),
                               patientId: c.patient.id,
                             })
                           }
@@ -393,7 +377,7 @@ export function TierModuleView() {
       {activeCaseForReferral && (
         <TierReferralModal
           referralId={activeCaseForReferral.caseRecord.referral.id}
-          patientName={activeCaseForReferral.caseRecord.patient.name}
+          patientName={activeCaseForReferral.caseRecord.patient.name?.trim() || t('Community member')}
           currentTier={activeTier}
           savedSummary={freshCase(activeCaseForReferral.caseRecord).referral.aiSummaryOverride}
           onEditSummary={() => setActiveCaseForAi({ caseRecord: freshCase(activeCaseForReferral.caseRecord) })}

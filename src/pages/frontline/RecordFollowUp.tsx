@@ -79,7 +79,7 @@ export function RecordFollowUp() {
         <h1 className="text-[1.4rem] font-bold">{t('followup.title')}</h1>
         {data && (
           <p className="text-muted">
-            {data.patient.name} · {data.patient.id}
+            {data.patient.name?.trim() || t('Community member')} · {data.patient.id}
           </p>
         )}
       </div>
@@ -140,7 +140,7 @@ export function RecordFollowUp() {
           {action === 'refer_next_tier' ? `Continue referral to ${nextCareTier(tier)?.toUpperCase()}` : t('followup.save')}
         </button>
       </form>
-      {showReferral && <TierReferralModal referralId={id} patientName={data.patient.name} currentTier={tier} savedSummary={data.referral.aiSummaryOverride} onEditSummary={() => setShowSummary(true)} initialNotes={note} isOpen onClose={() => setShowReferral(false)} onReferred={() => navigate(`/case/${id}`, { state: { toast: 'followup.saved' } })} />}
+      {showReferral && <TierReferralModal referralId={id} patientName={data.patient.name?.trim() || t('Community member')} currentTier={tier} savedSummary={data.referral.aiSummaryOverride} onEditSummary={() => setShowSummary(true)} initialNotes={note} isOpen onClose={() => setShowReferral(false)} onReferred={() => navigate(`/case/${id}`, { state: { toast: 'followup.saved' } })} />}
       {showSummary && <AiSummaryModal caseRecord={data} isOpen onClose={() => setShowSummary(false)} />}
     </div>
   );

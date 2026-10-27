@@ -7,3 +7,6 @@ TABLE_F = {
 "ASHA Grassroots": "आशा ग्रासरूट्स", "Tertiary Care Centre (TCC Oncology)": "तृतीयक देखभाल केंद्र (TCC ऑन्कोलॉजी)",
 "English": "English",
 }
+TABLE_F["Retry sync"] = "सिंक दोबारा करें"
+TABLE_F["New CBAC Registration"] = "नया CBAC पंजीकरण"
+TABLE_F["Community member"] = "समुदाय सदस्य"

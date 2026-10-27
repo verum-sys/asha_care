@@ -5,7 +5,10 @@ import { Icon } from './Icon';
 /** Persistent connectivity / offline-readiness / sync indicator shown on every screen. */
 export function StatusBar({ showSync = true }: { showSync?: boolean }) {
   const { t } = useLang();
-  const { online, simulateOffline, offlineReady, pending, syncing, sync, needRefresh, reloadApp } = useConnectivity();
+  const { online, pending, syncing, syncFailed, sync, needRefresh, reloadApp } = useConnectivity();
+
+  // Nothing to show while online and idle.
+  if (online && !needRefresh && !syncing && !syncFailed) return null;
 
   return (
     <div
@@ -15,19 +18,6 @@ export function StatusBar({ showSync = true }: { showSync?: boolean }) {
     >
       <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-1.5 px-3 py-1.5 sm:gap-2 sm:px-4 sm:py-2 text-[0.8rem] sm:text-[0.85rem]">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span
-            className={`chip ${online ? 'bg-ok-soft text-ok' : 'bg-white/15 text-white'}`}
-            data-testid="connectivity"
-          >
-            <Icon name={online ? 'online' : 'offline'} size={15} />
-            {online ? t('status.online') : simulateOffline ? t('status.offlineSim') : t('status.offline')}
-          </span>
-
-          <span className={`chip ${offlineReady ? (online ? 'bg-info-soft text-brand' : 'bg-white/15 text-white') : 'bg-slate-100 text-slate-500'}`}>
-            <Icon name={offlineReady ? 'check' : 'download'} size={13} />
-            {offlineReady ? t('status.readyOffline') : t('status.preparingOffline')}
-          </span>
-
           {needRefresh && (
             <button
               type="button"
@@ -42,10 +32,14 @@ export function StatusBar({ showSync = true }: { showSync?: boolean }) {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <span className={`text-[0.78rem] sm:text-[0.85rem] ${online ? 'text-muted' : 'text-slate-200'}`}>
-            {pending > 0 ? t('status.pending', { n: pending }) : t('status.allSynced')}
-          </span>
-          {showSync && online && (
+          {/* Sync status is only relevant offline; online, changes are sent automatically. */}
+          {!online && (
+            <span className="text-[0.78rem] sm:text-[0.85rem] text-slate-200">
+              {pending > 0 ? t('status.pending', { n: pending }) : t('status.allSynced')}
+            </span>
+          )}
+          {online && syncing && <span className="text-[0.78rem] sm:text-[0.85rem] text-muted">{t('status.syncing')}</span>}
+          {showSync && online && syncFailed && (
             <button
               type="button"
               onClick={() => void sync()}
@@ -53,7 +47,7 @@ export function StatusBar({ showSync = true }: { showSync?: boolean }) {
               className={`btn !min-h-[34px] sm:!min-h-[40px] !px-2.5 sm:!px-3 !py-0.5 sm:!py-1 text-[0.78rem] sm:text-[0.85rem] ${pending > 0 ? 'btn-accent' : 'btn-secondary'}`}
             >
               <Icon name="sync" size={15} className={syncing ? 'animate-spin' : ''} />
-              {syncing ? t('status.syncing') : t('status.syncAvailable')}
+              {syncing ? t('status.syncing') : t('Retry sync')}
             </button>
           )}
         </div>

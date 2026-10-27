@@ -19,7 +19,7 @@ describe('CBAC interview UI', () => {
   });
 
   it('prioritizes manual fields with compact progress and collapsed voice controls', () => {
-    const html = renderToStaticMarkup(<MemoryRouter><CbacScreening /></MemoryRouter>);
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/cbac?tier=phc']}><CbacScreening /></MemoryRouter>);
     expect(html).toContain('Voice assistant');
     expect(html).toContain('aria-expanded="false"');
     expect(html).not.toContain('Proactive AI Voice Assistant');
@@ -32,5 +32,14 @@ describe('CBAC interview UI', () => {
     expect(html).not.toContain('All Questions at Once');
     expect(html).not.toContain('Auto Fill All');
     expect(html).not.toContain('Continuous Mic Dictate');
+  });
+
+  it('starts an ASHA registration by asking voice or manual, without showing the full form', () => {
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/cbac?tier=asha']}><CbacScreening /></MemoryRouter>);
+    expect(html).toContain('How would you like to fill this form?');
+    expect(html).toContain('Use voice (audio)');
+    expect(html).toContain('Fill manually');
+    expect(html).not.toContain('id="patient-name"');
+    expect(html).not.toContain('aria-label="CBAC Slides"');
   });
 });

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { onChange } from '../db/db';
 import { outboxCount } from '../db/repo';
@@ -30,6 +30,8 @@ interface ConnectivityCtx {
   offlineReady: boolean;
   pending: number;
   syncing: boolean;
+  /** The last automatic or manual sync attempt failed; cleared on the next success. */
+  syncFailed: boolean;
   lastResult: SyncResult | null;
   sync: () => Promise<void>;
   needRefresh: boolean;
@@ -47,6 +49,8 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const autoSyncBlocked = useRef(false);
 
   // Service worker: app shell is cached for offline use after the first load.
   const {
@@ -112,10 +116,23 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
     setSyncing(true);
     try {
       setLastResult(await syncNow());
+      setSyncFailed(false);
+      autoSyncBlocked.current = false;
+    } catch {
+      setSyncFailed(true);
+      autoSyncBlocked.current = true;
     } finally {
       setSyncing(false);
     }
   }, [online, syncing]);
+
+  // Changes made offline are sent as soon as a connection is available; a failure waits for a manual retry.
+  useEffect(() => {
+    if (online) autoSyncBlocked.current = false;
+  }, [online]);
+  useEffect(() => {
+    if (online && pending > 0 && !syncing && !autoSyncBlocked.current) void sync();
+  }, [online, pending, syncing, sync]);
 
   return (
     <Ctx.Provider
@@ -126,6 +143,7 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
         offlineReady,
         pending,
         syncing,
+        syncFailed,
         lastResult,
         sync,
         needRefresh,

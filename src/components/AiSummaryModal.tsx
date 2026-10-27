@@ -9,17 +9,19 @@ export function buildSummary(caseRecord: CaseRecord) {
   const cbac = referral.screening?.cbac;
   const exam = referral.physicalExam;
   const reports = [...(referral.reports || []), ...(referral.biopsyReports || []), ...(referral.radiologyReports || [])];
+  // ASHA and PHC summaries stay focused on screening; report counts and handover notes are for later tiers.
+  const earlyTier = ['asha', 'phc'].includes(referral.tier || 'asha');
   const bullets = [
-    `${patient.name || 'Unnamed patient'} · ${patient.age ?? 'Age not recorded'} · ${patient.sex || 'Sex not recorded'} · ${patient.locality || 'Locality not recorded'}`,
+    `${patient.name?.trim() || 'Community member'} · ${patient.age ?? 'Age not recorded'} · ${patient.sex || 'Sex not recorded'} · ${patient.locality || 'Locality not recorded'}`,
     `Care module: ${(referral.tier || 'asha').toUpperCase()}, Unit ${(referral.unit || 'a').toUpperCase()}. Destination: ${referral.destinationFacility || 'Not assigned'}. Recorded priority: ${referral.urgency || 'Not recorded'}.`,
-    cbac ? `CBAC Part A: ${cbac.partA.totalScore}/12. Recorded flags: ${[cbac.highRiskNcd && 'High NCD risk', cbac.symptomAlert && 'Symptom alert', cbac.tbSuspectAlert && 'TB screening alert'].filter(Boolean).join(', ') || 'None'}. PHQ-2 score: ${cbac.partD.totalScore}/6.` : 'CBAC assessment has not been recorded.',
+    cbac ? `CBAC Part A: ${cbac.partA.totalScore} out of 12. Recorded flags: ${[cbac.highRiskNcd && 'High NCD risk', cbac.symptomAlert && 'Symptom alert', cbac.tbSuspectAlert && 'TB screening alert'].filter(Boolean).join(', ') || 'None'}. PHQ-2 score: ${cbac.partD.totalScore} out of 6.` : 'CBAC assessment has not been recorded.',
     exam ? `Physical examination: ${recordedVitals(exam).map(item => `${item.label}: ${item.value}`).join(', ')}. ${exam.generalFindings || 'General findings not recorded.'}` : 'Physical examination has not been recorded.',
     ...[exam?.systemicExam, exam?.oralCavityFindings, exam?.breastExamFindings, exam?.cervicalExamFindings].filter(Boolean).map(finding => `Recorded examination findings: ${finding}`),
-    `Reports attached: ${reports.length} (${referral.reports?.length || 0} general, ${referral.biopsyReports?.length || 0} biopsy, ${referral.radiologyReports?.length || 0} radiology).`,
+    ...(earlyTier ? [] : [`Reports attached: ${reports.length} (${referral.reports?.length || 0} general, ${referral.biopsyReports?.length || 0} biopsy, ${referral.radiologyReports?.length || 0} radiology).`]),
     ...reports.map(report => `${report.title}: ${report.findings || 'No findings entered. PDF contents have not been analyzed.'}`),
     ...(referral.dhNotes ? [`DH notes: ${referral.dhNotes}`] : []),
     ...(referral.tccNotes ? [`TCC notes: ${referral.tccNotes}`] : []),
-    ...(referral.notes ? [`Handover notes: ${referral.notes}`] : []),
+    ...(referral.notes && !earlyTier ? [`Handover notes: ${referral.notes}`] : []),
   ];
   const pending = [!cbac && 'Complete the CBAC assessment', referral.tier !== 'asha' && !exam && 'Record physical examination findings', referral.tier !== 'asha' && !reports.length && 'Attach available diagnostic reports', referral.tier === 'dh' && !referral.dhNotes && 'Add DH notes', referral.tier === 'tcc' && !referral.tccNotes && 'Add TCC notes'].filter(Boolean);
   return { text: bullets.join('\n\n'), pending };
@@ -53,7 +55,7 @@ export function AiSummaryModal({ caseRecord, isOpen, onClose }: Props) {
         <div><span className="eyebrow">{t('CARELINK INTELLIGENCE')}</span><h2 id="summary-title" className="text-xl font-semibold mt-1">{t('AI summary')}</h2><p className="text-xs text-slate-500 mt-2">{t('Review and edit this summary. The saved version travels with the patient to the next care team.')}</p></div>
         <button type="button" disabled={saving} aria-label={t('Close summary')} onClick={onClose} className="text-slate-400">✕</button>
       </div>
-      <div className="bg-teal-50 border border-teal-100 rounded-xl p-3 text-sm text-teal-800">{patient.name} · {patient.id}</div>
+      <div className="bg-teal-50 border border-teal-100 rounded-xl p-3 text-sm text-teal-800">{patient.name?.trim() || t('Community member')} · {patient.id}</div>
       <label htmlFor="editable-ai-summary" className="block text-sm font-semibold">{t('Editable clinical handover summary')}</label>
       <textarea id="editable-ai-summary" rows={12} value={summary} onChange={event => { setSummary(event.target.value); setCopyStatus(''); }} disabled={saving} className="w-full text-sm" />
       {!!pending.length && <div className="rounded-xl bg-sky-50 p-3"><h3 className="text-sm font-semibold text-sky-900">{t('Documentation to complete')}</h3><ul className="mt-2 text-xs text-slate-600 space-y-1">{pending.map(item => <li key={String(item)}>• {item}</li>)}</ul></div>}

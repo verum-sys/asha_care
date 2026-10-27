@@ -60,7 +60,7 @@ export function CaseCard({ c, category }: { c: CaseSummary; category?: CaseCateg
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-lg font-bold">{patient.name || '—'}</div>
+          <div className="text-lg font-bold">{patient.name?.trim() || t('Community member')}</div>
           <div className="text-[0.85rem] text-muted">
             {patient.id}
             {patient.age !== undefined && ` · ${t('case.years', { n: patient.age })}`}
