@@ -59,4 +59,15 @@ describe('AI summary appears only once, in the ASHA section', () => {
     expect(journey).not.toContain('Saved clinical summary');
     expect(journey).not.toContain('Edit summary');
   });
+
+  it('lists the stages as compact rows whose notes open in a popup instead of being expanded', () => {
+    expect(html).not.toContain('<details');
+    expect(html).toContain('ASHA → PHC');
+    expect(html).toContain('PHC → DH');
+    expect(html).toContain('DH → TCC');
+    expect(html.match(/group-hover:block/g)).toHaveLength(3);
+    expect(html.match(/class="[^"]*\bhidden\b[^"]*group-hover:block/g)).toHaveLength(3); // popups are hidden until hover/focus/tap
+    expect(html).toContain('Hover or tap a stage to see its notes.');
+  });
 });
+
