@@ -208,7 +208,7 @@ export function TierModuleView() {
                   </div>
 
                   <RecordedVitals exam={c.referral.physicalExam} />
-                  <CareJourneySummary record={c} onEditSummary={() => setActiveCaseForAi({ caseRecord: c })} />
+                  <CareJourneySummary record={c} />
                   <ClinicalHandovers handovers={c.referral.clinicalHandovers} />
 
                   {/* Attached Reports previews */}
@@ -301,7 +301,8 @@ export function TierModuleView() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* AI Summary */}
+                      {/* The AI summary is only created and edited at the ASHA stage. */}
+                      {activeTier === 'asha' && (
                       <button
                         type="button"
                         onClick={() => setActiveCaseForAi({ caseRecord: c })}
@@ -310,6 +311,7 @@ export function TierModuleView() {
                         <Icon name="spark" size={13} />
                         <span>{t('AI Summary')}</span>
                       </button>
+                      )}
 
                       {/* Refer to Next Tier */}
                       {activeTier !== 'tcc' && (

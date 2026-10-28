@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { buildSummary } from './AiSummaryModal';
 import { CareJourneySummary } from './CareJourneySummary';
+import { ClinicalHandovers } from './ClinicalHandovers';
 import { makePatient, makeReferral } from '../db/factory';
 import type { CareTier } from '../db/types';
 
@@ -31,13 +32,31 @@ describe('AI summary content', () => {
   });
 });
 
-describe('care journey summary', () => {
-  it('shows the saved summary as one or two lines', () => {
-    const long = 'Line one of the summary.\n\nLine two with more detail. '.repeat(20);
-    const html = renderToStaticMarkup(<CareJourneySummary record={record('tcc', { aiSummaryOverride: long })} />);
-    expect(html).toContain('line-clamp-2');
-    expect(html).not.toContain('whitespace-pre-wrap');
-    expect(html.match(/<p class="mt-1 line-clamp-2[^>]*>([^<]*)<\/p>/)?.[1]).not.toMatch(/\n/); // visible text is flattened; the tooltip keeps the full summary
-    expect(html).toContain('title="Line one');
+describe('AI summary appears only once, in the ASHA section', () => {
+  const summary = 'Sunita Devi · 52 · F · Bero\n\nCare module: ASHA, Unit A. Destination: CHC Bero. Recorded priority: soon.\n\nCBAC Part A: 5/12.\n\nReports attached: 0 (0 general, 0 biopsy, 0 radiology).\n\nHandover notes: CBAC Part A risk score 5/12. Draft for worker review.';
+  const stage = (fromTier: 'asha' | 'phc' | 'dh', toTier: 'phc' | 'dh' | 'tcc', extra: object = {}) =>
+    ({ fromTier, toTier, at: '2026-10-26T00:00:00Z', notes: 'CBAC Part A risk score 5/12. Draft for worker review.', aiSummary: summary, ...extra });
+  const html = renderToStaticMarkup(<ClinicalHandovers handovers={[stage('asha', 'phc'), stage('phc', 'dh'), stage('dh', 'tcc')]} />);
+  it('shows the saved AI summary a single time, not again for PHC → DH or DH → TCC', () => {
+    expect(html.match(/Saved AI summary/g)).toHaveLength(1);
+    expect(html.match(/Sunita Devi · 52/g)).toHaveLength(1);
+  });
+  it('cleans the stored summary for display', () => {
+    expect(html).not.toContain('Care module');
+    expect(html).not.toContain('Reports attached');
+    expect(html).not.toContain('Handover notes:');
+    expect(html).toContain('CBAC Part A: 5/12.');
+  });
+  it('does not repeat identical notes in later stages, but keeps each stage’s own', () => {
+    const repeated = renderToStaticMarkup(<ClinicalHandovers handovers={[stage('asha', 'phc'), stage('phc', 'dh'), stage('dh', 'tcc', { notes: 'DH: biopsy advised' })]} />);
+    expect(repeated.match(/CBAC Part A risk score 5\/12\. Draft for worker review\./g)).toHaveLength(1);
+    expect(repeated).toContain('DH: biopsy advised');
+    expect(repeated).toContain('Nothing new since the previous care team.');
+  });
+  it('does not show the AI summary in the TCC care journey card', () => {
+    const journey = renderToStaticMarkup(<CareJourneySummary record={record('tcc', { aiSummaryOverride: summary })} />);
+    expect(journey).toContain('Patient care journey');
+    expect(journey).not.toContain('Saved clinical summary');
+    expect(journey).not.toContain('Edit summary');
   });
 });

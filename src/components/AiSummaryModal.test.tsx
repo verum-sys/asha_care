@@ -12,8 +12,8 @@ describe('editable summary and handover display', () => {
     expect(html).toContain('Save summary');
     expect(html).not.toContain('readOnly');
   });
-  it('shows prior-stage notes and summary to the receiving team', () => {
-    const html = renderToStaticMarkup(<ClinicalHandovers handovers={[{ fromTier: 'phc', toTier: 'dh', at: '2026-10-25T00:00:00Z', notes: 'PHC notes passed forward', physicalExam: { generalFindings: 'PHC exam finding' }, aiSummary: 'Reviewed summary' }]} />);
+  it('shows prior-stage notes to the receiving team, and the AI summary at the ASHA stage', () => {
+    const html = renderToStaticMarkup(<ClinicalHandovers handovers={[{ fromTier: 'asha', toTier: 'dh', at: '2026-10-25T00:00:00Z', notes: 'PHC notes passed forward', physicalExam: { generalFindings: 'PHC exam finding' }, aiSummary: 'Reviewed summary' }]} />);
     expect(html).toContain('PHC notes passed forward');
     expect(html).toContain('PHC exam finding');
     expect(html).toContain('Reviewed summary');

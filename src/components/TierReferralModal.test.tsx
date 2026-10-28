@@ -23,4 +23,9 @@ describe('referral handover notes', () => {
   it('starts urgency on Please select', () => {
     expect(render()).toContain('<option value="" selected="">Please select</option>');
   });
+  it('shows the AI summary handover box only when referring from ASHA', () => {
+    expect(render({ currentTier: 'asha', savedSummary: 'Saved text' })).toContain('AI summary handover');
+    for (const currentTier of ['phc', 'dh']) expect(render({ currentTier, savedSummary: 'Saved text' })).not.toContain('AI summary handover');
+  });
 });
+
