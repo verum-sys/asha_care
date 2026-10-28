@@ -75,4 +75,21 @@ describe('CBAC interview UI', () => {
     expect(html).toContain('Save changes');
     expect(html).not.toContain('id="patient-name"');
   });
+
+  it('marks mobile and address as mandatory on every tier', () => {
+    for (const tier of ['asha', 'phc', 'dh', 'tcc']) {
+      const html = renderToStaticMarkup(<MemoryRouter initialEntries={[`/cbac?tier=${tier}&view=form`]}><CbacScreening /></MemoryRouter>);
+      if (tier === 'asha') continue; // new ASHA registrations start in the guided flow
+      expect(html).toContain('Phone Number *');
+      expect(html).toContain('Locality / Village / Ward *');
+      expect(html).toContain('id="patient-phone"');
+      expect(html).toContain('PIN code *');
+      expect(html).toContain('id="patient-pincode"');
+    }
+  });
+  it('asks for mobile and address as guided questions in Section A', () => {
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/cbac?tier=asha']}><CbacScreening /></MemoryRouter>);
+    expect(html).toContain('How would you like to fill this form?');
+  });
 });
+

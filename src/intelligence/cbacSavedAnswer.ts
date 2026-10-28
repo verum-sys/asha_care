@@ -21,6 +21,9 @@ export function savedAnswerFor(questionId: string, s: FormState): SavedAnswer {
   }
   switch (questionId) {
     case 'name': return s.general.name.trim() ? { text: s.general.name } : undefined;
+    case 'phone': return s.general.phone.trim() ? { text: s.general.phone } : undefined;
+    case 'pincode': return s.general.pincode?.trim() ? { text: s.general.pincode } : undefined;
+    case 'address': return s.general.address.trim() ? { text: s.general.address } : undefined;
     case 'age': return s.general.age === '' ? undefined : { text: String(s.general.age) };
     case 'waist': return s.partA.waistCm === undefined ? undefined : { text: String(s.partA.waistCm) };
     case 'sex': return s.general.sex ? { single: s.general.sex === 'F' ? 'Female' : s.general.sex === 'M' ? 'Male' : 'Other' } : undefined;

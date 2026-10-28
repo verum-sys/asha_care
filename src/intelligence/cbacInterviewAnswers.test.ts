@@ -48,6 +48,32 @@ describe('interview field mapping', () => {
   }
 });
 
+describe('mobile and address answers', () => {
+  const general = (question: string, answer: string) => { const r = parseCbacInterviewAnswer(question, answer, 'F'); return r.ok ? r.updates.generalUpdates : r; };
+  it('stores a normalised 10-digit mobile, including spoken digits', () => {
+    expect(general('phone', '+91 98765 43210')).toEqual({ phone: '9876543210' });
+    expect(general('phone', 'nine eight seven six five four three two one zero')).toEqual({ phone: '9876543210' });
+  });
+  it('asks again for a mobile that is wrong', () => {
+    for (const bad of ['12345', '5987654321', 'my number', '9999999999']) expect(parseCbacInterviewAnswer('phone', bad, 'F').ok).toBe(false);
+  });
+  it('stores a plausible address without a spoken lead-in, and rejects junk', () => {
+    expect(general('address', 'my address is Bero village')).toEqual({ address: 'Bero village' });
+    for (const bad of ['kkkk', '12345', 'na', '9876543210']) expect(parseCbacInterviewAnswer('address', bad, 'F').ok).toBe(false);
+  });
+});
+
+describe('PIN code answers', () => {
+  it('stores a valid 6-digit PIN, including spoken digits', () => {
+    const pin = (answer: string) => { const r = parseCbacInterviewAnswer('pincode', answer, 'F'); return r.ok ? r.updates.generalUpdates : r; };
+    expect(pin('835217')).toEqual({ pincode: '835217' });
+    expect(pin('8 3 5 2 1 7')).toEqual({ pincode: '835217' });
+  });
+  it('asks again for a wrong PIN', () => {
+    for (const bad of ['12345', '035217', 'my pin']) expect(parseCbacInterviewAnswer('pincode', bad, 'F').ok).toBe(false);
+  });
+});
+
 describe('bare frequency for physical activity', () => {
   it.each(['Daily', 'daily', 'every day', 'Regularly'])('treats %s as active', answer => {
     const r = parseCbacInterviewAnswer('physicalActivity', answer);

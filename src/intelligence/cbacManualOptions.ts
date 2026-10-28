@@ -5,7 +5,7 @@ import type { Sex } from '../db/types';
 
 export interface ManualOption { label: string; answer: string }
 export type ManualControl =
-  | { kind: 'text' }
+  | { kind: 'text'; placeholder?: string }
   | { kind: 'number'; unit?: string }
   | { kind: 'single'; options: ManualOption[] }
   | { kind: 'multi'; options: ManualOption[]; noneAnswer?: ManualOption };
@@ -23,6 +23,9 @@ export function manualControlFor(question: InterviewQuestion, sex: Sex | '', age
   switch (id) {
     case 'name': return { kind: 'text' };
     case 'age': return { kind: 'number', unit: 'years' };
+    case 'phone': return { kind: 'number', unit: 'digits' };
+    case 'pincode': return { kind: 'number', unit: 'pin' };
+    case 'address': return { kind: 'text', placeholder: 'Village locality, hamlet, or tola' };
     case 'waist': return { kind: 'number', unit: 'cm' };
     case 'sex': return { kind: 'single', options: [{ label: 'Female', answer: 'Female' }, { label: 'Male', answer: 'Male' }, { label: 'Other', answer: 'Other' }] };
     case 'smoke': return { kind: 'single', options: [{ label: 'Never', answer: 'Never' }, { label: 'Used to consume / Sometimes now', answer: 'Sometimes' }, { label: 'Daily', answer: 'Daily' }] };

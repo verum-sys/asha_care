@@ -53,6 +53,8 @@ import { useSettings } from '../../settings';
 import { listenForInterviewAnswer } from '../../voice/interviewRecognition';
 import { buildInterviewQuestions, type PartBCategory } from '../../intelligence/cbacPartBInterview';
 import { CbacReport, GuidedQuestionCard, GuidedStart, type GuidedMode } from '../../components/GuidedCbac';
+import { addressLocalError, mobileError, normalizeMobile, normalizePincode, pincodeError, ADDRESS_AI_INVALID } from '../../intelligence/contactValidation';
+import { checkAddressWithAi } from '../../intelligence/addressCheck';
 import { savedAnswerFor } from '../../intelligence/cbacSavedAnswer';
 import { parseCbacInterviewAnswer } from '../../intelligence/cbacInterviewAnswers';
 import { useSpeak } from '../../voice/useSpeak';
@@ -111,6 +113,7 @@ const INITIAL_GENERAL: CbacGeneralInfo = {
   age: '',
   sex: '',
   address: '',
+  pincode: '',
   identifierType: 'Aadhaar',
   identifierNumber: '',
   hasStateInsurance: false,
@@ -189,6 +192,8 @@ export function CbacScreening() {
   const [guided, setGuided] = useState<GuidedMode>(() => (searchParams.get('view') === 'form' ? 'form' : id ? 'report' : (searchParams.get('tier') || 'asha') !== 'asha' ? 'form' : 'choose'));
   const [cameFromGuided, setCameFromGuided] = useState(!!id);
   const [editingReport, setEditingReport] = useState(false);
+  const [contactErrors, setContactErrors] = useState<{ phone?: string; address?: string; pincode?: string }>({});
+  const [checkingAddress, setCheckingAddress] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [generatingNotes, setGeneratingNotes] = useState(false);
@@ -211,6 +216,7 @@ export function CbacScreening() {
         sex: p.sex ?? prev.sex,
         phone: p.phone || prev.phone,
         address: p.locality || prev.address,
+        pincode: p.pincode || prev.pincode,
       }));
 
       if (r) {
@@ -418,6 +424,17 @@ export function CbacScreening() {
       // Tapped options are already canonical, so they skip the AI round trip.
       const parsed = trusted ? parseCbacInterviewAnswer(currentQ.id, answerText, general.sex, general.age) : await interpretInterviewAnswer(currentQ.id, answerText, general.sex, () => getToken(), controller.signal, general.age, alternatives);
       if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
+      // A locally plausible address is also checked by the AI (when reachable) because wrong entries are common.
+      if (parsed.ok && currentQ.id === 'address' && parsed.updates.generalUpdates.address) {
+        if (await checkAddressWithAi(parsed.updates.generalUpdates.address, () => getToken(), controller.signal) === 'bad') {
+          if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
+          setInterpreting(false);
+          answerPendingRef.current = false;
+          setAnswerError(ADDRESS_AI_INVALID);
+          return;
+        }
+        if (controller.signal.aborted || questionRunRef.current !== interpretationRun) return;
+      }
       setInterpreting(false);
       if (!parsed.ok) {
         answerPendingRef.current = false;
@@ -743,6 +760,7 @@ export function CbacScreening() {
       sex: general.sex || undefined,
       phone: general.phone.trim() || undefined,
       locality: general.address.trim() || undefined,
+      pincode: normalizePincode(general.pincode ?? '') ?? (general.pincode?.trim() || undefined),
     };
     const patient = makePatient({ id: 'draft', ...p });
     const referral = makeReferral({
@@ -795,6 +813,7 @@ export function CbacScreening() {
       case 'name': setGeneral(g => ({ ...g, name: text })); return;
       case 'phone': setGeneral(g => ({ ...g, phone: text })); return;
       case 'address': setGeneral(g => ({ ...g, address: text })); return;
+      case 'pincode': setGeneral(g => ({ ...g, pincode: text })); return;
       case 'villageWard': setGeneral(g => ({ ...g, villageWard: text })); return;
       case 'age': handleAgeChange(text); return;
       case 'sex': handleSexChange(text as Sex); return;
@@ -821,10 +840,30 @@ export function CbacScreening() {
     else goToInterviewQuestion(next);
   }
 
+  /** Mobile and address are mandatory and must look right; the address is also checked by the AI when it is reachable. */
+  async function validateContact(): Promise<boolean> {
+    const phone = mobileError(general.phone);
+    const pincode = pincodeError(general.pincode ?? '');
+    let address = addressLocalError(general.address);
+    if (!address) {
+      setCheckingAddress(true);
+      const verdict = await checkAddressWithAi(general.address, () => getToken());
+      setCheckingAddress(false);
+      if (verdict === 'bad') address = ADDRESS_AI_INVALID;
+    }
+    setContactErrors({ phone, address, pincode });
+    return !phone && !address && !pincode;
+  }
+
   async function handleSaveAssessment() {
+    if (saving || checkingAddress) return;
     if (!general.name.trim()) {
       alert('Please enter patient name.');
       setShowGeneralDetails(true);
+      return;
+    }
+    if (!(await validateContact())) {
+      if (guided === 'form') document.getElementById('patient-phone')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
     if (isPhcForm && (!general.address.trim() || !general.villageWard.trim())) {
@@ -870,8 +909,9 @@ export function CbacScreening() {
       name: general.name.trim(),
       age: typeof general.age === 'number' ? general.age : undefined,
       sex: general.sex || undefined,
-      phone: general.phone.trim() || undefined,
+      phone: normalizeMobile(general.phone) ?? general.phone.trim(),
       locality: general.address.trim() || undefined,
+      pincode: normalizePincode(general.pincode ?? '') ?? (general.pincode?.trim() || undefined),
     };
 
     const isReferralYes = referralForm.referralRequired === 'yes';
@@ -955,7 +995,7 @@ export function CbacScreening() {
         onAnswer={(answer, trusted) => void handleInterviewAnswer(answer, [], trusted)} interpreting={interpreting} answerError={answerError}
         canGoBack={interviewIndex > 0} onBack={() => goToInterviewQuestion(interviewIndex - 1)} onSkip={skipGuidedQuestion} onSwitchMode={switchGuidedMode}
         voice={{ active: interviewActive, speaking, listening: isInterviewListening, onStart: () => startInterview(interviewIndex), onRepeat: () => speakQuestion(interviewIndex), onToggleMic: () => (isInterviewListening ? stopInterviewListening() : startInterviewListening()), onStop: stopInterview }} />}
-      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} editing={editingReport} onToggleEdit={() => setEditingReport(value => !value)} onField={applyReportEdit} locked={locked} existing={!!id} onFullForm={openFullForm} onSave={handleSaveAssessment} />}
+      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} editing={editingReport} onToggleEdit={() => setEditingReport(value => !value)} onField={applyReportEdit} locked={locked} existing={!!id} contactErrors={contactErrors} checkingAddress={checkingAddress} onFullForm={openFullForm} onSave={handleSaveAssessment} />}
       {guided === 'form' && cameFromGuided && <button type="button" onClick={() => setGuided('report')} className="btn btn-secondary !min-h-[40px] text-sm">← {t('Back to report')}</button>}
 
       {guided === 'form' && (<>
@@ -1122,32 +1162,62 @@ export function CbacScreening() {
           {/* Phone Number */}
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              {t('Phone Number')}
+              {t('Phone Number')} *
             </label>
             <input
               type="tel"
+              id="patient-phone"
+              inputMode="tel"
               value={general.phone}
+              required
+              aria-invalid={!!contactErrors.phone}
               placeholder={t('10 digit mobile')}
-              onChange={(e) => setGeneral({ ...general, phone: e.target.value })}
-              className="!min-h-[42px] text-sm"
+              onChange={(e) => { setGeneral({ ...general, phone: e.target.value }); setContactErrors(errors => ({ ...errors, phone: undefined })); }}
+              onBlur={() => general.phone.trim() && setContactErrors(errors => ({ ...errors, phone: mobileError(general.phone) }))}
+              className={`!min-h-[42px] text-sm ${contactErrors.phone ? 'border-danger' : ''}`}
             />
+            {contactErrors.phone && <p role="alert" className="mt-0.5 text-[0.72rem] text-danger">{t(contactErrors.phone)}</p>}
           </div>
         </div>
 
         {/* Locality & Address */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-line/50">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-line/50">
           <div>
             <label className="block text-xs font-bold text-ink mb-1">
-              {t('Locality / Village / Ward')}{isPhcForm && ' *'}
+              {t('Locality / Village / Ward')} *
             </label>
             <input
               type="text"
+              id="patient-address"
               value={general.address}
-              required={isPhcForm}
+              required
+              aria-invalid={!!contactErrors.address}
               placeholder={t('Village locality, hamlet, or tola')}
-              onChange={(e) => setGeneral({ ...general, address: e.target.value })}
-              className="!min-h-[40px] text-xs sm:text-sm"
+              onChange={(e) => { setGeneral({ ...general, address: e.target.value }); setContactErrors(errors => ({ ...errors, address: undefined })); }}
+              onBlur={() => general.address.trim() && setContactErrors(errors => ({ ...errors, address: addressLocalError(general.address) }))}
+              className={`!min-h-[40px] text-xs sm:text-sm ${contactErrors.address ? 'border-danger' : ''}`}
             />
+            {contactErrors.address && <p role="alert" className="mt-0.5 text-[0.72rem] text-danger">{t(contactErrors.address)}</p>}
+            {checkingAddress && <p role="status" className="mt-0.5 text-[0.72rem] text-teal-700">{t('Checking address…')}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-ink mb-1">
+              {t('PIN code')} *
+            </label>
+            <input
+              type="text"
+              id="patient-pincode"
+              inputMode="numeric"
+              maxLength={6}
+              value={general.pincode ?? ''}
+              required
+              aria-invalid={!!contactErrors.pincode}
+              placeholder={t('6 digit PIN code')}
+              onChange={(e) => { setGeneral({ ...general, pincode: e.target.value.replace(/\D/g, '') }); setContactErrors(errors => ({ ...errors, pincode: undefined })); }}
+              onBlur={() => (general.pincode ?? '').trim() && setContactErrors(errors => ({ ...errors, pincode: pincodeError(general.pincode ?? '') }))}
+              className={`!min-h-[40px] text-xs sm:text-sm ${contactErrors.pincode ? 'border-danger' : ''}`}
+            />
+            {contactErrors.pincode && <p role="alert" className="mt-0.5 text-[0.72rem] text-danger">{t(contactErrors.pincode)}</p>}
           </div>
           <div>
             <label className="block text-xs font-bold text-ink mb-1">

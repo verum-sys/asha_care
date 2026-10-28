@@ -4,7 +4,7 @@ import glob, html, json, os, re, sys
 sys.path.insert(0, os.path.dirname(__file__))
 import importlib
 TABLE = {}
-for mod, name in (('i18n_table_a', 'TABLE_A'), ('i18n_table_b', 'TABLE_B'), ('i18n_table_c', 'TABLE_C'), ('i18n_table_d', 'TABLE_D'), ('i18n_table_e', 'TABLE_E'), ('i18n_table_f', 'TABLE_F'), ('i18n_table_g', 'TABLE_G')):
+for mod, name in (('i18n_table_a', 'TABLE_A'), ('i18n_table_b', 'TABLE_B'), ('i18n_table_c', 'TABLE_C'), ('i18n_table_d', 'TABLE_D'), ('i18n_table_e', 'TABLE_E'), ('i18n_table_f', 'TABLE_F'), ('i18n_table_g', 'TABLE_G'), ('i18n_table_h', 'TABLE_H')):
     try: TABLE.update(getattr(importlib.import_module(mod), name))
     except ModuleNotFoundError: pass
 

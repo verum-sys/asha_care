@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { HighlightedTextarea, scrollToHighlightField } from '../../components/HighlightedTextarea';
 import { BackLink } from '../../components/Layout';
@@ -20,6 +21,8 @@ import type {
 } from '../../db/types';
 import { useLang } from '../../i18n';
 import { today } from '../../intelligence/dates';
+import { addressLocalError, mobileError, normalizeMobile, normalizePincode, pincodeError, ADDRESS_AI_INVALID } from '../../intelligence/contactValidation';
+import { checkAddressWithAi } from '../../intelligence/addressCheck';
 import { analyze } from '../../intelligence/engine';
 import {
   allDemoCaseTexts,
@@ -56,6 +59,7 @@ interface FormState {
   sex: Sex | '';
   phone: string;
   locality: string;
+  pincode: string;
   reason: string;
   destinationFacility: string;
   referralDate: string;
@@ -76,6 +80,7 @@ const EMPTY: FormState = {
   sex: '',
   phone: '',
   locality: '',
+  pincode: '',
   reason: '',
   destinationFacility: '',
   referralDate: today(),
@@ -95,8 +100,9 @@ function toDrafts(f: FormState, appointmentTentative: boolean): { p: PatientDraf
       name: f.name.trim(),
       age: f.age ? Number(f.age) : undefined,
       sex: f.sex || undefined,
-      phone: f.phone.trim() || undefined,
+      phone: normalizeMobile(f.phone) ?? (f.phone.trim() || undefined),
       locality: f.locality.trim() || undefined,
+      pincode: normalizePincode(f.pincode) ?? (f.pincode.trim() || undefined),
     },
     r: {
       reason: f.reason.trim(),
@@ -129,6 +135,9 @@ export function NewCase() {
   const suggested = (params.get('suggested') as ActionKey | null) ?? undefined;
   const navigate = useNavigate();
   const { t, lang, formatDate } = useLang();
+  const { getToken } = useClerkAuth();
+  const [contactErrors, setContactErrors] = useState<{ phone?: string; address?: string; pincode?: string }>({});
+  const [checkingAddress, setCheckingAddress] = useState(false);
   const { workerName } = useSettings();
   const { online } = useConnectivity();
 
@@ -178,6 +187,7 @@ export function NewCase() {
         sex: p.sex ?? '',
         phone: p.phone ?? '',
         locality: p.locality ?? '',
+        pincode: p.pincode ?? '',
         reason: r.reason,
         destinationFacility: r.destinationFacility,
         referralDate: r.referralDate,
@@ -254,6 +264,22 @@ export function NewCase() {
   async function save() {
     if (!form.name.trim()) {
       setError(t('new.nameRequired'));
+      return;
+    }
+    if (checkingAddress) return;
+    // Mobile and address are mandatory and must look right; the address is also AI-checked when reachable.
+    const phone = mobileError(form.phone);
+    const pincode = pincodeError(form.pincode);
+    let address = addressLocalError(form.locality);
+    if (!address) {
+      setCheckingAddress(true);
+      const verdict = await checkAddressWithAi(form.locality, () => getToken());
+      setCheckingAddress(false);
+      if (verdict === 'bad') address = ADDRESS_AI_INVALID;
+    }
+    setContactErrors({ phone, address, pincode });
+    if (phone || address || pincode) {
+      document.getElementById(phone ? 'f-phone' : address ? 'f-loc' : 'f-pin')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
     setSaving(true);
@@ -560,11 +586,24 @@ export function NewCase() {
               </select>
             </Field>
           </div>
-          <Field label={t('form.phone')} htmlFor="f-phone">
-            <input id="f-phone" type="tel" inputMode="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+          <Field label={`${t('form.phone')} *`} htmlFor="f-phone">
+            <input id="f-phone" type="tel" inputMode="tel" required aria-invalid={!!contactErrors.phone} value={form.phone}
+              onChange={(e) => { set('phone', e.target.value); setContactErrors((errors) => ({ ...errors, phone: undefined })); }}
+              onBlur={() => form.phone.trim() && setContactErrors((errors) => ({ ...errors, phone: mobileError(form.phone) }))} />
+            {contactErrors.phone && <p role="alert" className="mt-1 text-sm text-danger">{t(contactErrors.phone)}</p>}
           </Field>
-          <Field label={t('form.locality')} htmlFor="f-loc">
-            <input id="f-loc" value={form.locality} onChange={(e) => set('locality', e.target.value)} />
+          <Field label={`${t('form.locality')} *`} htmlFor="f-loc">
+            <input id="f-loc" required aria-invalid={!!contactErrors.address} value={form.locality}
+              onChange={(e) => { set('locality', e.target.value); setContactErrors((errors) => ({ ...errors, address: undefined })); }}
+              onBlur={() => form.locality.trim() && setContactErrors((errors) => ({ ...errors, address: addressLocalError(form.locality) }))} />
+            {contactErrors.address && <p role="alert" className="mt-1 text-sm text-danger">{t(contactErrors.address)}</p>}
+            {checkingAddress && <p role="status" className="mt-1 text-sm text-teal-700">{t('Checking address…')}</p>}
+          </Field>
+          <Field label={`${t('PIN code')} *`} htmlFor="f-pin">
+            <input id="f-pin" required inputMode="numeric" maxLength={6} aria-invalid={!!contactErrors.pincode} value={form.pincode} placeholder={t('6 digit PIN code')}
+              onChange={(e) => { set('pincode', e.target.value.replace(/\D/g, '')); setContactErrors((errors) => ({ ...errors, pincode: undefined })); }}
+              onBlur={() => form.pincode.trim() && setContactErrors((errors) => ({ ...errors, pincode: pincodeError(form.pincode) }))} />
+            {contactErrors.pincode && <p role="alert" className="mt-1 text-sm text-danger">{t(contactErrors.pincode)}</p>}
           </Field>
         </fieldset>
 

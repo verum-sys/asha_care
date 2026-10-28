@@ -580,5 +580,18 @@ export const hiExtra: Record<string, string> = {
   "Add Notes": "नोट्स जोड़ें",
   "Done": "हो गया",
   "selected": "चुने गए",
-  "Tap a field to change it. Fields with options open as a dropdown.": "बदलने के लिए किसी फ़ील्ड पर टैप करें। विकल्प वाले फ़ील्ड ड्रॉपडाउन में खुलते हैं।"
+  "Tap a field to change it. Fields with options open as a dropdown.": "बदलने के लिए किसी फ़ील्ड पर टैप करें। विकल्प वाले फ़ील्ड ड्रॉपडाउन में खुलते हैं।",
+  "Record attendance": "उपस्थिति दर्ज करें",
+  "Save attendance": "उपस्थिति सहेजें",
+  "Record whether the patient attended the referral visit. A missed appointment does not close the referral.": "दर्ज करें कि मरीज़ रेफरल विज़िट पर गया या नहीं। अपॉइंटमेंट छूटने पर रेफरल बंद नहीं होता।",
+  "Checking address…": "पता जांचा जा रहा है…",
+  "Mobile number is required.": "मोबाइल नंबर आवश्यक है।",
+  "Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.": "6, 7, 8 या 9 से शुरू होने वाला सही 10 अंकों का मोबाइल नंबर दर्ज करें।",
+  "Address is required.": "पता आवश्यक है।",
+  "Enter a real address, such as the village, ward or locality.": "सही पता दर्ज करें, जैसे गांव, वार्ड या इलाका।",
+  "This does not look like an address. Please check it and enter the village, ward or locality.": "यह पता नहीं लगता। कृपया जांचें और गांव, वार्ड या इलाका दर्ज करें।",
+  "PIN code": "पिन कोड",
+  "6 digit PIN code": "6 अंकों का पिन कोड",
+  "PIN code is required.": "पिन कोड आवश्यक है।",
+  "Enter a valid 6-digit PIN code.": "सही 6 अंकों का पिन कोड दर्ज करें।"
 };

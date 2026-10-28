@@ -16,7 +16,7 @@ export async function interpretInterviewAnswer(questionId: string, answer: strin
   const isSample = CBAC_INTERVIEW_QUESTIONS.find(question => question.id === questionId)?.sampleResponses.some(sample => sample.toLowerCase() === normalized);
   const simple = /^(?:yes|no|none|never|daily|every[ -]?day|sometimes|occasionally|socially|weekly|past|other|male|mail|female|femail|nearly every[ -]?day|not at all|several days|more than half the days|हाँ|हां|नहीं|कभी नहीं|कभी-कभी)$/i.test(normalized);
   const numeric = (questionId === 'waist' && /^\d+(?:\.\d+)?\s*(?:cm|centimeters?)?$/.test(normalized)) || (questionId === 'physicalActivity' && activityMinutesPerWeek(answer) !== undefined && !/\b(?:but|not|don.t|do not|less|under)\b/.test(normalized));
-  if ((local.ok && (isSample || simple || numeric || isPartB)) || questionId === 'name' || questionId === 'age') return local;
+  if ((local.ok && (isSample || simple || numeric || isPartB)) || questionId === 'name' || questionId === 'age' || questionId === 'phone' || questionId === 'address' || questionId === 'pincode') return local;
   try {
     const token = await getToken();
     if (!token) return { ok: false, error: 'Please sign in to interpret this wording, or select a quick answer.' };

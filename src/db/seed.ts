@@ -25,21 +25,21 @@ function build() {
 
   const patients: Patient[] = [
     // ASHA Patients
-    makePatient({ id: 'CL-0001', name: 'Mary Kujur', age: 45, sex: 'F', phone: '9431201145', locality: 'Bero Village', syncStatus: 'pending' }),
-    makePatient({ id: 'CL-0005', name: 'Geeta Kumari', age: 29, sex: 'F', phone: '9835109822', locality: 'Rampur Gaon', syncStatus: 'pending' }),
-    makePatient({ id: 'CL-0006', name: 'Sunita Soren', age: 50, sex: 'F', phone: '7004128933', locality: 'Mandar Sector', syncStatus: 'pending' }),
+    makePatient({ id: 'CL-0001', name: 'Mary Kujur', age: 45, sex: 'F', phone: '9431201145', locality: 'Bero Village', pincode: '835205', syncStatus: 'pending' }),
+    makePatient({ id: 'CL-0005', name: 'Geeta Kumari', age: 29, sex: 'F', phone: '9835109822', locality: 'Rampur Gaon', pincode: '835214', syncStatus: 'pending' }),
+    makePatient({ id: 'CL-0006', name: 'Sunita Soren', age: 50, sex: 'F', phone: '7004128933', locality: 'Mandar Sector', pincode: '835214', syncStatus: 'pending' }),
 
     // PHC Patients
-    makePatient({ id: 'CL-0002', name: 'Sunita Devi', age: 35, sex: 'F', phone: '9835012277', locality: 'Bero Block', syncStatus: 'synced' }),
-    makePatient({ id: 'CL-0007', name: 'Anil Hansda', age: 52, sex: 'M', phone: '9431872201', locality: 'Itki Village', syncStatus: 'synced' }),
+    makePatient({ id: 'CL-0002', name: 'Sunita Devi', age: 35, sex: 'F', phone: '9835012277', locality: 'Bero Block', pincode: '835205', syncStatus: 'synced' }),
+    makePatient({ id: 'CL-0007', name: 'Anil Hansda', age: 52, sex: 'M', phone: '9431872201', locality: 'Itki Village', pincode: '835217', syncStatus: 'synced' }),
 
     // DH Patients
-    makePatient({ id: 'CL-0003', name: 'Lakshmi Oraon', age: 42, sex: 'F', phone: '7004318862', locality: 'Ranchi Sadar Block', syncStatus: 'synced' }),
-    makePatient({ id: 'CL-0008', name: 'Parvati Soren', age: 48, sex: 'F', phone: '9835219904', locality: 'Khunti Sub-district', syncStatus: 'synced' }),
+    makePatient({ id: 'CL-0003', name: 'Lakshmi Oraon', age: 42, sex: 'F', phone: '7004318862', locality: 'Ranchi Sadar Block', pincode: '834001', syncStatus: 'synced' }),
+    makePatient({ id: 'CL-0008', name: 'Parvati Soren', age: 48, sex: 'F', phone: '9835219904', locality: 'Khunti Sub-district', pincode: '835210', syncStatus: 'synced' }),
 
     // TCC Patients
-    makePatient({ id: 'CL-0004', name: 'Ramesh Mahto', age: 61, sex: 'M', phone: '9798440021', locality: 'Mandar High Range', syncStatus: 'synced' }),
-    makePatient({ id: 'CL-0009', name: 'Bibha Bhattacharya', age: 56, sex: 'F', phone: '9431102944', locality: 'RIMS Oncology Ward', syncStatus: 'synced' }),
+    makePatient({ id: 'CL-0004', name: 'Ramesh Mahto', age: 61, sex: 'M', phone: '9798440021', locality: 'Mandar High Range', pincode: '835214', syncStatus: 'synced' }),
+    makePatient({ id: 'CL-0009', name: 'Bibha Bhattacharya', age: 56, sex: 'F', phone: '9431102944', locality: 'RIMS Oncology Ward', pincode: '834009', syncStatus: 'synced' }),
   ];
 
   // Sample PDF Attachments
@@ -173,6 +173,7 @@ function build() {
             age: 45,
             sex: 'F',
             address: 'Bero Village',
+            pincode: '835205',
             identifierType: 'Aadhaar',
             identifierNumber: 'XXXX-XXXX-4412',
             hasStateInsurance: true,
@@ -248,6 +249,7 @@ function build() {
             age: 29,
             sex: 'F',
             address: 'Rampur Gaon',
+            pincode: '835214',
             identifierType: 'Aadhaar',
             identifierNumber: 'XXXX-XXXX-8921',
             hasStateInsurance: true,
@@ -301,6 +303,7 @@ function build() {
             age: 50,
             sex: 'F',
             address: 'Mandar Sector',
+            pincode: '835214',
             identifierType: 'Aadhaar',
             identifierNumber: 'XXXX-XXXX-9921',
             hasStateInsurance: true,

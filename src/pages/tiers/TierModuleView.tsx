@@ -1,7 +1,7 @@
 import { useLang } from '../../i18n';
 import { CareJourneySummary } from '../../components/CareJourneySummary';
 import { BackLink } from '../../components/Layout';
-import { VisitStatusModal } from '../../components/VisitStatusModal';
+import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatusModal';
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
 import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
@@ -243,7 +243,7 @@ export function TierModuleView() {
                   )}
 
                   {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Acceptance:')} {c.referral.worker.facilityResponse ?? c.referral.facility.response}</span><span>{t('Appointment:')} {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>{t('Acceptance & appointment')}</button><Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/edit`}>{t('✎ Edit patient / referral')}</Link></div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? t('Not set')}</span><span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>{t('Record attendance')}</button><Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/edit`}>{t('✎ Edit patient / referral')}</Link></div>
                   {/* Toolbar */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
                     <div className="flex flex-wrap items-center gap-1.5">

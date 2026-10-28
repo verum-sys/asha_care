@@ -12,6 +12,8 @@ export interface Patient {
   sex?: Sex;
   phone?: string;
   locality?: string;
+  /** 6-digit Indian PIN code of the patient's location. */
+  pincode?: string;
   createdAt: string;
   updatedAt: string;
   syncStatus: SyncStatus;

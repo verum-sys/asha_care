@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { updateCaseClinical, type CaseRecord } from '../db/repo';
 import type { CareTier } from '../db/types';
 interface Props { caseRecord: CaseRecord | null; viewerTier?: CareTier | 'super_admin'; isOpen: boolean; onClose: () => void; }
+function formatAppointment(date?: string) {
+  if (!date) return 'Not set';
+  const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 export function buildSummary(caseRecord: CaseRecord) {
   const { patient, referral } = caseRecord;
   const cbac = referral.screening?.cbac;
@@ -12,8 +17,9 @@ export function buildSummary(caseRecord: CaseRecord) {
   // ASHA and PHC summaries stay focused on screening; report counts and handover notes are for later tiers.
   const earlyTier = ['asha', 'phc'].includes(referral.tier || 'asha');
   const bullets = [
-    `${patient.name?.trim() || 'Community member'} · ${patient.age ?? 'Age not recorded'} · ${patient.sex || 'Sex not recorded'} · ${patient.locality || 'Locality not recorded'}`,
-    `Care module: ${(referral.tier || 'asha').toUpperCase()}. Destination: ${referral.destinationFacility || 'Not assigned'}. Recorded priority: ${referral.urgency || 'Not recorded'}.`,
+    `${patient.name?.trim() || 'Community member'} · ${patient.age ?? 'Age not recorded'} · ${patient.sex || 'Sex not recorded'} · ${[patient.locality, patient.pincode].filter(Boolean).join(', ') || 'Locality not recorded'}`,
+    // PHC, DH and TCC summaries carry the appointment from the referral; ASHA summaries do not.
+    ...((referral.tier || 'asha') === 'asha' ? [] : [`Appointment date: ${formatAppointment(referral.worker.appointmentDate ?? referral.facility.appointmentDate)}`]),
     cbac ? `CBAC Part A: ${cbac.partA.totalScore} out of 12. Recorded flags: ${[cbac.highRiskNcd && 'High NCD risk', cbac.symptomAlert && 'Symptom alert', cbac.tbSuspectAlert && 'TB screening alert'].filter(Boolean).join(', ') || 'None'}. PHQ-2 score: ${cbac.partD.totalScore} out of 6.` : 'CBAC assessment has not been recorded.',
     exam ? `Physical examination: ${recordedVitals(exam).map(item => `${item.label}: ${item.value}`).join(', ')}. ${exam.generalFindings || 'General findings not recorded.'}` : 'Physical examination has not been recorded.',
     ...[exam?.systemicExam, exam?.oralCavityFindings, exam?.breastExamFindings, exam?.cervicalExamFindings].filter(Boolean).map(finding => `Recorded examination findings: ${finding}`),

@@ -2,6 +2,7 @@ import { activityMinutesPerWeek } from './cbacActivity';
 import { parseAlcoholFrequency, alcoholScoreFor } from './cbacAlcohol';
 import { classifyAge, classifyWaist, parseCbacText, type SmartParseResult } from './cbacIntelligence';
 import { parseInterviewNumber } from '../voice/interviewRecognition';
+import { addressLocalError, mobileError, normalizeMobile, normalizePincode, pincodeError } from './contactValidation';
 import { B_CATEGORIES_ID, B_SYMPTOM_PREFIX, parsePartBCategories, parseYesNo, partBSymptomQuestion, type PartBCategory } from './cbacPartBInterview';
 import type { Sex } from '../db/types';
 
@@ -55,6 +56,24 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
       ].filter(Boolean) as Sex[];
       if (matches.length !== 1) return fail('Please confirm one answer: female, male, or other.');
       updates.generalUpdates.sex = matches[0];
+      break;
+    }
+    case 'phone': {
+      const mobile = normalizeMobile(text);
+      if (!mobile) return fail(mobileError(text) || 'Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.');
+      updates.generalUpdates.phone = mobile;
+      break;
+    }
+    case 'address': {
+      const error = addressLocalError(text);
+      if (error) return fail(error);
+      updates.generalUpdates.address = text.replace(/^(?:my address is|address is|i live in|i live at|i stay in|मैं|मेरा पता)\s+/i, '').trim();
+      break;
+    }
+    case 'pincode': {
+      const pin = normalizePincode(text);
+      if (!pin) return fail(pincodeError(text) || 'Enter a valid 6-digit PIN code.');
+      updates.generalUpdates.pincode = pin;
       break;
     }
     case 'waist': {

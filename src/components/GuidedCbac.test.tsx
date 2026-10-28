@@ -105,6 +105,12 @@ describe('CBAC report inline editing', () => {
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('Done');
   });
+  it('shows mobile and address problems under their rows', () => {
+    const html = renderToStaticMarkup(<CbacReport {...props} editing={false} contactErrors={{ phone: 'Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.', address: 'Enter a real address, such as the village, ward or locality.' }} />);
+    expect(html.match(/role="alert"/g)).toHaveLength(2);
+    expect(html).toContain('Enter a valid 10-digit mobile number');
+    expect(html).toContain('Enter a real address');
+  });
   it('only lets PHC change name, phone and address when locked', () => {
     const html = renderToStaticMarkup(<CbacReport {...props} editing locked />);
     expect(html).toContain('value="Sunita"');

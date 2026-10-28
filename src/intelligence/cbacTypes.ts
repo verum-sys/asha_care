@@ -11,6 +11,7 @@ export interface CbacGeneralInfo {
   age: number | '';
   sex: Sex | '';
   address: string;
+  pincode?: string;
   identifierType: string;
   identifierNumber: string;
   hasStateInsurance: boolean;

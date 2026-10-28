@@ -99,7 +99,7 @@ export function GuidedQuestionCard(props: QuestionProps) {
     {(control.kind === 'text' || control.kind === 'number') && <form onSubmit={submitTyped} className="flex gap-2">
       <label htmlFor="guided-answer" className="sr-only">{t('Answer to the current question')}</label>
       <input id="guided-answer" autoFocus={mode === 'manual'} className="flex-1 min-w-0 text-base" inputMode={control.kind === 'number' ? 'numeric' : 'text'} value={props.currentAnswer}
-        onChange={event => props.setCurrentAnswer(event.target.value)} placeholder={control.kind === 'number' ? (control.unit === 'cm' ? 'cm' : t('years')) : t('Type here')} disabled={interpreting} />
+        onChange={event => props.setCurrentAnswer(event.target.value)} placeholder={control.kind === 'number' ? (control.unit === 'cm' ? 'cm' : control.unit === 'digits' ? t('10 digit mobile') : control.unit === 'pin' ? t('6 digit PIN code') : t('years')) : t(control.placeholder || 'Type here')} disabled={interpreting} />
     </form>}
 
     {control.kind === 'single' && <div className="grid gap-2 sm:grid-cols-2">
@@ -142,6 +142,8 @@ interface ReportProps {
   editing: boolean; onToggleEdit: () => void; onField: (key: string, value: string | string[]) => void;
   /** PHC reviewing a referred patient: only name, phone and address can change. */
   locked?: boolean; existing?: boolean; onFullForm: () => void;
+  /** Problems found when saving (invalid mobile, address that does not look like one). */
+  contactErrors?: { phone?: string; address?: string; pincode?: string }; checkingAddress?: boolean;
   saving: boolean; onSave: () => void;
 }
 
@@ -153,7 +155,7 @@ type Editor =
   | { kind: 'text' | 'number'; key: string; value: string }
   | { kind: 'select'; key: string; value: string; options: Option[] }
   | { kind: 'checklist'; key: string; options: Option[]; checked: string[] };
-interface Row { label: string; view: ReactNode; editor: Editor; lockedOk?: boolean }
+interface Row { label: string; view: ReactNode; editor: Editor; lockedOk?: boolean; error?: string }
 
 /** Text/number box that commits on blur or Enter, so partial typing (e.g. "7" on the way to "73") never fails validation. */
 function CommitInput({ value, type, onCommit }: { value: string; type: 'text' | 'number'; onCommit: (value: string) => void }) {
@@ -164,7 +166,7 @@ function CommitInput({ value, type, onCommit }: { value: string; type: 'text' | 
     onChange={event => setDraft(event.target.value)} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }} />;
 }
 
-export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, editing, onToggleEdit, onField, locked, existing, onFullForm, saving, onSave }: ReportProps) {
+export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, editing, onToggleEdit, onField, locked, existing, onFullForm, contactErrors, checkingAddress, saving, onSave }: ReportProps) {
   const { t } = useLang();
   const notAnswered = <span className="text-amber-700">{t('Not answered')}</span>;
   const state = { general, partA, partB, partC, partD, bCategories: undefined, referralRequired: referral.referralRequired };
@@ -184,8 +186,9 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
     text('Age', 'age', general.age, false, 'number'),
     { label: 'Sex', view: general.sex ? t(general.sex === 'F' ? 'Female' : general.sex === 'M' ? 'Male' : 'Other') : notAnswered,
       editor: { kind: 'select', key: 'sex', value: general.sex, options: [{ value: 'F', label: 'Female' }, { value: 'M', label: 'Male' }, { value: 'O', label: 'Other' }] } },
-    text('Phone Number', 'phone', general.phone, true),
-    text('Locality / Village / Ward', 'address', general.address, true),
+    { ...text('Phone Number', 'phone', general.phone, true), error: contactErrors?.phone },
+    { ...text('Locality / Village / Ward', 'address', general.address, true), error: contactErrors?.address },
+    { ...text('PIN code', 'pincode', general.pincode, true), error: contactErrors?.pincode },
     text('Village / Ward Name', 'villageWard', general.villageWard, true),
     { ...text('Waist', 'waist', partA.waistCm, false, 'number'), view: partA.waistCm !== undefined ? `${partA.waistCm} cm` : notAnswered },
     { label: 'Tobacco', view: partA.smokeScore === undefined ? notAnswered : t(SMOKE[partA.smokeScore]), editor: select('smoke') },
@@ -220,7 +223,7 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
       </div>
     </details>;
   };
-  const canSave = !saving && (locked || (!!finding && !!referral.referralRequired && (referral.referralRequired !== 'yes' || !!urgency)));
+  const canSave = !saving && !checkingAddress && (locked || (!!finding && !!referral.referralRequired && (referral.referralRequired !== 'yes' || !!urgency)));
   return <section className="card space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-2 border-b border-line pb-3">
       <div><span className="eyebrow">{t('CBAC REPORT')}</span><h2 className="text-lg sm:text-xl font-black text-brand mt-1">{t('Review the report')}</h2></div>
@@ -240,6 +243,7 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
         return <div key={row.label} className={`flex gap-3 py-2 ${editable ? 'flex-col sm:flex-row sm:items-center sm:justify-between' : 'justify-between'}`}>
           <dt className="text-muted">{t(row.label)}</dt>
           <dd className={editable ? 'sm:flex sm:justify-end sm:flex-1' : 'text-right font-semibold'}>{editable ? control(row) : row.view}</dd>
+          {row.error && <p role="alert" className="basis-full text-right text-xs text-danger">{t(row.error)}</p>}
         </div>;
       })}
     </dl>
@@ -268,7 +272,7 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
         <button type="button" onClick={onToggleEdit} aria-pressed={editing} className={`btn !min-h-[44px] ${editing ? 'btn-primary' : 'btn-secondary'}`}>{editing ? `✓ ${t('Done')}` : `✎ ${t('Edit')}`}</button>
         <button type="button" onClick={onFullForm} className="text-xs font-semibold text-teal-700 underline">{t('Open the full form instead')}</button>
       </div>
-      <button type="button" onClick={onSave} disabled={!canSave} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {saving ? t('Saving…') : existing ? t('Save changes') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>
+      <button type="button" onClick={onSave} disabled={!canSave} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {checkingAddress ? t('Checking address…') : saving ? t('Saving…') : existing ? t('Save changes') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>
     </div>
   </section>;
 }

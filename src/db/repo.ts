@@ -74,7 +74,7 @@ export async function getCase(referralId: string): Promise<CaseRecord | undefine
   return { patient, referral, followUps, facilityEvents };
 }
 
-export type PatientDraft = Pick<Patient, 'name' | 'age' | 'sex' | 'phone' | 'locality'>;
+export type PatientDraft = Pick<Patient, 'name' | 'age' | 'sex' | 'phone' | 'locality' | 'pincode'>;
 export type ReferralDraft = Pick<
   Referral,
   'reason' | 'destinationFacility' | 'referralDate' | 'urgency' | 'notes' | 'patientIntention' | 'screening'
@@ -345,13 +345,17 @@ export async function referToNextTier(
 }
 
 /** Update recorded acceptance/attendance without discarding prior follow-up history. */
-export async function updateVisitDetails(referralId: string, input: { response: FacilityResponse; date: string; attendance: Attendance; note: string }): Promise<void> {
+export async function updateVisitDetails(referralId: string, input: { response?: FacilityResponse; date?: string; attendance: Attendance; note: string }): Promise<void> {
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
   const now = new Date().toISOString();
-  const updated: Referral = { ...current, worker: { ...current.worker, facilityResponse: input.response, appointmentDate: input.date, appointmentCertainty: input.date ? 'confirmed' : undefined, attendance: input.attendance, attendedDate: input.attendance === 'attended' ? current.worker.attendedDate || today() : undefined }, updatedAt: now, syncStatus: 'pending' };
-  const followUp: FollowUp = { id: uid('fu-'), referralId, at: now, action: 'other', data: { tier: current.tier || 'asha', attendance: input.attendance, date: updated.worker.attendedDate || input.date || undefined }, note: `Visit updated: ${input.response}; appointment ${input.date || 'not set'}; attendance ${input.attendance}.${input.note ? ` ${input.note}` : ''}`, syncStatus: 'pending' };
+  // Acceptance and appointment date are only changed when supplied; recording attendance alone leaves them as they are.
+  const date = input.date === undefined ? current.worker.appointmentDate ?? '' : input.date;
+  const response = input.response ?? current.worker.facilityResponse ?? current.facility.response;
+  const certainty = input.date === undefined ? current.worker.appointmentCertainty : input.date ? 'confirmed' as const : undefined;
+  const updated: Referral = { ...current, worker: { ...current.worker, facilityResponse: response, appointmentDate: date || undefined, appointmentCertainty: certainty, attendance: input.attendance, attendedDate: input.attendance === 'attended' ? current.worker.attendedDate || today() : undefined }, updatedAt: now, syncStatus: 'pending' };
+  const followUp: FollowUp = { id: uid('fu-'), referralId, at: now, action: 'other', data: { tier: current.tier || 'asha', attendance: input.attendance, date: updated.worker.attendedDate || date || undefined }, note: `Visit updated: ${response}; appointment ${date || 'not set'}; attendance ${input.attendance}.${input.note ? ` ${input.note}` : ''}`, syncStatus: 'pending' };
   const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');
   await tx.objectStore('referrals').put(updated);
   await tx.objectStore('followups').put(followUp);

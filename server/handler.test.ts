@@ -3,6 +3,7 @@ import handler from '../api/interpret-answer';
 import { verifyToken } from '@clerk/backend';
 vi.mock('@clerk/backend', () => ({ verifyToken: vi.fn(async () => ({ sub: 'user_test', sid: 'session_test' })) }));
 vi.mock('../server/interpretation', () => ({ interpretWithGroq: vi.fn(async () => ({ normalizedAnswer: 'Socially', confidence: 0.95, needsClarification: false, explanation: '' })) }));
+vi.mock('../server/addressCheck', () => ({ checkAddressWithGroq: vi.fn(async () => ({ looksLikeAddress: false, confidence: 0.95, reason: 'random characters' })) }));
 vi.mock('../server/clinicalNotes', () => ({ generateClinicalNotes: vi.fn(async () => 'Screening notes. Draft for worker review.') }));
 function response() { return { statusCode: 0, setHeader: vi.fn(), end: vi.fn() }; }
 beforeEach(() => { vi.stubEnv('CLERK_SECRET_KEY', 'test'); vi.stubEnv('GROQ_API_KEY', 'test'); vi.mocked(verifyToken).mockResolvedValue({ sub: 'user_test', sid: 'session_test' } as never); });
@@ -24,6 +25,28 @@ describe('authenticated answer API', () => {
     const res = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { questionId: 'alcohol', answer: 'At weddings' } } as never, res as never);
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.end.mock.calls[0][0]).normalizedAnswer).toBe('Socially');
+  });
+});
+
+describe('authenticated address check API', () => {
+  it('returns the verdict to a valid session', async () => {
+    const res = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { task: 'validate-address', context: 'asdfgh' } } as never, res as never);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.end.mock.calls[0][0])).toMatchObject({ looksLikeAddress: false });
+  });
+  it('rejects empty or oversized addresses and unauthenticated calls', async () => {
+    for (const context of ['', 'x'.repeat(301)]) {
+      const res = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { task: 'validate-address', context } } as never, res as never);
+      expect(res.statusCode).toBe(400);
+    }
+    const res = response(); await handler({ method: 'POST', headers: {}, body: { task: 'validate-address', context: 'Bero' } } as never, res as never);
+    expect(res.statusCode).toBe(401);
+  });
+  it('does not route phone or address through the answer interpreter', async () => {
+    for (const questionId of ['phone', 'address']) {
+      const res = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { questionId, answer: 'x' } } as never, res as never);
+      expect(res.statusCode).toBe(400);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { CareJourneySummary } from '../../components/CareJourneySummary';
-import { VisitStatusModal } from '../../components/VisitStatusModal';
+import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatusModal';
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
 import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
@@ -254,7 +254,7 @@ export function CaseView() {
       <CareJourneySummary record={data} onEditSummary={() => setShowAiModal(true)} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />
 
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Recorded acceptance:')} <strong>{referral.worker.facilityResponse ?? referral.facility.response}</strong> {t('· Appointment:')} {referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? 'Not set'}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Acceptance & appointment')}</button></div>
+      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button></div>
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">

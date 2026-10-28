@@ -45,6 +45,13 @@ describe('editable visits and reports', () => {
     await updateVisitDetails('visit', { response: 'accepted', date: '2026-10-30', attendance: 'attended', note: 'Arrived' });
     expect(state.referrals.get('visit')?.worker.attendance).toBe('attended');
   });
+  it('records attendance alone without touching acceptance or the appointment from the referral', async () => {
+    state.referrals.set('att', makeReferral({ id: 'att', patientId: 'p', referralDate: '2026-10-20', worker: { appointmentDate: '2026-11-02', appointmentCertainty: 'tentative', facilityResponse: 'accepted' } }));
+    await updateVisitDetails('att', { attendance: 'attended', note: 'Reached the PHC' });
+    expect(state.referrals.get('att')?.worker).toMatchObject({ appointmentDate: '2026-11-02', appointmentCertainty: 'tentative', facilityResponse: 'accepted', attendance: 'attended' });
+    await updateVisitDetails('att', { attendance: 'not_attended', note: '' });
+    expect(state.referrals.get('att')?.worker).toMatchObject({ appointmentDate: '2026-11-02', facilityResponse: 'accepted', attendance: 'not_attended' });
+  });
   it('edits a report without losing other reports or changing its identity', async () => {
     const report = { id: 'report', title: 'Original', fileName: 'report.pdf', fileSize: '1 MB', fileType: 'application/pdf', category: 'general' as const, uploadedAt: '2026-10-25', uploadedBy: 'Worker', dataUrl: 'data:application/pdf;base64,test' };
     state.referrals.set('case', makeReferral({ id: 'case', patientId: 'p', referralDate: '2026-10-25', reports: [report, { ...report, id: 'other' }] }));
