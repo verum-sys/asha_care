@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { TierModuleView } from './TierModuleView';
 import { makePatient, makeReferral } from '../../db/factory';
 const auth = vi.hoisted(() => ({ user: { role: 'super_admin', unit: 'a' } }));
-vi.mock('../../i18n', () => ({ useLang: () => ({ t: (key: string) => key }) }));
+vi.mock('../../i18n', () => ({ useTermTier: () => undefined, useLang: () => ({ t: (key: string) => key }) }));
 vi.mock('../../auth/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../../db/useLive', () => ({ useLive: () => ({ data: ['a', 'b', 'c'].map(unit => ({
   patient: makePatient({ id: unit, name: `Patient-${unit}` }),

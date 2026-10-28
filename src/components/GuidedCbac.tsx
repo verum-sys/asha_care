@@ -80,8 +80,8 @@ export function GuidedQuestionCard(props: QuestionProps) {
       </div>
       <div className="h-1.5 rounded-full bg-surface overflow-hidden" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}><div className="h-full bg-brand transition-all" style={{ width: `${percent}%` }} /></div>
     </div>
-    <h2 className="text-lg sm:text-xl font-black text-ink leading-snug">{getQuestionText(question, lang)}</h2>
-    <p className="text-xs text-muted">{getQuestionHint(question, lang)}</p>
+    <h2 className="text-lg sm:text-xl font-black text-ink leading-snug">{t(getQuestionText(question, lang))}</h2>
+    <p className="text-xs text-muted">{t(getQuestionHint(question, lang))}</p>
 
     {mode === 'voice' && <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3 space-y-2">
       <div className="flex flex-wrap gap-2">

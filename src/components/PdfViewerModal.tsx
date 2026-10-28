@@ -96,7 +96,7 @@ export function PdfViewerModal({
             {/* Patient Demographics */}
             <div className="grid grid-cols-2 gap-4 bg-slate-50/80 p-3.5 rounded-lg border border-slate-200 text-xs">
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Patient Name</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('Patient Name')}</span>
                 <span className="font-bold text-slate-800 text-sm">{patientName}</span>
               </div>
               <div>

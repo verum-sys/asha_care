@@ -4,7 +4,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { CbacScreening } from './CbacScreening';
 vi.mock('@clerk/clerk-react', () => ({ useAuth: () => ({ getToken: async () => null }) }));
 vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ user: { role: 'super_admin', unit: 'a' } }) }));
-vi.mock('../../i18n', () => ({ useLang: () => ({ lang: 'en', t: (key: string) => key }) }));
+vi.mock('../../i18n', () => ({ useTermTier: () => undefined, useLang: () => ({ lang: 'en', t: (key: string) => key }) }));
 vi.mock('../../settings', () => ({ useSettings: () => ({ workerName: 'Test worker' }) }));
 vi.mock('../../voice/useSpeak', () => ({ useSpeak: () => ({ speak: vi.fn(async () => {}), stop: vi.fn(), speaking: false }) }));
 describe('CBAC interview UI', () => {

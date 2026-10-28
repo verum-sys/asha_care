@@ -10,7 +10,7 @@ import { AiSummaryModal } from '../../components/AiSummaryModal';
 import { addFollowUp, getCase } from '../../db/repo';
 import type { ActionKey, FollowUpAction } from '../../db/types';
 import { useLive } from '../../db/useLive';
-import { useLang } from '../../i18n';
+import { useLang, useTermTier } from '../../i18n';
 import { ACTION_MATCHES, analyze } from '../../intelligence/engine';
 
 export function RecordFollowUp() {
@@ -28,6 +28,7 @@ export function RecordFollowUp() {
     return analyze(data.patient, data.referral, data.followUps).action;
   }, [params, data]);
   const tier = data?.referral.tier || 'asha';
+  useTermTier(tier);
   const options = useMemo(() => tierFollowUpOptions(tier), [tier]);
   const [showReferral, setShowReferral] = useState(false);
   const [showSummary, setShowSummary] = useState(false);

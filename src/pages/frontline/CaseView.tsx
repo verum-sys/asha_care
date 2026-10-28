@@ -12,7 +12,7 @@ import { Chip, SyncChip } from '../../components/StatusChip';
 import { Timeline } from '../../components/Timeline';
 import { getCase, listSyncEvents } from '../../db/repo';
 import { useLive } from '../../db/useLive';
-import { useLang } from '../../i18n';
+import { useLang, useTermTier } from '../../i18n';
 import { analyze } from '../../intelligence/engine';
 import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
@@ -52,6 +52,7 @@ export function CaseView() {
     return c ? { ...c, syncEvents } : null;
   }, [id]);
 
+  useTermTier(data?.referral.tier || 'asha');
   if (loading) return <p className="text-muted">…</p>;
   if (!data)
     return (

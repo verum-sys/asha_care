@@ -17,6 +17,7 @@ import { makePatient, makeReferral } from '../../db/factory';
 import { analyze } from '../../intelligence/engine';
 import { CareStateChip } from '../../components/StatusChip';
 import type {
+  CareTier,
   FacilityResponse,
   Intention,
   ReferralRequiredAnswer,
@@ -25,7 +26,7 @@ import type {
   Sex,
   Urgency,
 } from '../../db/types';
-import { useLang } from '../../i18n';
+import { useLang, useTermTier } from '../../i18n';
 import { today } from '../../intelligence/dates';
 import {
   calculatePartAScore,
@@ -177,6 +178,7 @@ export function CbacScreening() {
   const [saving, setSaving] = useState(false);
   // Facility tiers (PHC, DH, TCC) cannot make the clinical call at screening, so findings default to Medical Officer review. ASHA must choose.
   const isPhcForm = searchParams.get('tier') === 'phc';
+  useTermTier((['asha', 'phc', 'dh', 'tcc'].includes(searchParams.get('tier') || '') ? searchParams.get('tier') : 'asha') as CareTier);
   // PHC reviewing a referred patient may correct only name, phone and address; the rest of the CBAC stays as ASHA recorded it.
   const locked = isPhcForm && !!id;
   const lock = (locked ? { inert: '', 'aria-disabled': true } : {}) as object;
@@ -362,7 +364,7 @@ export function CbacScreening() {
     setInterviewIndex(qIndex);
     setAnswerError('');
     setActiveSlide(q.slide);
-    const textToSpeak = getQuestionText(q, lang);
+    const textToSpeak = t(getQuestionText(q, lang));
     stopInterviewListening();
     setCurrentAnswer('');
     void speak([{ text: textToSpeak }]).then(() => {
@@ -972,7 +974,7 @@ export function CbacScreening() {
             className="btn btn-secondary !min-h-[38px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5"
           >
             <Icon name="user" size={16} />
-            <span>{showGeneralDetails ? 'Hide Patient Info' : 'Patient & ASHA Details'}</span>
+            <span>{showGeneralDetails ? t('Hide Patient Info') : t('Patient & ASHA Details')}</span>
           </button>)}
         </div>
       </div>
@@ -1012,7 +1014,7 @@ export function CbacScreening() {
         {voicePanelOpen && (
           <div id="cbac-voice-controls" className="rounded-lg border border-teal-100 bg-teal-50/60 p-3 space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-brand">{getQuestionText(currentQuestion, lang)}</p>
+              <p className="text-sm font-semibold text-brand">{t(getQuestionText(currentQuestion, lang))}</p>
               <span className="text-xs text-muted whitespace-nowrap">{interviewIndex + 1}/{interviewQuestions.length}</span>
             </div>
             <div className="flex flex-wrap gap-2">

@@ -595,5 +595,8 @@ export const hiExtra: Record<string, string> = {
   "PIN code is required.": "पिन कोड आवश्यक है।",
   "Enter a valid 6-digit PIN code.": "सही 6 अंकों का पिन कोड दर्ज करें।",
   "Nothing new since the previous care team.": "पिछली देखभाल टीम के बाद कुछ नया नहीं।",
-  "Hover or tap a stage to see its notes.": "नोट्स देखने के लिए किसी चरण पर माउस ले जाएं या टैप करें।"
+  "Hover or tap a stage to see its notes.": "नोट्स देखने के लिए किसी चरण पर माउस ले जाएं या टैप करें।",
+  "Hide Patient Info": "मरीज़ की जानकारी छिपाएं",
+  "Patient & ASHA Details": "मरीज़ और आशा का विवरण",
+  "Patient Name": "मरीज़ का नाम"
 };

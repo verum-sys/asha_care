@@ -12,3 +12,6 @@ TABLE_H["PIN code is required."] = "पिन कोड आवश्यक ह�
 TABLE_H["Enter a valid 6-digit PIN code."] = "सही 6 अंकों का पिन कोड दर्ज करें।"
 TABLE_H["Nothing new since the previous care team."] = "पिछली देखभाल टीम के बाद कुछ नया नहीं।"
 TABLE_H["Hover or tap a stage to see its notes."] = "नोट्स देखने के लिए किसी चरण पर माउस ले जाएं या टैप करें।"
+TABLE_H["Hide Patient Info"] = "मरीज़ की जानकारी छिपाएं"
+TABLE_H["Patient & ASHA Details"] = "मरीज़ और आशा का विवरण"
+TABLE_H["Patient Name"] = "मरीज़ का नाम"

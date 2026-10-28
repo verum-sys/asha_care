@@ -1,4 +1,4 @@
-import { useLang } from '../../i18n';
+import { useLang, useTermTier } from '../../i18n';
 import { CareJourneySummary } from '../../components/CareJourneySummary';
 import { BackLink } from '../../components/Layout';
 import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatusModal';
@@ -23,6 +23,7 @@ export function TierModuleView() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const activeTier: CareTier = (tierParam as CareTier) || 'asha';
+  useTermTier(activeTier);
 
   const [search, setSearch] = useState('');
 
