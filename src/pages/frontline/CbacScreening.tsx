@@ -185,8 +185,10 @@ export function CbacScreening() {
   const [interviewActive, setInterviewActive] = useState<boolean>(false);
   const [bCategories, setBCategories] = useState<PartBCategory[] | undefined>();
   // ASHA registrations start with a guided, one-question-at-a-time flow; editing an existing case or other tiers open the full form.
-  const [guided, setGuided] = useState<GuidedMode>(() => (id || (searchParams.get('tier') || 'asha') !== 'asha' ? 'form' : 'choose'));
-  const [cameFromGuided, setCameFromGuided] = useState(false);
+  // Opening an existing patient shows the same report as the end of a new CBAC (with inline Edit); ?view=form opens the full form directly.
+  const [guided, setGuided] = useState<GuidedMode>(() => (searchParams.get('view') === 'form' ? 'form' : id ? 'report' : (searchParams.get('tier') || 'asha') !== 'asha' ? 'form' : 'choose'));
+  const [cameFromGuided, setCameFromGuided] = useState(!!id);
+  const [editingReport, setEditingReport] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [generatingNotes, setGeneratingNotes] = useState(false);
@@ -786,6 +788,32 @@ export function CbacScreening() {
     if (guided === 'voice') { stopInterview(); setGuided('manual'); }
     else { setGuided('voice'); startInterview(interviewIndex); }
   }
+  /** Inline edits from the report reuse the question parsers, so scores and dependent fields stay consistent. */
+  function applyReportEdit(key: string, value: string | string[]) {
+    const text = Array.isArray(value) ? '' : value;
+    switch (key) {
+      case 'name': setGeneral(g => ({ ...g, name: text })); return;
+      case 'phone': setGeneral(g => ({ ...g, phone: text })); return;
+      case 'address': setGeneral(g => ({ ...g, address: text })); return;
+      case 'villageWard': setGeneral(g => ({ ...g, villageWard: text })); return;
+      case 'age': handleAgeChange(text); return;
+      case 'sex': handleSexChange(text as Sex); return;
+      case 'symptoms': {
+        const chosen = value as string[];
+        const applicable = [...CBAC_B1_SYMPTOMS, ...(general.sex === 'F' ? CBAC_B2_SYMPTOMS : []), ...(typeof general.age === 'number' && general.age >= 60 ? CBAC_B3_SYMPTOMS : [])];
+        setPartB(() => ({ symptoms: Object.fromEntries(applicable.map(item => [item.id, chosen.includes(item.id)])) }));
+        return;
+      }
+      case 'fuel': setPartC(previous => ({ ...previous, cookingFuel: value as string[] })); return;
+      case 'referral': setReferralForm(f => ({ ...f, referralRequired: text as ReferralRequiredAnswer | '' })); return;
+      default: {
+        const parsed = parseCbacInterviewAnswer(key, text, general.sex, general.age);
+        if (parsed.ok) applyInterviewUpdates(parsed.updates);
+        else alert(t(parsed.error));
+      }
+    }
+  }
+
   function openFullForm() { stopInterview(); setGuided('form'); setActiveSlide('A'); }
   function skipGuidedQuestion() {
     const next = interviewIndex + 1;
@@ -927,7 +955,7 @@ export function CbacScreening() {
         onAnswer={(answer, trusted) => void handleInterviewAnswer(answer, [], trusted)} interpreting={interpreting} answerError={answerError}
         canGoBack={interviewIndex > 0} onBack={() => goToInterviewQuestion(interviewIndex - 1)} onSkip={skipGuidedQuestion} onSwitchMode={switchGuidedMode}
         voice={{ active: interviewActive, speaking, listening: isInterviewListening, onStart: () => startInterview(interviewIndex), onRepeat: () => speakQuestion(interviewIndex), onToggleMic: () => (isInterviewListening ? stopInterviewListening() : startInterviewListening()), onStop: stopInterview }} />}
-      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} onEdit={openFullForm} onSave={handleSaveAssessment} />}
+      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} editing={editingReport} onToggleEdit={() => setEditingReport(value => !value)} onField={applyReportEdit} locked={locked} existing={!!id} onFullForm={openFullForm} onSave={handleSaveAssessment} />}
       {guided === 'form' && cameFromGuided && <button type="button" onClick={() => setGuided('report')} className="btn btn-secondary !min-h-[40px] text-sm">← {t('Back to report')}</button>}
 
       {guided === 'form' && (<>

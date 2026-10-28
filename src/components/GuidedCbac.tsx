@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLang } from '../i18n';
 import { getQuestionHint, getQuestionText, type InterviewQuestion } from '../intelligence/cbacInterviewQuestions';
 import { joinAnswers, manualControlFor, type ManualOption } from '../intelligence/cbacManualOptions';
 import { COOKING_FUELS, CBAC_B1_SYMPTOMS, CBAC_B2_SYMPTOMS, CBAC_B3_SYMPTOMS, PHQ2_OPTIONS, type CbacGeneralInfo, type CbacPartA, type CbacPartB, type CbacPartC, type CbacPartD } from '../intelligence/cbacTypes';
-import type { SavedAnswer } from '../intelligence/cbacSavedAnswer';
+import { savedAnswerFor, type SavedAnswer } from '../intelligence/cbacSavedAnswer';
 import type { Sex } from '../db/types';
 import { Icon } from './Icon';
 
@@ -138,37 +138,95 @@ interface ReportProps {
   referral: { referralRequired: string; destinationFacility: string };
   finding: string; onFinding: (value: string) => void;
   urgency: string; onUrgency: (value: string) => void;
-  saving: boolean; onEdit: () => void; onSave: () => void;
+  /** Inline editing: each row becomes a dropdown / input / checklist. */
+  editing: boolean; onToggleEdit: () => void; onField: (key: string, value: string | string[]) => void;
+  /** PHC reviewing a referred patient: only name, phone and address can change. */
+  locked?: boolean; existing?: boolean; onFullForm: () => void;
+  saving: boolean; onSave: () => void;
 }
 
 const SMOKE = ['Never', 'Used to consume / Sometimes now', 'Daily'];
 const ALCOHOL: Record<string, string> = { never: 'Never', socially: 'Socially', weekly: 'Weekly', daily: 'Daily', yes: 'Yes' };
 
-export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, saving, onEdit, onSave }: ReportProps) {
+type Option = { value: string; label: string };
+type Editor =
+  | { kind: 'text' | 'number'; key: string; value: string }
+  | { kind: 'select'; key: string; value: string; options: Option[] }
+  | { kind: 'checklist'; key: string; options: Option[]; checked: string[] };
+interface Row { label: string; view: ReactNode; editor: Editor; lockedOk?: boolean }
+
+/** Text/number box that commits on blur or Enter, so partial typing (e.g. "7" on the way to "73") never fails validation. */
+function CommitInput({ value, type, onCommit }: { value: string; type: 'text' | 'number'; onCommit: (value: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => { if (draft.trim() !== value.trim()) onCommit(draft.trim()); };
+  return <input className="w-full sm:max-w-xs text-sm" type={type === 'number' ? 'text' : 'text'} inputMode={type === 'number' ? 'numeric' : 'text'} value={draft}
+    onChange={event => setDraft(event.target.value)} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }} />;
+}
+
+export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, editing, onToggleEdit, onField, locked, existing, onFullForm, saving, onSave }: ReportProps) {
   const { t } = useLang();
   const notAnswered = <span className="text-amber-700">{t('Not answered')}</span>;
-  const positives = [...CBAC_B1_SYMPTOMS, ...CBAC_B2_SYMPTOMS, ...CBAC_B3_SYMPTOMS].filter(s => partB.symptoms[s.id]);
+  const state = { general, partA, partB, partC, partD, bCategories: undefined, referralRequired: referral.referralRequired };
+  const applicable = [...CBAC_B1_SYMPTOMS, ...(general.sex === 'F' ? CBAC_B2_SYMPTOMS : []), ...(typeof general.age === 'number' && general.age >= 60 ? CBAC_B3_SYMPTOMS : [])];
+  const positives = applicable.filter(s => partB.symptoms[s.id]);
   const phq = (value?: number) => value === undefined ? notAnswered : t(PHQ2_OPTIONS.find(o => o.value === value)?.label || '');
-  const rows: [string, React.ReactNode][] = [
-    ['Name', general.name || notAnswered],
-    ['Age', general.age === '' ? notAnswered : `${general.age} ${t('yrs')}`],
-    ['Sex', general.sex ? t(general.sex === 'F' ? 'Female' : general.sex === 'M' ? 'Male' : 'Other') : notAnswered],
-    ['Waist', partA.waistCm !== undefined ? `${partA.waistCm} cm` : notAnswered],
-    ['Tobacco', partA.smokeScore === undefined ? notAnswered : t(SMOKE[partA.smokeScore])],
-    ['Alcohol', partA.alcoholScore === undefined ? notAnswered : t(partA.alcoholScore === 0 ? 'Never' : ALCOHOL[partA.alcoholFrequency || 'yes'] || 'Yes')],
-    ['Physical activity', partA.physicalActivityScore === undefined ? notAnswered : t(partA.physicalActivityScore === 0 ? 'At least 150 minutes in a week' : 'Less than 150 minutes in a week')],
-    ['Family history', partA.familyHistoryScore === undefined ? notAnswered : t(partA.familyHistoryScore ? 'Yes (Parent or Sibling)' : 'No')],
-    ['Symptoms reported', positives.length ? positives.map(s => t(s.label)).join('; ') : t('No symptoms reported')],
-    ['Cooking fuel', partC.cookingFuel.length ? partC.cookingFuel.map(id => t(COOKING_FUELS.find(f => f.id === id)?.label || id)).join(', ') : notAnswered],
-    ['Little interest or pleasure', phq(partD.phq1Score)],
-    ['Feeling down or hopeless', phq(partD.phq2Score)],
-    ['Referral', !referral.referralRequired ? notAnswered : referral.referralRequired === 'yes' ? `${t('Yes — Initiate Referral')}${referral.destinationFacility ? ` · ${referral.destinationFacility}` : ''}` : t('No — Routine Community Care')],
+  const choices = (id: string): Option[] => {
+    const control = manualControlFor({ id } as never, general.sex, general.age);
+    return control.kind === 'single' ? control.options.map(o => ({ value: o.answer, label: o.label })) : [];
+  };
+  const current = (id: string) => { const saved = savedAnswerFor(id, state); return saved && 'single' in saved ? saved.single : ''; };
+  const select = (key: string): Editor => ({ kind: 'select', key, value: current(key), options: choices(key) });
+  const text = (label: string, key: string, value: string | number | undefined, lockedOk = false, type: 'text' | 'number' = 'text'): Row =>
+    ({ label, view: value === undefined || value === '' ? notAnswered : String(value), editor: { kind: type, key, value: value === undefined ? '' : String(value) }, lockedOk });
+  const rows: Row[] = [
+    text('Name', 'name', general.name, true),
+    text('Age', 'age', general.age, false, 'number'),
+    { label: 'Sex', view: general.sex ? t(general.sex === 'F' ? 'Female' : general.sex === 'M' ? 'Male' : 'Other') : notAnswered,
+      editor: { kind: 'select', key: 'sex', value: general.sex, options: [{ value: 'F', label: 'Female' }, { value: 'M', label: 'Male' }, { value: 'O', label: 'Other' }] } },
+    text('Phone Number', 'phone', general.phone, true),
+    text('Locality / Village / Ward', 'address', general.address, true),
+    text('Village / Ward Name', 'villageWard', general.villageWard, true),
+    { ...text('Waist', 'waist', partA.waistCm, false, 'number'), view: partA.waistCm !== undefined ? `${partA.waistCm} cm` : notAnswered },
+    { label: 'Tobacco', view: partA.smokeScore === undefined ? notAnswered : t(SMOKE[partA.smokeScore]), editor: select('smoke') },
+    { label: 'Alcohol', view: partA.alcoholScore === undefined ? notAnswered : t(partA.alcoholScore === 0 ? 'Never' : ALCOHOL[partA.alcoholFrequency || 'yes'] || 'Yes'), editor: select('alcohol') },
+    { label: 'Physical activity', view: partA.physicalActivityScore === undefined ? notAnswered : t(partA.physicalActivityScore === 0 ? 'At least 150 minutes in a week' : 'Less than 150 minutes in a week'), editor: select('physicalActivity') },
+    { label: 'Family history', view: partA.familyHistoryScore === undefined ? notAnswered : t(partA.familyHistoryScore ? 'Yes (Parent or Sibling)' : 'No'), editor: select('familyHistory') },
+    { label: 'Symptoms reported', view: positives.length ? positives.map(s => t(s.label)).join('; ') : t('No symptoms reported'),
+      editor: { kind: 'checklist', key: 'symptoms', options: applicable.map(s => ({ value: s.id, label: s.label })), checked: positives.map(s => s.id) } },
+    { label: 'Cooking fuel', view: partC.cookingFuel.length ? partC.cookingFuel.map(id => t(COOKING_FUELS.find(f => f.id === id)?.label || id)).join(', ') : notAnswered,
+      editor: { kind: 'checklist', key: 'fuel', options: COOKING_FUELS.map(f => ({ value: f.id, label: f.label })), checked: partC.cookingFuel } },
+    { label: 'Little interest or pleasure', view: phq(partD.phq1Score), editor: select('phq1_interest') },
+    { label: 'Feeling down or hopeless', view: phq(partD.phq2Score), editor: select('phq2_mood') },
+    { label: 'Referral', view: !referral.referralRequired ? notAnswered : referral.referralRequired === 'yes' ? `${t('Yes — Initiate Referral')}${referral.destinationFacility ? ` · ${referral.destinationFacility}` : ''}` : t('No — Routine Community Care'),
+      editor: { kind: 'select', key: 'referral', value: referral.referralRequired, options: [{ value: 'yes', label: 'Yes — Initiate Referral' }, { value: 'no', label: 'No — Routine Community Care' }] } },
   ];
+  const control = (row: Row) => {
+    const e = row.editor;
+    if (e.kind === 'text' || e.kind === 'number') return <CommitInput value={e.value} type={e.kind} onCommit={value => onField(e.key, value)} />;
+    if (e.kind === 'select') return <select aria-label={t(row.label)} className="w-full sm:max-w-xs text-sm" value={e.value} onChange={event => event.target.value && onField(e.key, event.target.value)}>
+      <option value="">{t('Please select')}</option>
+      {e.options.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+    </select>;
+    if (e.kind !== 'checklist') return null;
+    return <details className="w-full sm:max-w-md rounded-xl border border-line bg-white">
+      <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">{e.checked.length ? `${e.checked.length} ${t('selected')}` : t('Please select')}</summary>
+      <div className="max-h-60 overflow-y-auto border-t border-line p-2 space-y-1">
+        {e.options.map(o => <label key={o.value} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-surface">
+          <input type="checkbox" className="mt-0.5" checked={e.checked.includes(o.value)}
+            onChange={event => onField(e.key, event.target.checked ? [...e.checked, o.value] : e.checked.filter(v => v !== o.value))} />
+          <span>{t(o.label)}</span>
+        </label>)}
+      </div>
+    </details>;
+  };
+  const canSave = !saving && (locked || (!!finding && !!referral.referralRequired && (referral.referralRequired !== 'yes' || !!urgency)));
   return <section className="card space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-2 border-b border-line pb-3">
       <div><span className="eyebrow">{t('CBAC REPORT')}</span><h2 className="text-lg sm:text-xl font-black text-brand mt-1">{t('Review the report')}</h2></div>
-      <button type="button" onClick={onEdit} className="btn btn-secondary !min-h-[40px] text-sm font-semibold">✎ {t('Edit')}</button>
+      <button type="button" onClick={onToggleEdit} aria-pressed={editing} className={`btn !min-h-[40px] text-sm font-semibold ${editing ? 'btn-primary' : 'btn-secondary'}`}>{editing ? `✓ ${t('Done')}` : `✎ ${t('Edit')}`}</button>
     </div>
+    {editing && <p className="text-xs text-muted">{locked ? t('Name, phone and address can be corrected here. The rest of the CBAC is read-only at PHC.') : t('Tap a field to change it. Fields with options open as a dropdown.')}</p>}
     <div className="grid grid-cols-2 gap-3">
       <div className="rounded-xl bg-teal-50 border border-teal-100 p-3"><div className="text-xs text-muted">{t('Part A Risk Score:')}</div><div className="text-2xl font-black text-brand">{partA.totalScore} <span className="text-sm font-semibold text-muted">{t('out of')} 12</span></div></div>
       <div className="rounded-xl bg-teal-50 border border-teal-100 p-3"><div className="text-xs text-muted">{t('Part D PHQ-2:')}</div><div className="text-2xl font-black text-brand">{partD.totalScore} <span className="text-sm font-semibold text-muted">{t('out of')} 6</span></div></div>
@@ -177,31 +235,40 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
       ? <div className="rounded-xl border border-warn/40 bg-warn-soft/50 p-3"><h3 className="text-sm font-bold">{t('Clinical Triage Alerts:')}</h3><ul className="mt-1 text-xs space-y-1">{triage.reasons.map(r => <li key={r}>• {r}</li>)}</ul></div>
       : <p className="text-sm text-ok font-semibold">{t('No critical flags · Routine annual screening')}</p>}
     <dl className="divide-y divide-line/70 text-sm">
-      {rows.map(([label, value]) => <div key={label} className="flex justify-between gap-3 py-2"><dt className="text-muted">{t(label)}</dt><dd className="text-right font-semibold">{value}</dd></div>)}
+      {rows.map(row => {
+        const editable = editing && (!locked || row.lockedOk);
+        return <div key={row.label} className={`flex gap-3 py-2 ${editable ? 'flex-col sm:flex-row sm:items-center sm:justify-between' : 'justify-between'}`}>
+          <dt className="text-muted">{t(row.label)}</dt>
+          <dd className={editable ? 'sm:flex sm:justify-end sm:flex-1' : 'text-right font-semibold'}>{editable ? control(row) : row.view}</dd>
+        </div>;
+      })}
     </dl>
     <div className="space-y-1 border-t border-line pt-3">
       <label htmlFor="report-finding" className="block text-sm font-bold">{t('Screening Finding / Clinical Assessment')} *</label>
-      <select id="report-finding" value={finding} onChange={event => onFinding(event.target.value)} className="w-full">
+      <select id="report-finding" value={finding} disabled={locked} onChange={event => onFinding(event.target.value)} className="w-full">
         <option value="">{t('Please select')}</option>
         <option value="negative">{t('Normal / Negative (Low Risk)')}</option>
         <option value="positive">{t('Suspected / Positive (High Risk Flagged)')}</option>
         <option value="needs_review">{t('Needs CHO / Medical Officer Review')}</option>
       </select>
-      {!finding && <p className="text-xs text-amber-700">{t('Select the screening finding to save.')}</p>}
+      {!finding && !locked && <p className="text-xs text-amber-700">{t('Select the screening finding to save.')}</p>}
       {referral.referralRequired === 'yes' && <>
         <label htmlFor="report-urgency" className="block text-sm font-bold pt-2">{t('Urgency *')}</label>
-        <select id="report-urgency" value={urgency} onChange={event => onUrgency(event.target.value)} className="w-full">
+        <select id="report-urgency" value={urgency} disabled={locked} onChange={event => onUrgency(event.target.value)} className="w-full">
           <option value="">{t('Please select')}</option>
           <option value="routine">{t('Routine')}</option>
           <option value="soon">{t('Soon')}</option>
           <option value="urgent">{t('Urgent')}</option>
         </select>
       </>}
-      {!referral.referralRequired && <p className="text-xs text-amber-700">{t('Answer whether a referral is needed (Edit) to save.')}</p>}
+      {!referral.referralRequired && !locked && <p className="text-xs text-amber-700">{t('Answer whether a referral is needed (Edit) to save.')}</p>}
     </div>
-    <div className="flex flex-wrap justify-between gap-2 border-t border-line pt-3">
-      <button type="button" onClick={onEdit} className="btn btn-secondary !min-h-[44px]">✎ {t('Edit')}</button>
-      <button type="button" onClick={onSave} disabled={saving || !finding || !referral.referralRequired || (referral.referralRequired === 'yes' && !urgency)} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {saving ? t('Saving…') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={onToggleEdit} aria-pressed={editing} className={`btn !min-h-[44px] ${editing ? 'btn-primary' : 'btn-secondary'}`}>{editing ? `✓ ${t('Done')}` : `✎ ${t('Edit')}`}</button>
+        <button type="button" onClick={onFullForm} className="text-xs font-semibold text-teal-700 underline">{t('Open the full form instead')}</button>
+      </div>
+      <button type="button" onClick={onSave} disabled={!canSave} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {saving ? t('Saving…') : existing ? t('Save changes') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>
     </div>
   </section>;
 }

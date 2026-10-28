@@ -577,5 +577,8 @@ export const hiExtra: Record<string, string> = {
   "Stop dictation": "बोलना रोकें",
   "Voice notes need an internet connection": "वॉइस नोट्स के लिए इंटरनेट चाहिए",
   "Please select the referral urgency.": "कृपया रेफरल की तात्कालिकता चुनें।",
-  "Add Notes": "नोट्स जोड़ें"
+  "Add Notes": "नोट्स जोड़ें",
+  "Done": "हो गया",
+  "selected": "चुने गए",
+  "Tap a field to change it. Fields with options open as a dropdown.": "बदलने के लिए किसी फ़ील्ड पर टैप करें। विकल्प वाले फ़ील्ड ड्रॉपडाउन में खुलते हैं।"
 };

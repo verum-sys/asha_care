@@ -58,7 +58,7 @@ describe('CBAC report', () => {
     partB={{ symptoms: { [CBAC_B1_SYMPTOMS[1].id]: true } }} partC={{ cookingFuel: ['firewood'], occupationalExposure: [] } as never}
     partD={{ phq1Score: 1, phq2Score: 2, totalScore: 3 } as never}
     triage={{ reasons: ['High NCD Risk'], highRiskNcd: true, tbSuspectAlert: true, symptomAlert: true, mentalHealthAlert: false }}
-    referral={{ referralRequired: 'yes', destinationFacility: 'PHC Bero' }} finding="" onFinding={() => {}} urgency="" onUrgency={() => {}} saving={false} onEdit={() => {}} onSave={() => {}} />);
+    referral={{ referralRequired: 'yes', destinationFacility: 'PHC Bero' }} finding="" onFinding={() => {}} urgency="" onUrgency={() => {}} saving={false} editing={false} onToggleEdit={() => {}} onField={() => {}} onFullForm={() => {}} onSave={() => {}} />);
   it('summarises answers, scores and alerts with an Edit option', () => {
     expect(html).toContain('Review the report');
     expect(html).toContain('Sunita Devi');
@@ -76,8 +76,42 @@ describe('CBAC report', () => {
   });
   it('flags unanswered items instead of hiding them', () => {
     const empty = renderToStaticMarkup(<CbacReport general={{ name: '', age: '', sex: '' } as never} partA={{ totalScore: 0 } as never} partB={{ symptoms: {} }} partC={{ cookingFuel: [], occupationalExposure: [] } as never} partD={{ totalScore: 0 } as never}
-      triage={{ reasons: [], highRiskNcd: false, tbSuspectAlert: false, symptomAlert: false, mentalHealthAlert: false }} referral={{ referralRequired: 'no', destinationFacility: '' }} finding="negative" onFinding={() => {}} urgency="" onUrgency={() => {}} saving={false} onEdit={() => {}} onSave={() => {}} />);
+      triage={{ reasons: [], highRiskNcd: false, tbSuspectAlert: false, symptomAlert: false, mentalHealthAlert: false }} referral={{ referralRequired: 'no', destinationFacility: '' }} finding="negative" onFinding={() => {}} urgency="" onUrgency={() => {}} saving={false} editing={false} onToggleEdit={() => {}} onField={() => {}} onFullForm={() => {}} onSave={() => {}} />);
     expect(empty).toContain('Not answered');
     expect(empty).toContain('No symptoms reported');
   });
 });
+
+describe('CBAC report inline editing', () => {
+  const props = {
+    general: { name: 'Sunita', age: 52, sex: 'F', phone: '9876543210', address: 'Bero', villageWard: 'Bero' } as never,
+    partA: { totalScore: 4, smokeScore: 1, waistCm: 90 } as never, partB: { symptoms: { night_sweats: true } }, partC: { cookingFuel: ['lpg'], occupationalExposure: [] } as never,
+    partD: { phq1Score: 1, totalScore: 1 } as never,
+    triage: { reasons: [], highRiskNcd: false, tbSuspectAlert: false, symptomAlert: false, mentalHealthAlert: false },
+    referral: { referralRequired: 'no', destinationFacility: '' }, finding: 'negative', onFinding: () => {}, urgency: '', onUrgency: () => {},
+    onToggleEdit: () => {}, onField: () => {}, onFullForm: () => {}, saving: false, onSave: () => {}, existing: true,
+  };
+  it('shows plain values until Edit is pressed', () => {
+    const html = renderToStaticMarkup(<CbacReport {...props} editing={false} />);
+    expect(html).not.toContain('<select aria-label="Tobacco"');
+    expect(html).toContain('Sunita');
+  });
+  it('turns fields with options into dropdowns, text fields into inputs and lists into checklists', () => {
+    const html = renderToStaticMarkup(<CbacReport {...props} editing />);
+    expect(html).toContain('<select aria-label="Tobacco"');
+    expect(html).toMatch(/<option value="Sometimes" selected="">Used to consume \/ Sometimes now<\/option>/);
+    expect(html).toContain('<select aria-label="Referral"');
+    expect(html).toContain('value="Sunita"');
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain('Done');
+  });
+  it('only lets PHC change name, phone and address when locked', () => {
+    const html = renderToStaticMarkup(<CbacReport {...props} editing locked />);
+    expect(html).toContain('value="Sunita"');
+    expect(html).toContain('value="9876543210"');
+    expect(html).not.toContain('<select aria-label="Tobacco"');
+    expect(html).not.toContain('type="checkbox"');
+    expect(html).toContain('read-only at PHC');
+  });
+});
+

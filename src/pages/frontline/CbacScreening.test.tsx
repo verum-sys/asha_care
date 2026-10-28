@@ -45,7 +45,7 @@ describe('CBAC interview UI', () => {
 
   it('lets PHC correct only name, phone and address on an existing patient', () => {
     const html = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/case/current-patient/cbac?tier=phc']}>
+      <MemoryRouter initialEntries={['/case/current-patient/cbac?tier=phc&view=form']}>
         <Routes><Route path="/case/:id/cbac" element={<CbacScreening />} /></Routes>
       </MemoryRouter>,
     );
@@ -63,5 +63,16 @@ describe('CBAC interview UI', () => {
       expect(html).not.toContain('inert=""');
     }
   });
-});
 
+  it('opens an existing patient on the report view, with Edit, instead of the full form', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/case/current-patient/cbac?tier=dh']}>
+        <Routes><Route path="/case/:id/cbac" element={<CbacScreening />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(html).toContain('Review the report');
+    expect(html).toContain('✎');
+    expect(html).toContain('Save changes');
+    expect(html).not.toContain('id="patient-name"');
+  });
+});
