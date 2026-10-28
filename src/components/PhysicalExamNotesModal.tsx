@@ -1,4 +1,5 @@
 import { useLang } from '../i18n';
+import { VoiceTextarea } from './VoiceTextarea';
 import React, { useState } from 'react';
 import type { CareTier, PhysicalExamNotes } from '../db/types';
 import { updateCaseClinical } from '../db/repo';
@@ -238,7 +239,7 @@ export function PhysicalExamNotesModal({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 {t('General Physical Examination (Pallor, Icterus, Cyanosis, Lymphadenopathy, Edema)')}
               </label>
-              <textarea
+              <VoiceTextarea
                 rows={2}
                 value={generalFindings}
                 onChange={(e) => setGeneralFindings(e.target.value)}
@@ -250,7 +251,7 @@ export function PhysicalExamNotesModal({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 {t('Systemic Examination (Chest / CVS / Abdomen / CNS)')}
               </label>
-              <textarea
+              <VoiceTextarea
                 rows={2}
                 value={systemicExam}
                 onChange={(e) => setSystemicExam(e.target.value)}
@@ -263,7 +264,7 @@ export function PhysicalExamNotesModal({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {t('Oral Cavity Examination (Lesions / Leukoplakia)')}
                 </label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   value={oralCavityFindings}
                   onChange={(e) => setOralCavityFindings(e.target.value)}
@@ -274,7 +275,7 @@ export function PhysicalExamNotesModal({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {t('Breast / Cervical Local Examination')}
                 </label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   value={breastExamFindings}
                   onChange={(e) => setBreastExamFindings(e.target.value)}
@@ -284,7 +285,7 @@ export function PhysicalExamNotesModal({
             </div>
           </div>
 
-          <div><label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="cervical-exam">{t('Cervical examination findings')}</label><textarea id="cervical-exam" value={cervicalExamFindings} onChange={e => setCervicalExamFindings(e.target.value)} /></div>
+          <div><label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="cervical-exam">{t('Cervical examination findings')}</label><VoiceTextarea id="cervical-exam" value={cervicalExamFindings} onChange={e => setCervicalExamFindings(e.target.value)} /></div>
           {error && <p role="alert" className="text-sm text-red-700">{t(error)}</p>}
           {/* Tier Specific Notes */}
           {(tier === 'dh' || tier === 'tcc') && (
@@ -295,7 +296,7 @@ export function PhysicalExamNotesModal({
                 </span>
                 <span className="text-xs font-bold text-slate-800">{t('District Hospital (DH) Notes')}</span>
               </div>
-              <textarea
+              <VoiceTextarea
                 rows={2}
                 value={dhNotes}
                 onChange={(e) => setDhNotes(e.target.value)}
@@ -313,7 +314,7 @@ export function PhysicalExamNotesModal({
                 </span>
                 <span className="text-xs font-bold text-slate-800">{t('Tertiary Care Centre (TCC) Notes')}</span>
               </div>
-              <textarea
+              <VoiceTextarea
                 rows={3}
                 value={tccNotes}
                 onChange={(e) => setTccNotes(e.target.value)}

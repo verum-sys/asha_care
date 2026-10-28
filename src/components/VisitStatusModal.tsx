@@ -1,4 +1,5 @@
 import { useLang } from '../i18n';
+import { VoiceTextarea } from './VoiceTextarea';
 import { useState } from 'react';
 import type { Attendance, FacilityResponse, Referral } from '../db/types';
 import { updateVisitDetails } from '../db/repo';
@@ -23,7 +24,7 @@ export function VisitStatusModal({ referral, onClose }: { referral: Referral; on
     </select></label>
     <label className="block text-sm font-semibold">{t('Appointment date')}<input type="date" value={date} onChange={event => { setDate(event.target.value); setAttendance('unknown'); }} /></label>
     <label className="block text-sm font-semibold">{t('Attendance')}<select value={attendance} onChange={event => setAttendance(event.target.value as Attendance)}><option value="unknown">{t('Not yet recorded')}</option><option value="not_attended">{t('Missed appointment')}</option><option value="attended">{t('Attended')}</option></select></label>
-    <label className="block text-sm font-semibold">{t('Update notes')}<textarea rows={2} value={note} onChange={event => setNote(event.target.value)} /></label>
+    <label className="block text-sm font-semibold">{t('Update notes')}<VoiceTextarea rows={2} value={note} onChange={event => setNote(event.target.value)} /></label>
     {error && <p role="alert" className="text-sm text-danger">{t(error)}</p>}
     <div className="flex justify-end gap-2"><button type="button" className="btn btn-secondary text-xs" disabled={saving} onClick={onClose}>{t('Cancel')}</button><button type="submit" className="btn btn-primary text-xs" disabled={saving}>{saving ? 'Saving…' : 'Save visit details'}</button></div>
   </form></div>;

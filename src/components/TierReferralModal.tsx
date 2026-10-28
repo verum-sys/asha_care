@@ -1,6 +1,8 @@
 import { useLang } from '../i18n';
+import { VoiceTextarea } from './VoiceTextarea';
 import React, { useState } from 'react';
-import type { CareTier, Urgency } from '../db/types';
+import type { CareTier, PhysicalExamNotes, Urgency } from '../db/types';
+import { physicalExamText } from './RecordedVitals';
 import { referToNextTier } from '../db/repo';
 import { Icon } from './Icon';
 
@@ -9,6 +11,8 @@ interface TierReferralModalProps {
   patientName: string;
   currentTier: CareTier;
   savedSummary?: string;
+  /** Recorded physical examination; its vitals and findings are pre-filled into the handover notes. */
+  physicalExam?: PhysicalExamNotes;
   onEditSummary?: () => void;
   initialNotes?: string;
   isOpen: boolean;
@@ -21,6 +25,7 @@ export function TierReferralModal({
   patientName,
   currentTier,
   savedSummary,
+  physicalExam,
   onEditSummary,
   initialNotes = '',
   isOpen,
@@ -41,20 +46,24 @@ export function TierReferralModal({
   };
 
   const defaultFacilities: Record<CareTier, string[]> = {
-    asha: ['ASHA Bero Unit A', 'ASHA Rampur Unit B', 'ASHA Mandar Unit C'],
-    phc: ['PHC Itki Unit A', 'PHC Bero Unit B', 'PHC Kanke Unit C'],
-    dh: ['Sadar District Hospital Ranchi (DH Unit A)', 'DH Khunti (Unit B)', 'DH Gumla (Unit C)'],
-    tcc: ['RIMS Regional Cancer Centre (TCC Unit A)', 'State Apex Cancer Institute (TCC Unit B)', 'Apex Oncology Centre (TCC Unit C)'],
+    asha: ['ASHA Bero'],
+    phc: ['PHC Itki'], // one facility per tier; units A/B/C are no longer shown
+    dh: ['Sadar District Hospital Ranchi'],
+    tcc: ['RIMS Regional Cancer Centre'],
   };
 
   const [destinationFacility, setDestinationFacility] = useState(defaultFacilities[targetTier][0] || '');
-  const [urgency, setUrgency] = useState<Urgency>('soon');
-  const [notes, setNotes] = useState(initialNotes);
+  const [urgency, setUrgency] = useState<Urgency | ''>(''); // the clinician chooses; no default
+  const [notes, setNotes] = useState(() => {
+    const exam = physicalExamText(physicalExam);
+    return [initialNotes.trim(), exam && !initialNotes.includes(exam) ? exam : ''].filter(Boolean).join('\n\n');
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!urgency) { setError('Please select the referral urgency.'); return; }
     setSubmitting(true);
     try {
       await referToNextTier(referralId, targetTier, destinationFacility, notes.trim(), urgency, (['a', 'b', 'c'] as const)[defaultFacilities[targetTier].indexOf(destinationFacility)]);
@@ -116,26 +125,17 @@ export function TierReferralModal({
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               {t('Referral Urgency Level')}
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['routine', 'soon', 'urgent'] as Urgency[]).map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setUrgency(u)}
-                  className={`py-2 px-3 rounded-xl border text-xs font-bold capitalize transition-all ${
-                    urgency === u
-                      ? u === 'urgent'
-                        ? 'border-rose-500 bg-rose-50 text-rose-800 ring-2 ring-rose-300'
-                        : u === 'soon'
-                        ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-300'
-                        : 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-300'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
+            <select
+              value={urgency}
+              onChange={(e) => { setUrgency(e.target.value as Urgency | ''); setError(''); }}
+              className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500 bg-white"
+              required
+            >
+              <option value="">{t('Please select')}</option>
+              <option value="routine">{t('Routine')}</option>
+              <option value="soon">{t('Soon')}</option>
+              <option value="urgent">{t('Urgent')}</option>
+            </select>
           </div>
 
           <div className="rounded-xl bg-teal-50 border border-teal-100 p-3 text-xs text-teal-900">
@@ -148,7 +148,7 @@ export function TierReferralModal({
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               {t('Referral Reason & Handover Notes')}
             </label>
-            <textarea
+            <VoiceTextarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -167,7 +167,7 @@ export function TierReferralModal({
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !urgency}
               className="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-1.5"
             >
               <Icon name="check" size={16} />

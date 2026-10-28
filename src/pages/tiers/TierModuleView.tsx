@@ -254,7 +254,7 @@ export function TierModuleView() {
                         className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                       >
                         <Icon name="spark" size={13} className="text-teal-600" />
-                        <span>{activeTier === 'asha' ? (cbac ? 'View/Edit CBAC' : 'Conduct CBAC') : 'CBAC Form (editable)'}</span>
+                        <span>{activeTier === 'asha' ? (cbac ? 'View/Edit CBAC' : 'Conduct CBAC') : 'CBAC Form'}</span>
                       </Link>
 
                       {/* Physical Exam Notes */}
@@ -265,11 +265,9 @@ export function TierModuleView() {
                           className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                         >
                           <Icon name="user" size={13} className="text-sky-600" />
-                          <span>{t('Notes (Physical Examination)')}</span>
+                          <span>{t('Add Notes')}</span>
                         </button>
                       )}
-
-                      {(activeTier === 'dh' || activeTier === 'tcc') && <button type="button" onClick={() => setActiveCaseForExam({ caseRecord: c })} className="btn btn-secondary text-xs !min-h-[34px]">{activeTier.toUpperCase()} {t('Notes')}</button>}
                       {/* PDF Reports Attachments */}
                       {activeTier !== 'asha' && (
                         <div className="flex flex-wrap items-center gap-1">
@@ -380,6 +378,7 @@ export function TierModuleView() {
           patientName={activeCaseForReferral.caseRecord.patient.name?.trim() || t('Community member')}
           currentTier={activeTier}
           savedSummary={freshCase(activeCaseForReferral.caseRecord).referral.aiSummaryOverride}
+          physicalExam={freshCase(activeCaseForReferral.caseRecord).referral.physicalExam}
           onEditSummary={() => setActiveCaseForAi({ caseRecord: freshCase(activeCaseForReferral.caseRecord) })}
           isOpen={true}
           onClose={() => setActiveCaseForReferral(null)}

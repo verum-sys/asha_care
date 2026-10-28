@@ -569,5 +569,13 @@ export const hiExtra: Record<string, string> = {
   "Please select the patient intention before saving.": "सहेजने से पहले कृपया मरीज़ की मंशा चुनें।",
   "Section": "भाग",
   "overall": "कुल",
-  "View report →": "रिपोर्ट देखें →"
+  "View report →": "रिपोर्ट देखें →",
+  "Name, phone and address can be corrected here. The rest of the CBAC is read-only at PHC.": "यहां नाम, फ़ोन और पता सुधारा जा सकता है। CBAC का बाकी हिस्सा पीएचसी पर केवल देखने के लिए है।",
+  "Save changes": "बदलाव सहेजें",
+  "CBAC Form": "CBAC फ़ॉर्म",
+  "Speak your notes": "बोलकर नोट्स लिखें",
+  "Stop dictation": "बोलना रोकें",
+  "Voice notes need an internet connection": "वॉइस नोट्स के लिए इंटरनेट चाहिए",
+  "Please select the referral urgency.": "कृपया रेफरल की तात्कालिकता चुनें।",
+  "Add Notes": "नोट्स जोड़ें"
 };

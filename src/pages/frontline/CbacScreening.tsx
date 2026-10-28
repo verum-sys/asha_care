@@ -1,4 +1,5 @@
 import { generateWorkerNotes } from '../../intelligence/cbacWorkerNotes';
+import { VoiceTextarea } from '../../components/VoiceTextarea';
 import { referralInterviewQuestion, parseReferralDecision } from '../../intelligence/cbacReferralInterview';
 import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { interpretInterviewAnswer } from '../../intelligence/answerInterpretation';
@@ -173,6 +174,10 @@ export function CbacScreening() {
   const [saving, setSaving] = useState(false);
   // Facility tiers (PHC, DH, TCC) cannot make the clinical call at screening, so findings default to Medical Officer review. ASHA must choose.
   const isPhcForm = searchParams.get('tier') === 'phc';
+  // PHC reviewing a referred patient may correct only name, phone and address; the rest of the CBAC stays as ASHA recorded it.
+  const locked = isPhcForm && !!id;
+  const lock = (locked ? { inert: '', 'aria-disabled': true } : {}) as object;
+  const lockedStyle = locked ? ' opacity-60' : '';
   const defaultFinding: ScreeningFinding | '' = ['phc', 'dh', 'tcc'].includes(searchParams.get('tier') || '') ? 'needs_review' : '';
   const [referralForm, setReferralForm] = useState<ReferralFormState>({ ...INITIAL_REFERRAL, screeningFinding: defaultFinding });
 
@@ -799,19 +804,19 @@ export function CbacScreening() {
       return;
     }
     // The finding is the worker's judgement; it is never pre-filled from the score.
-    if (!referralForm.screeningFinding) {
+    if (!locked && !referralForm.screeningFinding) {
       alert(t('Please select the screening finding before saving.'));
       if (guided !== 'form') setGuided('report');
       else setActiveSlide('REFERRAL');
       return;
     }
-    if (!referralForm.referralRequired || (referralForm.referralRequired === 'yes' && !referralForm.urgency)) {
+    if (!locked && (!referralForm.referralRequired || (referralForm.referralRequired === 'yes' && !referralForm.urgency))) {
       alert(t('Please select whether a referral is needed, and its urgency, before saving.'));
       if (guided !== 'form') setGuided('report');
       else setActiveSlide('REFERRAL');
       return;
     }
-    if (isPhcForm && referralForm.referralRequired === 'yes' && !referralForm.patientIntention) {
+    if (isPhcForm && !locked && referralForm.referralRequired === 'yes' && !referralForm.patientIntention) {
       alert(t('Please select the patient intention before saving.'));
       setActiveSlide('REFERRAL');
       return;
@@ -864,7 +869,7 @@ export function CbacScreening() {
         completed: referralForm.screeningCompleted,
         area: (referralForm.screeningArea || 'ncd') as ScreeningArea,
         finding: referralForm.screeningFinding as ScreeningFinding,
-        referralRequired: referralForm.referralRequired,
+        referralRequired: referralForm.referralRequired || undefined,
         cbac: fullAssessment,
       },
     };
@@ -930,11 +935,11 @@ export function CbacScreening() {
       <section className="rounded-xl border border-line bg-white p-2.5 sm:p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold text-muted">{t('Assessment progress')}</span>
-          <button type="button" aria-expanded={voicePanelOpen} aria-controls="cbac-voice-controls"
+          {!locked && (<button type="button" aria-expanded={voicePanelOpen} aria-controls="cbac-voice-controls"
             onClick={() => { if (voicePanelOpen) stopInterview(); setVoicePanelOpen(!voicePanelOpen); }}
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50">
             <Icon name="mic" size={14} /> {t('Voice assistant')} <span aria-hidden="true">{voicePanelOpen ? '▴' : '▾'}</span>
-          </button>
+          </button>)}
         </div>
         {voicePanelOpen && (
           <div id="cbac-voice-controls" className="rounded-lg border border-teal-100 bg-teal-50/60 p-3 space-y-2">
@@ -1033,7 +1038,7 @@ export function CbacScreening() {
           </div>
 
           {/* Age (Smart Auto-classifier) */}
-          <div>
+          <div {...lock} className={lockedStyle.trim()}>
             <label className="block text-xs font-bold text-ink mb-1">
               {t('Age (Years) *')}
             </label>
@@ -1060,7 +1065,7 @@ export function CbacScreening() {
           </div>
 
           {/* Sex (Smart Gender Adapter) */}
-          <div>
+          <div {...lock} className={lockedStyle.trim()}>
             <label className="block text-xs font-bold text-ink mb-1">
               {t('Sex *')}
             </label>
@@ -1130,11 +1135,17 @@ export function CbacScreening() {
             />
           </div>
         </div>
+        {locked && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/50 pt-3">
+            <p className="text-xs text-muted">{t('Name, phone and address can be corrected here. The rest of the CBAC is read-only at PHC.')}</p>
+            <button type="button" onClick={handleSaveAssessment} disabled={saving} className="btn btn-primary !min-h-[44px] font-bold">{saving ? t('Saving…') : t('Save changes')}</button>
+          </div>
+        )}
       </section>
 
       {/* Collapsible Administrative / MoHFW Info Section */}
       {showGeneralDetails && (
-        <section className="card bg-surface/70 border border-brand/20 shadow-xs animate-in fade-in duration-200">
+        <section {...lock} className={`card bg-surface/70 border border-brand/20 shadow-xs animate-in fade-in duration-200${lockedStyle}`}>
           <div className="flex items-center justify-between border-b border-line pb-2 mb-3">
             <h2 className="font-bold text-xs sm:text-sm text-brand flex items-center gap-1.5 uppercase tracking-wider">
               <Icon name="user" size={16} />
@@ -1229,7 +1240,7 @@ export function CbacScreening() {
       {/* Two-Column Side-by-Side Grid: Main Slide + Sticky Right Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
         {/* Left / Center: Active Slide Content */}
-        <div className="lg:col-span-8 space-y-4">
+        <div {...lock} className={`lg:col-span-8 space-y-4${lockedStyle}`}>
           {/* ============================================================== */}
           {/* SLIDE A: Part A - Risk Assessment                              */}
           {/* ============================================================== */}
@@ -2264,7 +2275,7 @@ export function CbacScreening() {
                         <Icon name="spark" size={14} /> {generatingNotes ? 'Generating…' : 'AI generate'}
                       </button>
                     </div>
-                    <textarea
+                    <VoiceTextarea
                       id="worker-clinical-notes"
                       rows={3}
                       value={referralForm.notes}

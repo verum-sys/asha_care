@@ -110,7 +110,7 @@ export function CaseView() {
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-current animate-pulse" />
           <span className={`text-xs font-extrabold uppercase tracking-wider ${tierColors[currentTier].text}`}>
-            {t(tierColors[currentTier].label)} {t('· Unit')} {currentUnit.toUpperCase()}
+            {t(tierColors[currentTier].label)}
           </span>
         </div>
         <div className="text-xs text-slate-600 font-semibold">
@@ -194,7 +194,7 @@ export function CaseView() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Icon name="spark" size={20} className="text-accent" />
-            <span>{t('CBAC Assessment')} {currentTier !== 'asha' ? '(Editable)' : ''}</span>
+            <span>{t('CBAC Assessment')}</span>
           </h2>
           <Link
             to={`/case/${referral.id}/cbac?tier=${currentTier}&unit=${currentUnit}`}
@@ -446,6 +446,7 @@ export function CaseView() {
           patientName={patient.name?.trim() || t('Community member')}
           currentTier={currentTier}
           savedSummary={referral.aiSummaryOverride}
+          physicalExam={referral.physicalExam}
           onEditSummary={() => setShowAiModal(true)}
           isOpen={true}
           onClose={() => setShowReferralModal(false)}

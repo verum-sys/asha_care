@@ -155,6 +155,11 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Like useConnectivity, but null outside the provider so leaf components can degrade gracefully. */
+export function useOptionalConnectivity(): ConnectivityCtx | null {
+  return useContext(Ctx);
+}
+
 export function useConnectivity(): ConnectivityCtx {
   const c = useContext(Ctx);
   if (!c) throw new Error('useConnectivity outside ConnectivityProvider');

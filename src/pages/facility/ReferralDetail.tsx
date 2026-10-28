@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { VoiceTextarea } from '../../components/VoiceTextarea';
 import { useParams } from 'react-router-dom';
 import { BackLink } from '../../components/Layout';
 import { Chip } from '../../components/StatusChip';
@@ -115,7 +116,7 @@ export function ReferralDetail() {
               <label htmlFor="fac-note" className="mb-1 block font-semibold">
                 {t('facility.note')}
               </label>
-              <textarea id="fac-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+              <VoiceTextarea id="fac-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -175,7 +176,7 @@ export function ReferralDetail() {
                   <label htmlFor="fac-plan" className="mb-1 block font-semibold">
                     {t('facility.followUpPlan')}
                   </label>
-                  <textarea id="fac-plan" rows={2} value={plan} onChange={(e) => setPlan(e.target.value)} />
+                  <VoiceTextarea id="fac-plan" rows={2} value={plan} onChange={(e) => setPlan(e.target.value)} />
                 </div>
               )}
               <button

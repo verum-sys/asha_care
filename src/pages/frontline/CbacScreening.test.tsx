@@ -42,4 +42,26 @@ describe('CBAC interview UI', () => {
     expect(html).not.toContain('id="patient-name"');
     expect(html).not.toContain('aria-label="CBAC Slides"');
   });
+
+  it('lets PHC correct only name, phone and address on an existing patient', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/case/current-patient/cbac?tier=phc']}>
+        <Routes><Route path="/case/:id/cbac" element={<CbacScreening />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect((html.match(/inert=""/g) || []).length).toBeGreaterThanOrEqual(3); // age, sex, slides
+    expect(html).toContain('Save changes');
+    expect(html).not.toContain('Voice assistant');
+    const open = (marker: string) => html.slice(html.lastIndexOf('<div', html.indexOf(marker)), html.indexOf(marker));
+    expect(open('Patient Full Name')).not.toContain('inert');
+    expect(open('Locality / Village / Ward')).not.toContain('inert');
+    expect(open('Age (Years)')).toContain('inert');
+  });
+  it('does not lock a new PHC registration or the other tiers', () => {
+    for (const entry of ['/cbac?tier=phc', '/case/current-patient/cbac?tier=dh']) {
+      const html = renderToStaticMarkup(<MemoryRouter initialEntries={[entry]}><Routes><Route path="*" element={<CbacScreening />} /></Routes></MemoryRouter>);
+      expect(html).not.toContain('inert=""');
+    }
+  });
 });
+

@@ -13,7 +13,7 @@ export function buildSummary(caseRecord: CaseRecord) {
   const earlyTier = ['asha', 'phc'].includes(referral.tier || 'asha');
   const bullets = [
     `${patient.name?.trim() || 'Community member'} · ${patient.age ?? 'Age not recorded'} · ${patient.sex || 'Sex not recorded'} · ${patient.locality || 'Locality not recorded'}`,
-    `Care module: ${(referral.tier || 'asha').toUpperCase()}, Unit ${(referral.unit || 'a').toUpperCase()}. Destination: ${referral.destinationFacility || 'Not assigned'}. Recorded priority: ${referral.urgency || 'Not recorded'}.`,
+    `Care module: ${(referral.tier || 'asha').toUpperCase()}. Destination: ${referral.destinationFacility || 'Not assigned'}. Recorded priority: ${referral.urgency || 'Not recorded'}.`,
     cbac ? `CBAC Part A: ${cbac.partA.totalScore} out of 12. Recorded flags: ${[cbac.highRiskNcd && 'High NCD risk', cbac.symptomAlert && 'Symptom alert', cbac.tbSuspectAlert && 'TB screening alert'].filter(Boolean).join(', ') || 'None'}. PHQ-2 score: ${cbac.partD.totalScore} out of 6.` : 'CBAC assessment has not been recorded.',
     exam ? `Physical examination: ${recordedVitals(exam).map(item => `${item.label}: ${item.value}`).join(', ')}. ${exam.generalFindings || 'General findings not recorded.'}` : 'Physical examination has not been recorded.',
     ...[exam?.systemicExam, exam?.oralCavityFindings, exam?.breastExamFindings, exam?.cervicalExamFindings].filter(Boolean).map(finding => `Recorded examination findings: ${finding}`),

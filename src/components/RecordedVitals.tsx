@@ -12,6 +12,20 @@ export function recordedVitals(exam?: PhysicalExamNotes): { label: string; value
   }
   return entries;
 }
+/** The recorded examination as plain handover text (vitals plus each entered finding), or '' when nothing was recorded. */
+export function physicalExamText(exam?: PhysicalExamNotes): string {
+  if (!exam) return '';
+  const vitals = recordedVitals(exam).map(entry => `${entry.label} ${entry.value}`).join('; ');
+  const lines = [
+    vitals && `Physical examination: ${vitals}`,
+    exam.generalFindings?.trim() && `General: ${exam.generalFindings.trim()}`,
+    exam.systemicExam?.trim() && `Systemic: ${exam.systemicExam.trim()}`,
+    exam.oralCavityFindings?.trim() && `Oral cavity: ${exam.oralCavityFindings.trim()}`,
+    exam.breastExamFindings?.trim() && `Breast: ${exam.breastExamFindings.trim()}`,
+    exam.cervicalExamFindings?.trim() && `Cervical: ${exam.cervicalExamFindings.trim()}`,
+  ];
+  return lines.filter(Boolean).join('\n');
+}
 export function RecordedVitals({ exam }: { exam?: PhysicalExamNotes }) {
   const { t } = useLang();
   const entries = recordedVitals(exam);

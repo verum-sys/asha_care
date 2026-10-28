@@ -23,3 +23,15 @@ describe('recorded vitals', () => {
     ]);
   });
 });
+
+import { physicalExamText } from './RecordedVitals';
+describe('physical exam handover text', () => {
+  it('lists vitals and each entered finding', () => {
+    const text = physicalExamText({ bpSystolic: 138, bpDiastolic: 88, pulseRate: 80, generalFindings: 'Pallor present', oralCavityFindings: ' White patch right cheek ' });
+    expect(text).toBe('Physical examination: BP 138/88 mmHg; Pulse 80 bpm\nGeneral: Pallor present\nOral cavity: White patch right cheek');
+  });
+  it('is empty when nothing was recorded', () => {
+    expect(physicalExamText(undefined)).toBe('');
+    expect(physicalExamText({ generalFindings: '  ' })).toBe('');
+  });
+});

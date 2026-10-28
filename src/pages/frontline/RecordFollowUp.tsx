@@ -1,4 +1,5 @@
 import { TierReferralModal } from '../../components/TierReferralModal';
+import { VoiceTextarea } from '../../components/VoiceTextarea';
 import { nextCareTier, tierFollowUpOptions, type FollowUpChoice } from '../../intelligence/tierFollowUpOptions';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -132,7 +133,7 @@ export function RecordFollowUp() {
           <label htmlFor="fu-note" className="mb-1 block font-semibold">
             {action === 'outcome_recorded' || action === 'refer_next_tier' ? t('followup.outcome') : t('followup.note')}
           </label>
-          <textarea id="fu-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} required={action === 'outcome_recorded'} />
+          <VoiceTextarea id="fu-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} required={action === 'outcome_recorded'} />
         </div>
 
         {error && <p role="alert" className="text-sm text-danger">{t(error)}</p>}
@@ -140,7 +141,7 @@ export function RecordFollowUp() {
           {action === 'refer_next_tier' ? `Continue referral to ${nextCareTier(tier)?.toUpperCase()}` : t('followup.save')}
         </button>
       </form>
-      {showReferral && <TierReferralModal referralId={id} patientName={data.patient.name?.trim() || t('Community member')} currentTier={tier} savedSummary={data.referral.aiSummaryOverride} onEditSummary={() => setShowSummary(true)} initialNotes={note} isOpen onClose={() => setShowReferral(false)} onReferred={() => navigate(`/case/${id}`, { state: { toast: 'followup.saved' } })} />}
+      {showReferral && <TierReferralModal referralId={id} patientName={data.patient.name?.trim() || t('Community member')} currentTier={tier} savedSummary={data.referral.aiSummaryOverride} physicalExam={data.referral.physicalExam} onEditSummary={() => setShowSummary(true)} initialNotes={note} isOpen onClose={() => setShowReferral(false)} onReferred={() => navigate(`/case/${id}`, { state: { toast: 'followup.saved' } })} />}
       {showSummary && <AiSummaryModal caseRecord={data} isOpen onClose={() => setShowSummary(false)} />}
     </div>
   );
