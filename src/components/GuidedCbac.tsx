@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLang } from '../i18n';
-import { getQuestionHint, getQuestionText, type InterviewQuestion } from '../intelligence/cbacInterviewQuestions';
+import { CBAC_INTERVIEW_QUESTIONS, getQuestionHint, getQuestionText, type InterviewQuestion } from '../intelligence/cbacInterviewQuestions';
 import { joinAnswers, manualControlFor, type ManualOption } from '../intelligence/cbacManualOptions';
 import { COOKING_FUELS, CBAC_B1_SYMPTOMS, CBAC_B2_SYMPTOMS, CBAC_B3_SYMPTOMS, PHQ2_OPTIONS, type CbacGeneralInfo, type CbacPartA, type CbacPartB, type CbacPartC, type CbacPartD } from '../intelligence/cbacTypes';
 import { savedAnswerFor, type SavedAnswer } from '../intelligence/cbacSavedAnswer';
@@ -154,7 +154,7 @@ type Editor =
   | { kind: 'text' | 'number'; key: string; value: string }
   | { kind: 'select'; key: string; value: string; options: Option[] }
   | { kind: 'checklist'; key: string; options: Option[]; checked: string[] };
-interface Row { label: string; view: ReactNode; editor: Editor; lockedOk?: boolean; error?: string }
+interface Row { section: 'G' | 'A' | 'B' | 'C' | 'D' | 'R'; label: string; view: ReactNode; editor: Editor; lockedOk?: boolean; error?: string }
 
 /** Text/number box that commits on blur or Enter, so partial typing (e.g. "7" on the way to "73") never fails validation. */
 function CommitInput({ value, type, onCommit }: { value: string; type: 'text' | 'number'; onCommit: (value: string) => void }) {
@@ -166,7 +166,8 @@ function CommitInput({ value, type, onCommit }: { value: string; type: 'text' | 
 }
 
 export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, editing, onToggleEdit, onField, locked, existing, onFullForm, contactErrors, checkingAddress, saving, onSave }: ReportProps) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const ask = (id: string, fallback: string) => { const q = CBAC_INTERVIEW_QUESTIONS.find(x => x.id === id); return q ? getQuestionText(q, lang) : t(fallback); };
   const notAnswered = <span className="text-amber-700">{t('Not answered')}</span>;
   const state = { general, partA, partB, partC, partD, bCategories: undefined, referralRequired: referral.referralRequired };
   const applicable = [...CBAC_B1_SYMPTOMS, ...(general.sex === 'F' ? CBAC_B2_SYMPTOMS : []), ...(typeof general.age === 'number' && general.age >= 60 ? CBAC_B3_SYMPTOMS : [])];
@@ -178,35 +179,43 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
   };
   const current = (id: string) => { const saved = savedAnswerFor(id, state); return saved && 'single' in saved ? saved.single : ''; };
   const select = (key: string): Editor => ({ kind: 'select', key, value: current(key), options: choices(key) });
-  const text = (label: string, key: string, value: string | number | undefined, lockedOk = false, type: 'text' | 'number' = 'text'): Row =>
-    ({ label, view: value === undefined || value === '' ? notAnswered : String(value), editor: { kind: type, key, value: value === undefined ? '' : String(value) }, lockedOk });
+  const text = (label: string, key: string, value: string | number | undefined, lockedOk = false, type: 'text' | 'number' = 'text', section: Row['section'] = 'G'): Row =>
+    ({ section, label, view: value === undefined || value === '' ? notAnswered : String(value), editor: { kind: type, key, value: value === undefined ? '' : String(value) }, lockedOk });
   const rows: Row[] = [
-    text('Name', 'name', general.name, true),
-    text('Age', 'age', general.age, false, 'number'),
-    { label: 'Sex', view: general.sex ? t(general.sex === 'F' ? 'Female' : general.sex === 'M' ? 'Male' : 'Other') : notAnswered,
+    text(ask('name', 'Name'), 'name', general.name, true),
+    text(ask('age', 'Age'), 'age', general.age, false, 'number'),
+    { section: 'G', label: ask('sex', 'Sex'), view: general.sex ? t(general.sex === 'F' ? 'Female' : general.sex === 'M' ? 'Male' : 'Other') : notAnswered,
       editor: { kind: 'select', key: 'sex', value: general.sex, options: [{ value: 'F', label: 'Female' }, { value: 'M', label: 'Male' }, { value: 'O', label: 'Other' }] } },
-    { ...text('Phone Number', 'phone', general.phone, true), error: contactErrors?.phone },
-    { ...text('Locality / Village / Ward', 'address', general.address, true), error: contactErrors?.address },
-    { ...text('PIN code', 'pincode', general.pincode, true), error: contactErrors?.pincode },
-    text('Village / Ward Name', 'villageWard', general.villageWard, true),
-    { ...text('Waist', 'waist', partA.waistCm, false, 'number'), view: partA.waistCm !== undefined ? `${partA.waistCm} cm` : notAnswered },
-    { label: 'Tobacco', view: partA.smokeScore === undefined ? notAnswered : t(SMOKE[partA.smokeScore]), editor: select('smoke') },
-    { label: 'Alcohol', view: partA.alcoholScore === undefined ? notAnswered : t(partA.alcoholScore === 0 ? 'Never' : ALCOHOL[partA.alcoholFrequency || 'yes'] || 'Yes'), editor: select('alcohol') },
-    { label: 'Physical activity', view: partA.physicalActivityScore === undefined ? notAnswered : t(partA.physicalActivityScore === 0 ? 'At least 150 minutes in a week' : 'Less than 150 minutes in a week'), editor: select('physicalActivity') },
-    { label: 'Family history', view: partA.familyHistoryScore === undefined ? notAnswered : t(partA.familyHistoryScore ? 'Yes (Parent or Sibling)' : 'No'), editor: select('familyHistory') },
-    { label: 'Symptoms reported', view: positives.length ? positives.map(s => t(s.label)).join('; ') : t('No symptoms reported'),
+    { ...text(ask('phone', 'Phone Number'), 'phone', general.phone, true), error: contactErrors?.phone },
+    { ...text(ask('address', 'Locality / Village / Ward'), 'address', general.address, true), error: contactErrors?.address },
+    { ...text(ask('pincode', 'PIN code'), 'pincode', general.pincode, true), error: contactErrors?.pincode },
+    text(t('Village / Ward Name'), 'villageWard', general.villageWard, true),
+    { ...text(ask('waist', 'Waist'), 'waist', partA.waistCm, false, 'number', 'A'), view: partA.waistCm !== undefined ? `${partA.waistCm} cm` : notAnswered },
+    { section: 'A', label: ask('smoke', 'Tobacco'), view: partA.smokeScore === undefined ? notAnswered : t(SMOKE[partA.smokeScore]), editor: select('smoke') },
+    { section: 'A', label: ask('alcohol', 'Alcohol'), view: partA.alcoholScore === undefined ? notAnswered : t(partA.alcoholScore === 0 ? 'Never' : ALCOHOL[partA.alcoholFrequency || 'yes'] || 'Yes'), editor: select('alcohol') },
+    { section: 'A', label: ask('physicalActivity', 'Physical activity'), view: partA.physicalActivityScore === undefined ? notAnswered : t(partA.physicalActivityScore === 0 ? 'At least 150 minutes in a week' : 'Less than 150 minutes in a week'), editor: select('physicalActivity') },
+    { section: 'A', label: ask('familyHistory', 'Family history'), view: partA.familyHistoryScore === undefined ? notAnswered : t(partA.familyHistoryScore ? 'Yes (Parent or Sibling)' : 'No'), editor: select('familyHistory') },
+    { section: 'B', label: t('Do you have a problem with any of these:'), view: positives.length ? positives.map(s => t(s.label)).join('; ') : t('No symptoms reported'),
       editor: { kind: 'checklist', key: 'symptoms', options: applicable.map(s => ({ value: s.id, label: s.label })), checked: positives.map(s => s.id) } },
-    { label: 'Cooking fuel', view: partC.cookingFuel.length ? partC.cookingFuel.map(id => t(COOKING_FUELS.find(f => f.id === id)?.label || id)).join(', ') : notAnswered,
+    { section: 'C', label: ask('cooking_fuel', 'Cooking fuel'), view: partC.cookingFuel.length ? partC.cookingFuel.map(id => t(COOKING_FUELS.find(f => f.id === id)?.label || id)).join(', ') : notAnswered,
       editor: { kind: 'checklist', key: 'fuel', options: COOKING_FUELS.map(f => ({ value: f.id, label: f.label })), checked: partC.cookingFuel } },
-    { label: 'Little interest or pleasure', view: phq(partD.phq1Score), editor: select('phq1_interest') },
-    { label: 'Feeling down or hopeless', view: phq(partD.phq2Score), editor: select('phq2_mood') },
-    { label: 'Referral', view: !referral.referralRequired ? notAnswered : referral.referralRequired === 'yes' ? `${t('Yes — Initiate Referral')}${referral.destinationFacility ? ` · ${referral.destinationFacility}` : ''}` : t('No — Routine Community Care'),
+    { section: 'D', label: ask('phq1_interest', 'Little interest or pleasure'), view: phq(partD.phq1Score), editor: select('phq1_interest') },
+    { section: 'D', label: ask('phq2_mood', 'Feeling down or hopeless'), view: phq(partD.phq2Score), editor: select('phq2_mood') },
+    { section: 'R', label: t('Does this patient require referral to a health facility?'), view: !referral.referralRequired ? notAnswered : referral.referralRequired === 'yes' ? `${t('Yes — Initiate Referral')}${referral.destinationFacility ? ` · ${referral.destinationFacility}` : ''}` : t('No — Routine Community Care'),
       editor: { kind: 'select', key: 'referral', value: referral.referralRequired, options: [{ value: 'yes', label: 'Yes — Initiate Referral' }, { value: 'no', label: 'No — Routine Community Care' }] } },
+  ];
+  const sections: { id: Row['section']; title: string; letter?: string }[] = [
+    { id: 'G', title: t('Patient Identification & Demographics') },
+    { id: 'A', title: t('Part A: Risk Assessment'), letter: 'A' },
+    { id: 'B', title: t('Part B: Early Detection Symptoms'), letter: 'B' },
+    { id: 'C', title: t('Part C: Risk Factors for COPD'), letter: 'C' },
+    { id: 'D', title: t('Part D: PHQ-2 (Mental Health Screening)'), letter: 'D' },
+    { id: 'R', title: t('Referral') },
   ];
   const control = (row: Row) => {
     const e = row.editor;
     if (e.kind === 'text' || e.kind === 'number') return <CommitInput value={e.value} type={e.kind} onCommit={value => onField(e.key, value)} />;
-    if (e.kind === 'select') return <select aria-label={t(row.label)} className="w-full sm:max-w-xs text-sm" value={e.value} onChange={event => event.target.value && onField(e.key, event.target.value)}>
+    if (e.kind === 'select') return <select aria-label={row.label} className="w-full sm:max-w-xs text-sm" value={e.value} onChange={event => event.target.value && onField(e.key, event.target.value)}>
       <option value="">{t('Please select')}</option>
       {e.options.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
     </select>;
@@ -236,16 +245,19 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
     {triage.reasons.length > 0
       ? <div className="rounded-xl border border-warn/40 bg-warn-soft/50 p-3"><h3 className="text-sm font-bold">{t('Clinical Triage Alerts:')}</h3><ul className="mt-1 text-xs space-y-1">{triage.reasons.map(r => <li key={r}>• {r}</li>)}</ul></div>
       : <p className="text-sm text-ok font-semibold">{t('No critical flags · Routine annual screening')}</p>}
-    <dl className="divide-y divide-line/70 text-sm">
-      {rows.map(row => {
-        const editable = editing && (!locked || row.lockedOk);
-        return <div key={row.label} className={`flex gap-3 py-2 ${editable ? 'flex-col sm:flex-row sm:items-center sm:justify-between' : 'justify-between'}`}>
-          <dt className="text-muted">{t(row.label)}</dt>
-          <dd className={editable ? 'sm:flex sm:justify-end sm:flex-1' : 'text-right font-semibold'}>{editable ? control(row) : row.view}</dd>
-          {row.error && <p role="alert" className="basis-full text-right text-xs text-danger">{t(row.error)}</p>}
-        </div>;
-      })}
-    </dl>
+    {sections.map(sec => <div key={sec.id} className="space-y-1">
+      <h3 className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 text-sm font-black text-brand">{sec.letter && <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand text-white text-xs">{sec.letter}</span>}{sec.title}</h3>
+      <dl className="divide-y divide-line/70 text-sm">
+        {rows.filter(row => row.section === sec.id).map(row => {
+          const editable = editing && (!locked || row.lockedOk);
+          return <div key={row.label} className={`flex gap-3 py-2 ${editable ? 'flex-col sm:flex-row sm:items-center sm:justify-between' : 'justify-between'}`}>
+            <dt className="text-muted sm:max-w-[55%]">{row.label}</dt>
+            <dd className={editable ? 'sm:flex sm:justify-end sm:flex-1' : 'text-right font-semibold'}>{editable ? control(row) : row.view}</dd>
+            {row.error && <p role="alert" className="basis-full text-right text-xs text-danger">{t(row.error)}</p>}
+          </div>;
+        })}
+      </dl>
+    </div>)}
     <div className="space-y-1 border-t border-line pt-3">
       <label htmlFor="report-finding" className="block text-sm font-bold">{t('Screening Finding / Clinical Assessment')} *</label>
       <select id="report-finding" value={finding} disabled={locked} onChange={event => onFinding(event.target.value)} className="w-full">

@@ -82,6 +82,15 @@ export function CaseView() {
         <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
+          {currentTier === 'asha' && (
+            <Link
+              to={`/case/${referral.id}/follow-up`}
+              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
+            >
+              <span>{t('Record follow-up')}</span>
+            </Link>
+          )}
+
           {currentTier !== 'tcc' && currentTier !== 'asha' && (
             <button
               type="button"
@@ -148,7 +157,7 @@ export function CaseView() {
         />
       )}
 
-      <IntelligencePanel intel={intel} referralId={referral.id} />
+      {currentTier !== 'asha' && <IntelligencePanel intel={intel} referralId={referral.id} />}
 
       {/* Referral Details */}
       <section className="card">
@@ -387,9 +396,9 @@ export function CaseView() {
       )}
 
       {/* Follow-up Action Link */}
-      <Link to={`/case/${referral.id}/follow-up`} className="btn btn-primary btn-block !min-h-[52px] text-base font-bold shadow-md" role="button">
+      {currentTier !== 'asha' && <Link to={`/case/${referral.id}/follow-up`} className="btn btn-primary btn-block !min-h-[52px] text-base font-bold shadow-md" role="button">
         {t('case.recordFollowUp')}
-      </Link>
+      </Link>}
 
       {/* Timeline */}
       <section className="card">

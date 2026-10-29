@@ -12,7 +12,7 @@ export function makePatient(p: Partial<Patient> & Pick<Patient, 'id' | 'name'>):
 export function makeReferral(r: Partial<Referral> & Pick<Referral, 'id' | 'patientId' | 'referralDate'>): Referral {
   const now = new Date().toISOString();
   return {
-    referringWorker: 'ASHA Rekha Devi',
+    referringWorker: 'ASHA-1001',
     reason: '',
     destinationFacility: '',
     urgency: 'routine',

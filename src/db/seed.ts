@@ -12,7 +12,7 @@ import { emptyFacility, makePatient, makeReferral } from './factory';
 import type { FacilityEvent, FollowUp, Patient, Referral, ReportAttachment } from './types';
 
 const SEED_VERSION = 7;
-export const DEFAULT_WORKER = 'ASHA Rekha Devi';
+export const DEFAULT_WORKER = 'ASHA-1001';
 
 function iso(day: string, hour = 10): string {
   const [y, m, d] = day.split('-').map(Number);
@@ -164,7 +164,7 @@ function build() {
         cbac: {
           general: {
             date: addDays(t, -1),
-            ashaName: 'ASHA Rekha Devi',
+            ashaName: 'ASHA-1001',
             mpwAnmName: 'ANM Anita',
             villageWard: 'Bero Village',
             subCentre: 'Bero Subcentre A',

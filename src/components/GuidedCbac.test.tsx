@@ -93,14 +93,14 @@ describe('CBAC report inline editing', () => {
   };
   it('shows plain values until Edit is pressed', () => {
     const html = renderToStaticMarkup(<CbacReport {...props} editing={false} />);
-    expect(html).not.toContain('<select aria-label="Tobacco"');
+    expect(html).not.toContain('<select aria-label="Do you consume smoke or smokeless tobacco like bidi, cigarettes, or gutka?"');
     expect(html).toContain('Sunita');
   });
   it('turns fields with options into dropdowns, text fields into inputs and lists into checklists', () => {
     const html = renderToStaticMarkup(<CbacReport {...props} editing />);
-    expect(html).toContain('<select aria-label="Tobacco"');
+    expect(html).toContain('<select aria-label="Do you consume smoke or smokeless tobacco like bidi, cigarettes, or gutka?"');
     expect(html).toMatch(/<option value="Sometimes" selected="">Used to consume \/ Sometimes now<\/option>/);
-    expect(html).toContain('<select aria-label="Referral"');
+    expect(html).toContain('<select aria-label="Does this patient require referral to a health facility?"');
     expect(html).toContain('value="Sunita"');
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('Done');
@@ -115,7 +115,7 @@ describe('CBAC report inline editing', () => {
     const html = renderToStaticMarkup(<CbacReport {...props} editing locked />);
     expect(html).toContain('value="Sunita"');
     expect(html).toContain('value="9876543210"');
-    expect(html).not.toContain('<select aria-label="Tobacco"');
+    expect(html).not.toContain('<select aria-label="Do you consume smoke or smokeless tobacco like bidi, cigarettes, or gutka?"');
     expect(html).not.toContain('type="checkbox"');
     expect(html).toContain('read-only at PHC');
   });

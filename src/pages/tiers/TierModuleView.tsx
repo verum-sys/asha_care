@@ -257,7 +257,7 @@ export function TierModuleView() {
                         className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                       >
                         <Icon name="spark" size={13} className="text-teal-600" />
-                        <span>{activeTier === 'asha' ? (cbac ? t('View / Edit') : t('Conduct CBAC')) : t('CBAC Form')}</span>
+                        <span>{activeTier === 'asha' ? (cbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : t('CBAC Form')}</span>
                       </Link>
 
                       {/* Physical Exam Notes */}

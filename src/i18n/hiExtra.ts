@@ -603,9 +603,10 @@ export const hiExtra: Record<string, string> = {
   "Choose a care module": "देखभाल मॉड्यूल चुनें",
   "From community screening to specialist care, every step stays connected.": "समुदाय स्क्रीनिंग से विशेषज्ञ देखभाल तक, हर कदम जुड़ा रहता है।",
   "Open module": "मॉड्यूल खोलें",
-  "View / Edit": "देखें / संपादित करें",
+  "CBAC View / Edit": "CBAC देखें / संपादित करें",
   "Record follow-up": "फ़ॉलो-अप दर्ज करें",
   "Proactive risk scoring for NCDs.": "एनसीडी के लिए सक्रिय जोखिम स्कोरिंग।",
   "Conduct CBAC": "CBAC करें",
-  "Total Score > 3: Patient should be referred to CHO / MO (PHC / UPHC) for mental health support.": "कुल स्कोर > 3: मानसिक स्वास्थ्य सहायता के लिए मरीज़ को CHO / MO (PHC / UPHC) के पास भेजा जाना चाहिए।"
+  "Total Score > 3: Patient should be referred to CHO / MO (PHC / UPHC) for mental health support.": "कुल स्कोर > 3: मानसिक स्वास्थ्य सहायता के लिए मरीज़ को CHO / MO (PHC / UPHC) के पास भेजा जाना चाहिए।",
+  "Do you have a problem with any of these:": "क्या आपको इनमें से कोई समस्या है:"
 };

@@ -12,6 +12,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/Icon';
 import { BackLink } from '../../components/Layout';
+import { CaseStageSummary } from '../../components/CaseStageSummary';
 import { createCase, getCase, updateCase } from '../../db/repo';
 import { makePatient, makeReferral } from '../../db/factory';
 import { analyze } from '../../intelligence/engine';
@@ -105,7 +106,7 @@ const INITIAL_REFERRAL: ReferralFormState = {
 
 const INITIAL_GENERAL: CbacGeneralInfo = {
   date: today(),
-  ashaName: 'Rekha Devi',
+  ashaName: '',
   mpwAnmName: 'Suman Kumari',
   villageWard: 'Bero',
   subCentre: 'Bero Sub-Centre',
@@ -163,7 +164,7 @@ export function CbacScreening() {
   const [activeSlide, setActiveSlide] = useState<SlideId>('A');
   const [general, setGeneral] = useState<CbacGeneralInfo>({
     ...INITIAL_GENERAL,
-    ashaName: workerName || 'ASHA Rekha Devi',
+    ashaName: workerName || 'ASHA-1001',
   });
   const [partA, setPartA] = useState<CbacPartA>(INITIAL_PART_A);
   const [partB, setPartB] = useState<CbacPartB>(INITIAL_PART_B);
@@ -203,6 +204,7 @@ export function CbacScreening() {
   const [currentAnswer, setCurrentAnswer] = useState<string>('');
 
   const { speak, stop: stopSpeak, speaking } = useSpeak();
+  const [loadedCase, setLoadedCase] = useState<Awaited<ReturnType<typeof getCase>>>(undefined);
 
   // If editing an existing case, load patient & any existing CBAC
   useEffect(() => {
@@ -211,6 +213,7 @@ export function CbacScreening() {
     void getCase(id).then((c) => {
       if (cancelled || !c) return;
       const { patient: p, referral: r } = c;
+      setLoadedCase(c);
       setGeneral((prev) => ({
         ...prev,
         name: p.name || prev.name,
@@ -994,6 +997,7 @@ export function CbacScreening() {
         onAnswer={(answer, trusted) => void handleInterviewAnswer(answer, [], trusted)} interpreting={interpreting} answerError={answerError}
         canGoBack={interviewIndex > 0} onBack={() => goToInterviewQuestion(interviewIndex - 1)} onSkip={skipGuidedQuestion} onSwitchMode={switchGuidedMode}
         voice={{ active: interviewActive, speaking, listening: isInterviewListening, onStart: () => startInterview(interviewIndex), onRepeat: () => speakQuestion(interviewIndex), onToggleMic: () => (isInterviewListening ? stopInterviewListening() : startInterviewListening()), onStop: stopInterview }} />}
+      {guided === 'report' && loadedCase && <CaseStageSummary patient={loadedCase.patient} referral={loadedCase.referral} followUps={loadedCase.followUps} />}
       {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} editing={editingReport} onToggleEdit={() => setEditingReport(value => !value)} onField={applyReportEdit} locked={locked} existing={!!id} contactErrors={contactErrors} checkingAddress={checkingAddress} onFullForm={openFullForm} onSave={handleSaveAssessment} />}
       {guided === 'form' && cameFromGuided && <button type="button" onClick={() => setGuided('report')} className="btn btn-secondary !min-h-[40px] text-sm">← {t('Back to report')}</button>}
 

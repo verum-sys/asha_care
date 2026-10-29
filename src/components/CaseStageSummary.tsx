@@ -96,8 +96,8 @@ export function CaseStageSummary({
           </button>
         )}
       </div>
-      <CaseStageChip stage={stage} />
-      {stage === 'referral_initiated' && (
+      {referral.tier !== 'asha' && <CaseStageChip stage={stage} />}
+      {referral.tier !== 'asha' && stage === 'referral_initiated' && (
         <p className="text-[0.9rem] text-brand">
           <span className="font-semibold">{t('draft.nextExpected')}: </span>
           {t('draft.nextFacilityConfirmation')}
