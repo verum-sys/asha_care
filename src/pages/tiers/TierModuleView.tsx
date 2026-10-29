@@ -17,6 +17,21 @@ import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal'
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
 
+const URGENCY_RANK: Record<string, number> = { urgent: 0, soon: 1, routine: 2 };
+
+/** Nearest upcoming appointment first, then past appointments (most recent first), then none; ties go to the more urgent referral. */
+function byAppointmentThenUrgency(a: CaseRecord, b: CaseRecord) {
+  const today = new Date().toISOString().slice(0, 10);
+  const rank = (c: CaseRecord) => {
+    const date = (c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? '').slice(0, 10);
+    if (!date) return { group: 2, key: 0 };
+    const time = Date.parse(date);
+    return date >= today ? { group: 0, key: time } : { group: 1, key: -time };
+  };
+  const x = rank(a), y = rank(b);
+  return x.group - y.group || x.key - y.key || (URGENCY_RANK[a.referral.urgency] ?? 3) - (URGENCY_RANK[b.referral.urgency] ?? 3);
+}
+
 export function TierModuleView() {
   const { t } = useLang();
   const { tier: tierParam } = useParams<{ tier: CareTier }>();
@@ -53,7 +68,7 @@ export function TierModuleView() {
       return name.includes(q) || id.includes(q);
     }
     return true;
-  });
+  }).sort(byAppointmentThenUrgency);
 
   const tierMeta: Record<CareTier, {
     name: string;

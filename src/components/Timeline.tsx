@@ -10,7 +10,7 @@ type Entry =
   | { kind: 'facility'; at: string; ev: FacilityEvent }
   | { kind: 'sync'; at: string };
 
-/** Longitudinal view of the patient journey: worker actions, facility actions and sync events, newest first. */
+/** Longitudinal view of the patient journey: worker and facility actions, oldest first. */
 export function Timeline({
   referral,
   followUps,
@@ -28,8 +28,7 @@ export function Timeline({
     { kind: 'created' as const, at: referral.createdAt },
     ...followUps.map((fu) => ({ kind: 'followup' as const, at: fu.at, fu })),
     ...facilityEvents.map((ev) => ({ kind: 'facility' as const, at: ev.at, ev })),
-    ...syncEvents.filter((s) => s.referralIds.includes(referral.id)).map((s) => ({ kind: 'sync' as const, at: s.at })),
-  ].sort((a, b) => (a.at < b.at ? 1 : -1));
+  ].sort((a, b) => (a.at < b.at ? -1 : 1));
 
   return (
     <ol className="relative space-y-3 border-l-2 border-line pl-5">

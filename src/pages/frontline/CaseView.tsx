@@ -83,19 +83,43 @@ export function CaseView() {
       <div className="space-y-4 max-w-4xl mx-auto">
         <div className="flex items-center justify-between">
           <BackLink />
-          <Link
-            to={`/case/${referral.id}/follow-up`}
-            className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
-          >
-            <span>{t('Record follow-up')}</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/case/${referral.id}/follow-up`}
+              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
+            >
+              <span>{t('Record follow-up')}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowReferralModal(true)}
+              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
+            >
+              <span>{t('Refer to PHC')}</span>
+              <Icon name="back" size={14} className="rotate-180" />
+            </button>
+          </div>
         </div>
         <CbacScreening embedded />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowReferralModal(true)}
+            className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
+          >
+            <span>{t('Refer to PHC')}</span>
+            <Icon name="back" size={14} className="rotate-180" />
+          </button>
+        </div>
         <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong></span></div>
         <section className="card">
           <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
           <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
         </section>
+        {showReferralModal && (
+          <TierReferralModal referralId={referral.id} patientName={patient.name?.trim() || t('Community member')} currentTier={currentTier} savedSummary={referral.aiSummaryOverride} physicalExam={referral.physicalExam} onEditSummary={() => setShowAiModal(true)} isOpen onClose={() => setShowReferralModal(false)} />
+        )}
+        {showAiModal && <AiSummaryModal caseRecord={data} isOpen onClose={() => setShowAiModal(false)} />}
       </div>
     );
   }
