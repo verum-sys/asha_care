@@ -82,24 +82,14 @@ export function CaseView() {
         <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
-          {/* The AI summary is only created and edited at the ASHA stage. */}
-          {currentTier === 'asha' && (<button
-            type="button"
-            onClick={() => setShowAiModal(true)}
-            className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
-          >
-            <Icon name="spark" size={14} />
-            <span>{t('AI Summary')}</span>
-          </button>)}
-
-          {currentTier !== 'tcc' && (
+          {currentTier !== 'tcc' && currentTier !== 'asha' && (
             <button
               type="button"
               onClick={() => setShowReferralModal(true)}
               className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
             >
               <span>
-                {currentTier === 'asha' ? 'Refer to next PHC' : currentTier === 'phc' ? 'Refer to DH' : 'Refer to TCC'}
+                {currentTier === 'phc' ? 'Refer to DH' : 'Refer to TCC'}
               </span>
               <Icon name="back" size={14} className="rotate-180" />
             </button>
@@ -256,7 +246,7 @@ export function CaseView() {
       <CareJourneySummary record={data} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />
 
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button></div>
+      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span>{currentTier !== 'asha' && <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button>}</div>
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">

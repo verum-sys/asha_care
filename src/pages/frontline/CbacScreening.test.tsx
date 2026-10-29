@@ -91,5 +91,11 @@ describe('CBAC interview UI', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/cbac?tier=asha']}><CbacScreening /></MemoryRouter>);
     expect(html).toContain('How would you like to fill this form?');
   });
+  it('drops the MoHFW / Dell badge and describes the checklist as NCD risk scoring', () => {
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/cbac?tier=asha']}><CbacScreening /></MemoryRouter>);
+    expect(html).not.toContain('MoHFW / Dell');
+    expect(html).toContain('Proactive risk scoring for NCDs.');
+    expect(html).not.toContain('TB symptom detection');
+  });
 });
 

@@ -860,7 +860,7 @@ export function CbacScreening() {
   async function handleSaveAssessment() {
     if (saving || checkingAddress) return;
     if (!general.name.trim()) {
-      alert('Please enter patient name.');
+      alert(t('Please enter patient name.'));
       setShowGeneralDetails(true);
       return;
     }
@@ -965,9 +965,6 @@ export function CbacScreening() {
           <BackLink />
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
-            {t('MoHFW / Dell CBAC standard')}
-          </span>
           {guided === 'form' && (<button
             type="button"
             onClick={() => setShowGeneralDetails(!showGeneralDetails)}
@@ -986,7 +983,7 @@ export function CbacScreening() {
           {t('Community Based Assessment Checklist (CBAC)')}
         </h1>
         <p className="text-xs sm:text-sm text-muted mt-0.5">
-          {t('Proactive NCD risk scoring, TB symptom detection, COPD risk factors, and PHQ-2 mental health screening.')}
+          {t('Proactive risk scoring for NCDs.')}
         </p>
       </div>
 
@@ -2122,7 +2119,7 @@ export function CbacScreening() {
                 <div className="rounded-xl bg-danger-soft p-3 text-xs sm:text-sm font-semibold text-danger flex items-center gap-2">
                   <Icon name="alert" size={18} />
                   <span>
-                    Total Score &gt; 3: Patient should be referred to CHO / MO (PHC / UPHC) for mental health support.
+                    {t('Total Score > 3: Patient should be referred to CHO / MO (PHC / UPHC) for mental health support.')}
                   </span>
                 </div>
               )}

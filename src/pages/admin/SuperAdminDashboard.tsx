@@ -11,8 +11,26 @@ const modules: { tier: CareTier; title: string; subtitle: string; icon: 'user' |
 export function SuperAdminDashboard() {
   const { t } = useLang();
   return (
-    <section aria-label={t('Care modules')} className="compact-home">
-      <div className="module-grid">{modules.map((module, i) => <article className={`module-card module-${module.tier}`} key={module.tier}><div className="module-heading"><span className="module-icon"><Icon name={module.icon} size={23}/></span><span className="text-[10px] font-semibold tracking-widest text-slate-400">{t('TIER')} 0{i + 1}</span></div><h3>{t(module.title)}</h3><p className="text-xs text-slate-500">{t(module.subtitle)}</p><ul>{module.features.map(feature => <li key={feature}><span>✓</span>{t(feature)}</li>)}</ul><Link className="module-open" to={`/tier/${module.tier}`}>{t('Open')} {module.tier.toUpperCase()} {t('module')} <span>→</span></Link></article>)}</div>
+    <section aria-labelledby="modules-title" className="module-home">
+      <header className="module-home-head">
+        <span className="eyebrow">{t('CARE NETWORK')}</span>
+        <h1 id="modules-title">{t('Choose a care module')}</h1>
+        <p>{t('From community screening to specialist care, every step stays connected.')}</p>
+      </header>
+      <div className="module-grid">
+        {modules.map((module, i) => (
+          <Link key={module.tier} to={`/tier/${module.tier}`} className={`module-card module-${module.tier}`} aria-label={`${t(module.title)} — ${t('Open module')}`}>
+            <div className="module-heading">
+              <span className="module-icon"><Icon name={module.icon} size={26} /></span>
+              <span className="module-step">{t('TIER')} 0{i + 1}</span>
+            </div>
+            <h2>{t(module.title)}</h2>
+            <p className="module-sub">{t(module.subtitle)}</p>
+            <ul>{module.features.map(feature => <li key={feature}><span aria-hidden="true">✓</span>{t(feature)}</li>)}</ul>
+            <span className="module-arrow" aria-hidden="true"><Icon name="chevron" size={20} /></span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }

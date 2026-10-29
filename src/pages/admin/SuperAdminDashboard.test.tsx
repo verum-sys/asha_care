@@ -6,7 +6,10 @@ import { SuperAdminDashboard } from './SuperAdminDashboard';
 describe('super admin home', () => {
   it('contains only the four care cards', () => {
     const html = renderToStaticMarkup(<MemoryRouter><SuperAdminDashboard /></MemoryRouter>);
-    expect(html.match(/<article /g)).toHaveLength(4);
+    expect(html.match(/<a [^>]*class="module-card /g)).toHaveLength(4); // each whole card is the link
+    expect(html).not.toContain('<article');
+    expect(html).not.toContain('module-open'); // no separate "open" bar at the bottom
+    for (const tier of ['asha', 'phc', 'dh', 'tcc']) expect(html).toContain(`href="/tier/${tier}"`);
     expect(html).not.toContain('Add new CBAC form');
     expect(html).not.toContain('Unit A');
     expect(html).not.toContain('Unit B');
