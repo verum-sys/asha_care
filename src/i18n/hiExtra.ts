@@ -608,5 +608,15 @@ export const hiExtra: Record<string, string> = {
   "Proactive risk scoring for NCDs.": "एनसीडी के लिए सक्रिय जोखिम स्कोरिंग।",
   "Conduct CBAC": "CBAC करें",
   "Total Score > 3: Patient should be referred to CHO / MO (PHC / UPHC) for mental health support.": "कुल स्कोर > 3: मानसिक स्वास्थ्य सहायता के लिए मरीज़ को CHO / MO (PHC / UPHC) के पास भेजा जाना चाहिए।",
-  "Do you have a problem with any of these:": "क्या आपको इनमें से कोई समस्या है:"
+  "Do you have a problem with any of these:": "क्या आपको इनमें से कोई समस्या है:",
+  "Notes (ASHA Worker)": "नोट्स (आशा कार्यकर्ता)",
+  "CBAC assessment is not done yet for {name}.": "{name} के लिए CBAC आकलन अभी नहीं हुआ है।",
+  "CBAC assessment done for {name} on {date}.": "{name} के लिए CBAC आकलन {date} को किया गया।",
+  "NCD risk score is {a} out of 12 and PHQ-2 score is {d} out of 6.": "एनसीडी जोखिम स्कोर 12 में से {a} और PHQ-2 स्कोर 6 में से {d} है।",
+  "TB suspect: sputum collection is needed.": "टीबी संदिग्ध: बलगम का नमूना लेना आवश्यक है।",
+  "No referral needed; continue routine community care.": "रेफ़रल की आवश्यकता नहीं; नियमित सामुदायिक देखभाल जारी रखें।",
+  "Will go to {facility} on {date}.": "{date} को {facility} जाएंगे।",
+  "PHC appointment date is not set yet.": "पीएचसी की अपॉइंटमेंट तिथि अभी तय नहीं है।",
+  "Visit status: attended the PHC.": "विज़िट की स्थिति: पीएचसी गए।",
+  "Visit status: missed the appointment. Follow up.": "विज़िट की स्थिति: अपॉइंटमेंट छूट गई। फ़ॉलो-अप करें।"
 };

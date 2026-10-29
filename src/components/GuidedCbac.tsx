@@ -245,8 +245,8 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
     {triage.reasons.length > 0
       ? <div className="rounded-xl border border-warn/40 bg-warn-soft/50 p-3"><h3 className="text-sm font-bold">{t('Clinical Triage Alerts:')}</h3><ul className="mt-1 text-xs space-y-1">{triage.reasons.map(r => <li key={r}>• {r}</li>)}</ul></div>
       : <p className="text-sm text-ok font-semibold">{t('No critical flags · Routine annual screening')}</p>}
-    {sections.map(sec => <div key={sec.id} className="space-y-1">
-      <h3 className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 text-sm font-black text-brand">{sec.letter && <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand text-white text-xs">{sec.letter}</span>}{sec.title}</h3>
+    {sections.map(sec => <details key={sec.id} open className="group space-y-1">
+      <summary className="flex cursor-pointer list-none items-center gap-2 bg-surface rounded-lg px-3 py-2 text-sm font-black text-brand [&::-webkit-details-marker]:hidden">{sec.letter && <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand text-white text-xs">{sec.letter}</span>}<span className="flex-1">{sec.title}</span><span aria-hidden="true" className="text-muted transition-transform group-open:rotate-180">▾</span></summary>
       <dl className="divide-y divide-line/70 text-sm">
         {rows.filter(row => row.section === sec.id).map(row => {
           const editable = editing && (!locked || row.lockedOk);
@@ -257,7 +257,7 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
           </div>;
         })}
       </dl>
-    </div>)}
+    </details>)}
     <div className="space-y-1 border-t border-line pt-3">
       <label htmlFor="report-finding" className="block text-sm font-bold">{t('Screening Finding / Clinical Assessment')} *</label>
       <select id="report-finding" value={finding} disabled={locked} onChange={event => onFinding(event.target.value)} className="w-full">

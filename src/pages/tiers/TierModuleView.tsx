@@ -14,6 +14,7 @@ import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
+import { ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
 
@@ -33,7 +34,7 @@ function byAppointmentThenUrgency(a: CaseRecord, b: CaseRecord) {
 }
 
 export function TierModuleView() {
-  const { t } = useLang();
+  const { t, formatDate } = useLang();
   const { tier: tierParam } = useParams<{ tier: CareTier }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -258,6 +259,7 @@ export function TierModuleView() {
                     </div>
                   )}
 
+                  {activeTier === 'asha' && <p className="line-clamp-2 text-xs text-slate-600">{ashaNoteLines(c, t, formatDate).join(' ')}</p>}
                   {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
                   <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? t('Not set')}</span>{activeTier === 'asha'
                     ? <Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/follow-up`} state={{ returnTo: `/tier/${activeTier}` }}>{t('Record follow-up')}</Link>

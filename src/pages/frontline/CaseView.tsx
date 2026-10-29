@@ -12,6 +12,7 @@ import { Icon } from '../../components/Icon';
 import { Chip, SyncChip } from '../../components/StatusChip';
 import { Timeline } from '../../components/Timeline';
 import { getCase, listSyncEvents } from '../../db/repo';
+import { ashaNoteLines } from '../../intelligence/ashaNote';
 import { useLive } from '../../db/useLive';
 import { useLang, useTermTier } from '../../i18n';
 import { analyze } from '../../intelligence/engine';
@@ -111,7 +112,10 @@ export function CaseView() {
             <Icon name="back" size={14} className="rotate-180" />
           </button>
         </div>
-        <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong></span></div>
+        <section className="card space-y-2">
+          <h2 className="text-lg font-bold flex items-center gap-2"><Icon name="user" size={20} className="text-sky-600" /><span>{t('Notes (ASHA Worker)')}</span></h2>
+          <p className="text-sm text-slate-700">{ashaNoteLines(data, t, formatDate).join(' ')}</p>
+        </section>
         <section className="card">
           <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
           <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
