@@ -78,6 +78,14 @@ export function CaseView() {
           </div>
         </div>
         <CbacScreening embedded />
+        <section className="card space-y-2">
+          <h2 className="text-lg font-bold flex items-center gap-2"><Icon name="user" size={20} className="text-sky-600" /><span>{t('Notes (ASHA Worker)')}</span></h2>
+          <p className="text-sm text-slate-700">{ashaNoteLines(data, t, formatDate).join(' ')}</p>
+        </section>
+        <section className="card">
+          <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
+          <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
+        </section>
         <div className="flex justify-end">
           <button
             type="button"
@@ -88,14 +96,6 @@ export function CaseView() {
             <Icon name="back" size={14} className="rotate-180" />
           </button>
         </div>
-        <section className="card space-y-2">
-          <h2 className="text-lg font-bold flex items-center gap-2"><Icon name="user" size={20} className="text-sky-600" /><span>{t('Notes (ASHA Worker)')}</span></h2>
-          <p className="text-sm text-slate-700">{ashaNoteLines(data, t, formatDate).join(' ')}</p>
-        </section>
-        <section className="card">
-          <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
-          <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
-        </section>
         {showReferralModal && (
           <TierReferralModal referralId={referral.id} patientName={patient.name?.trim() || t('Community member')} currentTier={currentTier} savedSummary={referral.aiSummaryOverride} physicalExam={referral.physicalExam} onEditSummary={() => setShowAiModal(true)} isOpen onClose={() => setShowReferralModal(false)} />
         )}

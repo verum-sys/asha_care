@@ -197,6 +197,8 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
   const [guided, setGuided] = useState<GuidedMode>(() => (searchParams.get('view') === 'form' ? 'form' : id ? 'report' : (searchParams.get('tier') || 'asha') !== 'asha' ? 'form' : 'choose'));
   const [cameFromGuided, setCameFromGuided] = useState(!!id);
   const [editingReport, setEditingReport] = useState(false);
+  // An existing case shows Save only once something in the report has been changed.
+  const [reportDirty, setReportDirty] = useState(false);
   const [contactErrors, setContactErrors] = useState<{ phone?: string; address?: string; pincode?: string }>({});
   const [checkingAddress, setCheckingAddress] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
@@ -815,6 +817,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
   }
   /** Inline edits from the report reuse the question parsers, so scores and dependent fields stay consistent. */
   function applyReportEdit(key: string, value: string | string[]) {
+    setReportDirty(true);
     const text = Array.isArray(value) ? '' : value;
     switch (key) {
       case 'name': setGeneral(g => ({ ...g, name: text })); return;
@@ -955,6 +958,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
         if (embedded) {
           setLoadedCase(await getCase(id));
           setEditingReport(false);
+          setReportDirty(false);
         } else navigate(`/case/${id}`, { replace: true, state: { toast: 'status.savedLocally' } });
       } else {
         const newId = await createCase(patientDraft, referralDraft, general.ashaName || workerName || 'ASHA');
@@ -1006,7 +1010,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
         canGoBack={interviewIndex > 0} onBack={() => goToInterviewQuestion(interviewIndex - 1)} onSkip={skipGuidedQuestion} onSwitchMode={switchGuidedMode}
         voice={{ active: interviewActive, speaking, listening: isInterviewListening, onStart: () => startInterview(interviewIndex), onRepeat: () => speakQuestion(interviewIndex), onToggleMic: () => (isInterviewListening ? stopInterviewListening() : startInterviewListening()), onStop: stopInterview }} />}
       {guided === 'report' && loadedCase && <CaseStageSummary patient={loadedCase.patient} referral={loadedCase.referral} followUps={loadedCase.followUps} />}
-      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => setReferralForm(f => ({ ...f, urgency: value as Urgency | '' }))} onFinding={value => setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' }))} saving={saving} editing={editingReport} onToggleEdit={() => setEditingReport(value => !value)} onField={applyReportEdit} locked={locked} existing={!!id} contactErrors={contactErrors} checkingAddress={checkingAddress} onFullForm={openFullForm} onSave={handleSaveAssessment} />}
+      {guided === 'report' && <CbacReport general={general} partA={partA} partB={partB} partC={partC} partD={partD} triage={triage} referral={referralForm} finding={referralForm.screeningFinding} urgency={referralForm.urgency} onUrgency={value => { setReportDirty(true); setReferralForm(f => ({ ...f, urgency: value as Urgency | '' })); }} onFinding={value => { setReportDirty(true); setReferralForm(f => ({ ...f, screeningFinding: value as ScreeningFinding | '' })); }} dirty={reportDirty} saving={saving} editing={editingReport} onToggleEdit={() => setEditingReport(value => !value)} onField={applyReportEdit} locked={locked} existing={!!id} contactErrors={contactErrors} checkingAddress={checkingAddress} onFullForm={openFullForm} onSave={handleSaveAssessment} />}
       {guided === 'form' && cameFromGuided && <button type="button" onClick={() => setGuided('report')} className="btn btn-secondary !min-h-[40px] text-sm">← {t('Back to report')}</button>}
 
       {guided === 'form' && (<>

@@ -72,7 +72,8 @@ describe('CBAC interview UI', () => {
     );
     expect(html).toContain('Review the report');
     expect(html).toContain('✎');
-    expect(html).toContain('Save changes');
+    // Save appears only after a change is made.
+    expect(html).not.toContain('Save changes');
     expect(html).not.toContain('id="patient-name"');
   });
 

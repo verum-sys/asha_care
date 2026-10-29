@@ -136,6 +136,8 @@ interface ReportProps {
   triage: { reasons: string[]; highRiskNcd: boolean; tbSuspectAlert: boolean; symptomAlert: boolean; mentalHealthAlert: boolean };
   referral: { referralRequired: string; destinationFacility: string };
   finding: string; onFinding: (value: string) => void;
+  /** Something was changed since the report was opened; an existing case only offers Save then. */
+  dirty?: boolean;
   urgency: string; onUrgency: (value: string) => void;
   /** Inline editing: each row becomes a dropdown / input / checklist. */
   editing: boolean; onToggleEdit: () => void; onField: (key: string, value: string | string[]) => void;
@@ -165,7 +167,7 @@ function CommitInput({ value, type, onCommit }: { value: string; type: 'text' | 
     onChange={event => setDraft(event.target.value)} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }} />;
 }
 
-export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, editing, onToggleEdit, onField, locked, existing, onFullForm, contactErrors, checkingAddress, saving, onSave }: ReportProps) {
+export function CbacReport({ general, partA, partB, partC, partD, triage, referral, finding, onFinding, urgency, onUrgency, editing, onToggleEdit, onField, locked, existing, dirty, onFullForm, contactErrors, checkingAddress, saving, onSave }: ReportProps) {
   const { t, lang } = useLang();
   const ask = (id: string, fallback: string) => { const q = CBAC_INTERVIEW_QUESTIONS.find(x => x.id === id); return q ? getQuestionText(q, lang) : t(fallback); };
   const notAnswered = <span className="text-amber-700">{t('Not answered')}</span>;
@@ -282,7 +284,7 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={onToggleEdit} aria-pressed={editing} className={`btn !min-h-[44px] ${editing ? 'btn-primary' : 'btn-secondary'}`}>{editing ? `✓ ${t('Done')}` : `✎ ${t('Edit')}`}</button>
       </div>
-      <button type="button" onClick={onSave} disabled={!canSave} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {checkingAddress ? t('Checking address…') : saving ? t('Saving…') : existing ? t('Save changes') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>
+      {(!existing || dirty) && <button type="button" onClick={onSave} disabled={!canSave} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {checkingAddress ? t('Checking address…') : saving ? t('Saving…') : existing ? t('Save changes') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>}
     </div>
   </section>;
 }

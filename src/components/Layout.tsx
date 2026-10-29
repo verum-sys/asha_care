@@ -1,5 +1,5 @@
-import { backDestination } from './backNavigation';
-import { type ReactNode } from 'react';
+import { backSteps, recordVisit } from './backNavigation';
+import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { useAuth } from '../auth/AuthContext';
@@ -14,6 +14,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const { online } = useConnectivity();
   const { lang, setLang, t } = useLang();
   const location = useLocation();
+  const path = location.pathname + location.search;
+  useEffect(() => recordVisit(window.history.state, path), [path, location.key]);
   if (location.pathname === '/login') return <>{children}</>;
   return <div className="care-shell">
     <div className="care-workspace care-workspace-home">
@@ -31,9 +33,10 @@ export function Layout({ children }: { children: ReactNode }) {
 export function BackLink({ label }: { label?: string }) {
   const { t } = useLang();
   const navigate = useNavigate();
+  const location = useLocation();
   return <Link to="/" onClick={event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const target = backDestination(window.history.state);
-    if (target === -1) { event.preventDefault(); navigate(-1); }
+    const target = backSteps(window.history.state, location.pathname + location.search);
+    if (target !== '/') { event.preventDefault(); navigate(target); }
   }} className="mb-3 inline-flex min-h-[40px] items-center gap-1 text-sm font-semibold text-teal-700"><Icon name="back" size={18}/>{label ?? t('case.back')}</Link>;
 }
