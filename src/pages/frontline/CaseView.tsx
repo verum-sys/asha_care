@@ -4,6 +4,7 @@ import { ClinicalHandovers } from '../../components/ClinicalHandovers';
 import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { CbacScreening } from './CbacScreening';
 import { CaseStageSummary } from '../../components/CaseStageSummary';
 import { IntelligencePanel } from '../../components/IntelligencePanel';
 import { BackLink } from '../../components/Layout';
@@ -76,22 +77,36 @@ export function CaseView() {
     tcc: { label: 'Tertiary Care Centre TCC (Tier 4)', bg: 'bg-rose-50 border-rose-200', text: 'text-rose-800' },
   };
 
+  // At ASHA the case page is the CBAC form itself: sections A-D and referral, editable in place.
+  if (currentTier === 'asha') {
+    return (
+      <div className="space-y-4 max-w-4xl mx-auto">
+        <div className="flex items-center justify-between">
+          <BackLink />
+          <Link
+            to={`/case/${referral.id}/follow-up`}
+            className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
+          >
+            <span>{t('Record follow-up')}</span>
+          </Link>
+        </div>
+        <CbacScreening embedded />
+        <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong></span></div>
+        <section className="card">
+          <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
+          <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
-          {currentTier === 'asha' && (
-            <Link
-              to={`/case/${referral.id}/follow-up`}
-              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
-            >
-              <span>{t('Record follow-up')}</span>
-            </Link>
-          )}
-
-          {currentTier !== 'tcc' && currentTier !== 'asha' && (
+          {currentTier !== 'tcc' && (
             <button
               type="button"
               onClick={() => setShowReferralModal(true)}
@@ -157,7 +172,7 @@ export function CaseView() {
         />
       )}
 
-      {currentTier !== 'asha' && <IntelligencePanel intel={intel} referralId={referral.id} />}
+      <IntelligencePanel intel={intel} referralId={referral.id} />
 
       {/* Referral Details */}
       <section className="card">
@@ -255,7 +270,7 @@ export function CaseView() {
       <CareJourneySummary record={data} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />
 
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span>{currentTier !== 'asha' && <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button>}</div>
+      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button></div>
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">
@@ -396,9 +411,9 @@ export function CaseView() {
       )}
 
       {/* Follow-up Action Link */}
-      {currentTier !== 'asha' && <Link to={`/case/${referral.id}/follow-up`} className="btn btn-primary btn-block !min-h-[52px] text-base font-bold shadow-md" role="button">
+      <Link to={`/case/${referral.id}/follow-up`} className="btn btn-primary btn-block !min-h-[52px] text-base font-bold shadow-md" role="button">
         {t('case.recordFollowUp')}
-      </Link>}
+      </Link>
 
       {/* Timeline */}
       <section className="card">

@@ -152,7 +152,7 @@ const INITIAL_PART_D: CbacPartD = {
   totalScore: 0,
 };
 
-export function CbacScreening() {
+export function CbacScreening({ embedded = false }: { embedded?: boolean } = {}) {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -950,7 +950,10 @@ export function CbacScreening() {
     try {
       if (id) {
         await updateCase(id, patientDraft, referralDraft);
-        navigate(`/case/${id}`, { replace: true, state: { toast: 'status.savedLocally' } });
+        if (embedded) {
+          setLoadedCase(await getCase(id));
+          setEditingReport(false);
+        } else navigate(`/case/${id}`, { replace: true, state: { toast: 'status.savedLocally' } });
       } else {
         const newId = await createCase(patientDraft, referralDraft, general.ashaName || workerName || 'ASHA');
         navigate(`/case/${newId}`, { replace: true, state: { toast: 'status.savedLocally', showStageSummary: true } });
@@ -962,6 +965,7 @@ export function CbacScreening() {
 
   return (
     <div className="space-y-4">
+      {!embedded && <>
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
         <div className="flex items-center gap-2">
@@ -989,6 +993,8 @@ export function CbacScreening() {
           {t('Proactive risk scoring for NCDs.')}
         </p>
       </div>
+
+      </>}
 
       {guided === 'choose' && <GuidedStart onVoice={startGuidedVoice} onManual={startGuidedManual} onFullForm={openFullForm} />}
       {(guided === 'voice' || guided === 'manual') && currentQuestion && <GuidedQuestionCard key={currentQuestion.id} question={currentQuestion} index={interviewIndex} total={interviewQuestions.length} mode={guided}

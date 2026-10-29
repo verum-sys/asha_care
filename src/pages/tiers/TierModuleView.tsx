@@ -252,7 +252,7 @@ export function TierModuleView() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {/* CBAC Form */}
                       <Link
-                        to={`/case/${c.referral.id}/cbac?tier=${activeTier}&unit=${c.referral.unit || 'a'}`}
+                        to={activeTier === 'asha' && cbac ? `/case/${c.referral.id}` : `/case/${c.referral.id}/cbac?tier=${activeTier}&unit=${c.referral.unit || 'a'}`}
                         state={{ returnTo: `/tier/${activeTier}` }}
                         className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                       >

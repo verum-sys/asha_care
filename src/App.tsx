@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HashRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter, Route, Routes, useLocation, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { ClerkAuthProvider } from './auth/ClerkAuthProvider';
 import { useUser } from '@clerk/clerk-react';
 import { canAccessPath, homeForRole } from './auth/access';
@@ -76,6 +76,10 @@ function TierRoute() {
 
 function CbacRoute() {
   const location = useLocation();
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  // An existing ASHA case has no separate form page: the case page itself is the form.
+  if (id && (params.get('tier') || 'asha') === 'asha' && params.get('view') !== 'form') return <Navigate to={`/case/${id}`} replace />;
   return <CbacScreening key={location.pathname + location.search} />;
 }
 
