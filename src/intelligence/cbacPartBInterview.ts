@@ -32,12 +32,10 @@ export function applicablePartBCategories(sex: Sex | '', age: number | ''): Part
 
 export function partBCategoryQuestion(sex: Sex | '', age: number | ''): InterviewQuestion {
   const categories = PART_B_CATEGORIES.filter(c => applicablePartBCategories(sex, age).includes(c.id));
-  const listEn = categories.map(c => c.labelEn).join(', ');
-  const listHi = categories.map(c => c.labelHi).join(', ');
   return {
     id: B_CATEGORIES_ID, field: B_CATEGORIES_ID, slide: 'B',
-    promptEn: `Do you have a problem with any of these: ${listEn}? Name the ones that apply, or say none.`,
-    promptHi: `क्या आपको इनमें से कोई समस्या है: ${listHi}? जो लागू हो वह बताएं, या कहें कोई नहीं।`,
+    promptEn: 'Do you have a problem with any of these:',
+    promptHi: 'क्या आपको इनमें से कोई समस्या है:',
     hintEn: 'Say all that apply, for example "TB and mouth", or "none". Only those sections are asked next.',
     hintHi: 'जो लागू हो बताएं, जैसे "टीबी और मुंह", या "कोई नहीं"। आगे केवल वही प्रश्न पूछे जाएंगे।',
     optionsEn: categories.map(c => c.labelEn), optionsHi: categories.map(c => c.labelHi),

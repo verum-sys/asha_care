@@ -947,10 +947,10 @@ export function CbacScreening() {
     try {
       if (id) {
         await updateCase(id, patientDraft, referralDraft);
-        navigate(`/case/${id}`, { state: { toast: 'status.savedLocally' } });
+        navigate(`/case/${id}`, { replace: true, state: { toast: 'status.savedLocally' } });
       } else {
         const newId = await createCase(patientDraft, referralDraft, general.ashaName || workerName || 'ASHA');
-        navigate(`/case/${newId}`, { state: { toast: 'status.savedLocally', showStageSummary: true } });
+        navigate(`/case/${newId}`, { replace: true, state: { toast: 'status.savedLocally', showStageSummary: true } });
       }
     } finally {
       setSaving(false);

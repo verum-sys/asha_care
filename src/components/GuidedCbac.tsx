@@ -24,7 +24,6 @@ export function GuidedStart({ onVoice, onManual, onFullForm }: { onVoice: () => 
         <small className="font-medium text-muted">{t('Tap or type the answer, one question at a time')}</small>
       </button>
     </div>
-    <button type="button" onClick={onFullForm} className="text-xs font-semibold text-teal-700 underline">{t('Open the full form instead')}</button>
   </section>;
 }
 
@@ -270,7 +269,6 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={onToggleEdit} aria-pressed={editing} className={`btn !min-h-[44px] ${editing ? 'btn-primary' : 'btn-secondary'}`}>{editing ? `✓ ${t('Done')}` : `✎ ${t('Edit')}`}</button>
-        <button type="button" onClick={onFullForm} className="text-xs font-semibold text-teal-700 underline">{t('Open the full form instead')}</button>
       </div>
       <button type="button" onClick={onSave} disabled={!canSave} className="btn btn-primary !min-h-[44px] font-bold"><Icon name="check" size={18} /> {checkingAddress ? t('Checking address…') : saving ? t('Saving…') : existing ? t('Save changes') : referral.referralRequired === 'yes' ? t('Confirm CBAC & Create Referral') : t('Save CBAC Assessment')}</button>
     </div>
