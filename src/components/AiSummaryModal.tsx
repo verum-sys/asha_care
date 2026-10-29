@@ -56,7 +56,7 @@ export function AiSummaryModal({ caseRecord, isOpen, onClose }: Props) {
     finally { setSaving(false); }
   }
   return <div role="dialog" aria-modal="true" aria-labelledby="summary-title" className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4">
-    <div className="bg-white rounded-2xl border border-teal-100 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
+    <div className="bg-white rounded-2xl border border-teal-100 p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
       <div className="flex justify-between items-start gap-4">
         <div><span className="eyebrow">{t('CARELINK INTELLIGENCE')}</span><h2 id="summary-title" className="text-xl font-semibold mt-1">{t('AI summary')}</h2><p className="text-xs text-slate-500 mt-2">{t('Review and edit this summary. The saved version travels with the patient to the next care team.')}</p></div>
         <button type="button" disabled={saving} aria-label={t('Close summary')} onClick={onClose} className="text-slate-400">✕</button>

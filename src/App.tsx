@@ -78,8 +78,8 @@ function CbacRoute() {
   const location = useLocation();
   const { id } = useParams();
   const [params] = useSearchParams();
-  // An existing ASHA case has no separate form page: the case page itself is the form.
-  if (id && (params.get('tier') || 'asha') === 'asha' && params.get('view') !== 'form') return <Navigate to={`/case/${id}`} replace />;
+  // An existing case has no separate form page: the case page itself is the form.
+  if (id && params.get('view') !== 'form') return <Navigate to={`/case/${id}`} replace />;
   return <CbacScreening key={location.pathname + location.search} />;
 }
 

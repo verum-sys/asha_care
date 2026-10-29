@@ -122,7 +122,7 @@ export function TierModuleView() {
             <span className="text-xs font-bold uppercase tracking-widest text-white/80 block">
               {activeTier.toUpperCase()} {t('OPERATIONAL MODULE')}
             </span>
-            <div className="relative mt-2 w-full min-w-[240px] sm:w-[360px]">
+            <div className="relative mt-2 w-full min-w-0 sm:w-[360px]">
               <input
                 type="text"
                 placeholder={t('Search patients...')}
@@ -269,7 +269,7 @@ export function TierModuleView() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {/* CBAC Form */}
                       <Link
-                        to={activeTier === 'asha' && cbac ? `/case/${c.referral.id}` : `/case/${c.referral.id}/cbac?tier=${activeTier}&unit=${c.referral.unit || 'a'}`}
+                        to={cbac || activeTier !== 'asha' ? `/case/${c.referral.id}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`}
                         state={{ returnTo: `/tier/${activeTier}` }}
                         className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                       >

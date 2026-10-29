@@ -250,9 +250,9 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
       <dl className="divide-y divide-line/70 text-sm">
         {rows.filter(row => row.section === sec.id).map(row => {
           const editable = editing && (!locked || row.lockedOk);
-          return <div key={row.label} className={`flex gap-3 py-2 ${editable ? 'flex-col sm:flex-row sm:items-center sm:justify-between' : 'justify-between'}`}>
+          return <div key={row.label} className={`flex gap-x-3 gap-y-1 py-2 ${editable ? 'flex-col sm:flex-row sm:items-center sm:justify-between' : 'flex-col sm:flex-row sm:justify-between'}`}>
             <dt className="text-muted sm:max-w-[55%]">{row.label}</dt>
-            <dd className={editable ? 'sm:flex sm:justify-end sm:flex-1' : 'text-right font-semibold'}>{editable ? control(row) : row.view}</dd>
+            <dd className={`min-w-0 break-words ${editable ? 'sm:flex sm:justify-end sm:flex-1' : 'font-semibold sm:text-right'}`}>{editable ? control(row) : row.view}</dd>
             {row.error && <p role="alert" className="basis-full text-right text-xs text-danger">{t(row.error)}</p>}
           </div>;
         })}

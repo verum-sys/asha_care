@@ -14,6 +14,9 @@ import { parseFreeText } from '../intelligence/parser';
 import { Icon } from './Icon';
 import { CaseStageChip, FieldStatusChip } from './StatusChip';
 
+// ASHA records the screening and follow-ups; facility acceptance and attendance belong to the PHC and later tiers.
+const ASHA_HIDDEN_ROWS: string[] = ['referralRequired', 'attendance', 'facilityResponse'];
+
 export function CaseStageSummary({
   patient,
   referral,
@@ -65,7 +68,8 @@ export function CaseStageSummary({
     return row.displayValue;
   }
 
-  function checklistSection(titleKey: string, keys: typeof expectations.complete) {
+  function checklistSection(titleKey: string, allKeys: typeof expectations.complete) {
+    const keys = referral.tier === 'asha' ? allKeys.filter((k) => !ASHA_HIDDEN_ROWS.includes(k)) : allKeys;
     if (keys.length === 0) return null;
     return (
       <div>
@@ -87,7 +91,7 @@ export function CaseStageSummary({
   }
 
   return (
-    <section className="card space-y-3 border-brand/30 bg-info-soft/40" data-testid="case-stage-summary">
+    <section className="card min-w-0 space-y-3 overflow-hidden border-brand/30 bg-info-soft/40" data-testid="case-stage-summary">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold text-brand">{t('stageSummary.title')}</h2>
         {dismissible && (
@@ -105,17 +109,17 @@ export function CaseStageSummary({
       )}
       <ul className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
         {rows
-          .filter((r) => r.key !== 'caseStage')
+          .filter((r) => r.key !== 'caseStage' && !(referral.tier === 'asha' && ASHA_HIDDEN_ROWS.includes(r.key)))
           .map((row) => (
-            <li key={row.key} className="flex items-center justify-between gap-2 border-b border-line/70 py-1.5 text-[0.85rem] sm:text-[0.9rem]">
-              <span className="text-muted min-w-0">{t(row.labelKey)}</span>
-              <span className="text-right shrink-0">
+            <li key={row.key} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5 border-b border-line/70 py-1.5 text-[0.85rem] sm:text-[0.9rem]">
+              <span className="text-muted shrink-0">{t(row.labelKey)}</span>
+              <span className="min-w-0 max-w-full flex-1 text-right break-words [overflow-wrap:anywhere]">
                 {(row.status === 'known' || row.status === 'tentative') && display(row) ? (
                   <span className="font-semibold">{display(row)}</span>
                 ) : row.displayValueKey && row.status !== 'unknown' ? (
                   <span className="font-semibold">{t(row.displayValueKey)}</span>
                 ) : null}
-                <span className="ml-1 inline-block">
+                <span className="ml-1 inline-block align-middle">
                   <FieldStatusChip status={row.status} />
                 </span>
               </span>

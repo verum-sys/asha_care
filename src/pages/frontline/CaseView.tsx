@@ -3,19 +3,15 @@ import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatu
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
 import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { CbacScreening } from './CbacScreening';
-import { CaseStageSummary } from '../../components/CaseStageSummary';
-import { IntelligencePanel } from '../../components/IntelligencePanel';
 import { BackLink } from '../../components/Layout';
 import { Icon } from '../../components/Icon';
-import { Chip, SyncChip } from '../../components/StatusChip';
 import { Timeline } from '../../components/Timeline';
 import { getCase, listSyncEvents } from '../../db/repo';
 import { ashaNoteLines } from '../../intelligence/ashaNote';
 import { useLive } from '../../db/useLive';
 import { useLang, useTermTier } from '../../i18n';
-import { analyze } from '../../intelligence/engine';
 import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
@@ -23,22 +19,9 @@ import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal'
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 py-1.5 text-[0.88rem] sm:text-base">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-right font-semibold break-words max-w-full">{children}</dd>
-    </div>
-  );
-}
-
 export function CaseView() {
   const { id = '' } = useParams();
-  const location = useLocation();
   const { t, formatDate } = useLang();
-  const [showStageSummary, setShowStageSummary] = useState(
-    !!(location.state as { showStageSummary?: boolean } | null)?.showStageSummary,
-  );
 
   // Modals
   const [attachmentCat, setAttachmentCat] = useState<'general' | 'biopsy' | 'radiology' | null>(null);
@@ -65,29 +48,22 @@ export function CaseView() {
     );
 
   const { patient, referral, followUps, facilityEvents, syncEvents } = data;
-  const intel = analyze(patient, referral, followUps);
 
   const currentTier: CareTier = referral.tier || 'asha';
   const currentUnit = referral.unit || 'a';
   const reportsCount = (referral.reports?.length || 0) + (referral.biopsyReports?.length || 0) + (referral.radiologyReports?.length || 0);
 
-  const tierColors: Record<CareTier, { label: string; bg: string; text: string }> = {
-    asha: { label: 'ASHA Grassroots (Tier 1)', bg: 'bg-teal-50 border-teal-200', text: 'text-teal-800' },
-    phc: { label: 'PHC Primary Health Centre (Tier 2)', bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800' },
-    dh: { label: 'District Hospital DH (Tier 3)', bg: 'bg-amber-50 border-amber-200', text: 'text-amber-800' },
-    tcc: { label: 'Tertiary Care Centre TCC (Tier 4)', bg: 'bg-rose-50 border-rose-200', text: 'text-rose-800' },
-  };
 
   // At ASHA the case page is the CBAC form itself: sections A-D and referral, editable in place.
   if (currentTier === 'asha') {
     return (
       <div className="space-y-4 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <BackLink />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
               to={`/case/${referral.id}/follow-up`}
-              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-xs flex items-center gap-1.5"
+              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
             >
               <span>{t('Record follow-up')}</span>
             </Link>
@@ -130,7 +106,7 @@ export function CaseView() {
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
@@ -149,151 +125,8 @@ export function CaseView() {
         </div>
       </div>
 
-      {/* Tier & Continuum Header Banner */}
-      <div className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 ${tierColors[currentTier].bg}`}>
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-current animate-pulse" />
-          <span className={`text-xs font-extrabold uppercase tracking-wider ${tierColors[currentTier].text}`}>
-            {t(tierColors[currentTier].label)}
-          </span>
-        </div>
-        <div className="text-xs text-slate-600 font-semibold">
-          {t('Facility:')} <span className="font-bold text-slate-800">{referral.destinationFacility || t('Local Sub-centre')}</span>
-        </div>
-      </div>
-
-      {/* Patient Demographic Card */}
-      <section className="card">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h1 className="text-[1.4rem] font-bold text-slate-900">{patient.name?.trim() || t('Community member')}</h1>
-            <div className="text-muted text-sm">
-              {patient.id}
-              {patient.age !== undefined && ` · ${t('case.years', { n: patient.age })}`}
-              {patient.sex && ` · ${t(`sex.${patient.sex}`)}`}
-            </div>
-          </div>
-          <SyncChip status={referral.syncStatus} />
-        </div>
-        <dl className="mt-2 divide-y divide-line/70">
-          <Row label={t('form.phone')}>
-            {patient.phone ? (
-              <a href={`tel:${patient.phone}`} className="inline-flex items-center gap-1 text-sky-700 underline font-semibold">
-                <Icon name="phone" size={16} />
-                {patient.phone}
-              </a>
-            ) : (
-              <Chip tone="danger">{t('factState.missing')}</Chip>
-            )}
-          </Row>
-          <Row label={t('form.locality')}>{patient.locality || '—'}</Row>
-        </dl>
-      </section>
-
-      {showStageSummary && (
-        <CaseStageSummary
-          patient={patient}
-          referral={referral}
-          followUps={followUps}
-          dismissible
-          onDismiss={() => setShowStageSummary(false)}
-        />
-      )}
-
-      <IntelligencePanel intel={intel} referralId={referral.id} />
-
-      {/* Referral Details */}
-      <section className="card">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{t('case.referral')}</h2>
-          <Link to={`/case/${referral.id}/edit`} className="btn btn-ghost !px-2 text-[0.9rem]">
-            {t('case.edit')}
-          </Link>
-        </div>
-        <dl className="divide-y divide-line/70">
-          <Row label={t('form.destination')}>{referral.destinationFacility || <Chip tone="danger">{t('factState.missing')}</Chip>}</Row>
-          <Row label={t('form.reason')}>{referral.reason || <Chip tone="danger">{t('factState.missing')}</Chip>}</Row>
-          <Row label={t('form.referralDate')}>{formatDate(referral.referralDate)}</Row>
-          <Row label={t('form.urgency')}>{t(`urgency.${referral.urgency}`)}</Row>
-          {referral.screening && (
-            <>
-              <Row label={t('parsed.screeningCompleted')}>
-                {referral.screening.completed ? t('screening.completed.yes') : t('screening.completed.no')}
-              </Row>
-              {referral.screening.area && (
-                <Row label={t('parsed.screeningArea')}>{t(`screening.area.${referral.screening.area}`)}</Row>
-              )}
-              {referral.screening.finding && (
-                <Row label={t('parsed.screeningFinding')}>{t(`screening.finding.${referral.screening.finding}`)}</Row>
-              )}
-            </>
-          )}
-          <Row label={t('case.referredBy')}>{referral.referringWorker}</Row>
-          {referral.notes && <Row label={t('case.notes')}>{referral.notes}</Row>}
-        </dl>
-      </section>
-
-      {/* CBAC Screening Section (Editable across all modules) */}
-      <section className="card space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <Icon name="spark" size={20} className="text-accent" />
-            <span>{t('CBAC Assessment')}</span>
-          </h2>
-          <Link
-            to={`/case/${referral.id}/cbac?tier=${currentTier}&unit=${currentUnit}`}
-            state={{ returnTo: `/case/${referral.id}` }}
-            className="btn btn-secondary !min-h-[36px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5"
-          >
-            <Icon name="spark" size={14} className="text-teal-600" />
-            <span>{referral.screening?.cbac ? 'Edit CBAC Form' : '+ Conduct CBAC Form'}</span>
-          </Link>
-        </div>
-
-        {referral.screening?.cbac ? (
-          <div className="space-y-2 text-xs sm:text-sm">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-xl bg-surface border border-line">
-                <span className="text-muted block text-xs">{t('Part A NCD Score')}</span>
-                <span className="font-bold text-base text-ink">
-                  {referral.screening.cbac.partA.totalScore} / 12
-                </span>
-                <span
-                  className={`block text-[0.72rem] font-bold mt-0.5 ${
-                    referral.screening.cbac.highRiskNcd ? 'text-danger' : 'text-ok'
-                  }`}
-                >
-                  {referral.screening.cbac.highRiskNcd ? 'High Risk (>4) · PHC Consultation Advised' : 'Routine Screening'}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-surface border border-line">
-                <span className="text-muted block text-xs">{t('Part D PHQ-2 Mental Score')}</span>
-                <span className="font-bold text-base text-ink">
-                  {referral.screening.cbac.partD.totalScore} / 6
-                </span>
-                <span
-                  className={`block text-[0.72rem] font-bold mt-0.5 ${
-                    referral.screening.cbac.partD.totalScore >= 3 ? 'text-danger' : 'text-muted'
-                  }`}
-                >
-                  {referral.screening.cbac.partD.totalScore >= 3 ? 'Refer for Counselor Review' : 'Normal Range'}
-                </span>
-              </div>
-            </div>
-
-            {referral.screening.cbac.tbSuspectAlert && (
-              <div className="rounded-xl bg-danger-soft p-2.5 text-xs text-danger font-semibold flex items-center gap-1.5">
-                <Icon name="alert" size={16} />
-                <span>{t('🚨 TB Suspect: Sputum collection & transport required')}</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs sm:text-sm text-muted">
-            {t('No CBAC checklist recorded for this patient yet. Tap above to launch the slide-based checklist.')}
-          </p>
-        )}
-      </section>
+      {/* One form layout for every tier: sections A-D and referral, editable in place. */}
+      <CbacScreening embedded tier={currentTier} />
 
       <CareJourneySummary record={data} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />

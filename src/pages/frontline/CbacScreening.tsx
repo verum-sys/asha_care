@@ -152,9 +152,11 @@ const INITIAL_PART_D: CbacPartD = {
   totalScore: 0,
 };
 
-export function CbacScreening({ embedded = false }: { embedded?: boolean } = {}) {
+export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?: boolean; tier?: CareTier } = {}) {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [urlParams] = useSearchParams();
+  // Embedded in a case page the tier comes from the case itself, not the address.
+  const searchParams = tierProp ? new URLSearchParams([...urlParams.entries(), ['tier', tierProp]]) : urlParams;
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
   const { getToken } = useClerkAuth();
