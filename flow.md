@@ -20,6 +20,7 @@ Environment variables:
 | `CLERK_SECRET_KEY` | Vercel / `.env.local` | The server verifies session tokens |
 | `GROQ_API_KEY` | Vercel / `.env.local` | LLM calls (server only) |
 | `GROQ_MODEL` | optional | Defaults to `qwen/qwen3.8-27b` |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `.env` / Vercel | Turns on the Supabase backend (see [supabase/README.md](supabase/README.md)); leave empty for the simulated server |
 
 Deploys happen automatically: every push to `main` deploys to Vercel. The `api/` folder becomes a serverless function.
 
@@ -32,7 +33,9 @@ src/
   App.tsx                 Routes + AccessGate (login, role access) + CbacRoute redirect
   auth/                   Clerk wrapper, AuthContext, access.ts (roles, which paths each role may open)
   db/                     IndexedDB schema (db.ts), types.ts, repo.ts (all reads/writes), seed.ts, useLive.ts
-  sync/                   connectivity.tsx (online state, auto-sync), sync.ts (push/pull), remote.ts (simulated server)
+  sync/                   connectivity.tsx (online state, auto-sync), sync.ts (push/pull), remote.ts (picks the backend),
+                          remoteLocal.ts (simulated server), remoteSupabase.ts (real server), mergeRemote.ts, config.ts
+supabase/                 schema.sql (tables, trigger, RLS) and setup notes
   intelligence/           Pure logic: CBAC scoring, answer parsing, validation, notes, form draft, care-state engine
   components/             Shared UI: GuidedCbac, CaseStageSummary, Timeline, modals, Layout/BackLink, backNavigation
   pages/
@@ -202,7 +205,7 @@ syncNow(): push outbox ─► remote.pushRecords()   (keeps facility-owned facts
            pull         ─► remote.pullFacilityUpdates() ─► merge referral.facility locally
            mark synced, write a sync event, clear outbox
 ```
-To connect a real backend, replace the functions in `src/sync/remote.ts`. Nothing else talks to the server.
+`remote.ts` is the only door to the server. With `VITE_SUPABASE_URL` set it uses `remoteSupabase.ts`; otherwise `remoteLocal.ts`. In Supabase mode, `syncNow()` also pulls every case changed since the last sync (`pullCases`, merged by `mergeRemote.ts`), and `ConnectivityProvider` syncs on start and every 30 seconds. Sign-in comes from `RemoteTokenBridge`, which hands the Clerk session token to the sync layer.
 
 ## 10. Back navigation
 - `Layout` calls `recordVisit(history.state, path)` on every route change. This stores `{ historyIndex: path }` in sessionStorage.
@@ -249,5 +252,5 @@ The endpoint returns these errors:
 | Change the follow-up options | `src/intelligence/tierFollowUpOptions.ts` |
 | Change the referral dialog | `src/components/TierReferralModal.tsx` |
 | Change how Back behaves | `src/components/backNavigation.ts`, `stepBack()` in `CbacScreening.tsx` |
-| Connect a real backend | `src/sync/remote.ts` |
+| Change what is sent to / read from the server | `src/sync/remoteSupabase.ts` and `supabase/schema.sql` |
 | Change the LLM prompts | `server/interpretation.ts`, `server/clinicalNotes.ts`, `server/addressCheck.ts` |

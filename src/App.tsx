@@ -4,6 +4,7 @@ import { ClerkAuthProvider } from './auth/ClerkAuthProvider';
 import { useUser } from '@clerk/clerk-react';
 import { canAccessPath, homeForRole } from './auth/access';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { RemoteTokenBridge } from './sync/RemoteTokenBridge';
 import { Layout } from './components/Layout';
 import { Icon } from './components/Icon';
 import { useLang } from './i18n';
@@ -89,6 +90,7 @@ function CbacRoute() {
 export function App() {
   return (
     <ClerkAuthProvider>
+      <RemoteTokenBridge />
       <AuthProvider>
         <HashRouter>
           <AccessGate><Layout>

@@ -7,6 +7,7 @@
  * - TCC (a/b/c) -> CBAC Form (editable) + Physical Exam + Reports + Biopsy Report (PDF) + Radiology Report (PDF) + TCC Notes + AI Summary
  */
 import { addDays, nearestWeekdayIso, today } from '../intelligence/dates';
+import { shouldSeedDemo } from '../sync/config';
 import { getDB, getMeta, notifyChange } from './db';
 import { emptyFacility, makePatient, makeReferral } from './factory';
 import type { FacilityEvent, FollowUp, Patient, Referral, ReportAttachment } from './types';
@@ -557,6 +558,8 @@ function build() {
 }
 
 export async function seedIfEmpty(): Promise<void> {
+  // With a real backend, demo cases would show up as phantom records on every device.
+  if (!shouldSeedDemo()) return;
   if ((await getMeta<number>('seed_version')) === SEED_VERSION) return;
   await resetDemoData();
 }

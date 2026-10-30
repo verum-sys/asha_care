@@ -4,6 +4,7 @@ import { today } from '../intelligence/dates';
  * and is queued in the outbox for the next sync. Nothing here touches the network.
  */
 import { getDB, getMeta, notifyChange, setMeta, uid } from './db';
+import { isRemoteEnabled } from '../sync/config';
 import { emptyFacility } from './factory';
 import type {
   ActionKey,
@@ -33,11 +34,22 @@ export interface CaseRecord {
   facilityEvents: FacilityEvent[];
 }
 
+/** Short random tag per browser profile. With a shared server, two devices must not both create REF-0001. */
+async function deviceTag(): Promise<string> {
+  let tag = await getMeta<string>('device_tag');
+  if (!tag) {
+    tag = Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(4, '0');
+    await setMeta('device_tag', tag);
+  }
+  return tag;
+}
+
 async function nextId(kind: 'patient' | 'referral'): Promise<string> {
   const key = `counter_${kind}`;
   const n = ((await getMeta<number>(key)) ?? 0) + 1;
   await setMeta(key, n);
-  return `${kind === 'patient' ? 'CL' : 'REF'}-${String(n).padStart(4, '0')}`;
+  const tag = isRemoteEnabled() ? `${await deviceTag()}-` : '';
+  return `${kind === 'patient' ? 'CL' : 'REF'}-${tag}${String(n).padStart(4, '0')}`;
 }
 
 function outboxItem(entity: OutboxItem['entity'], entityId: string): OutboxItem {

@@ -2,7 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { onChange } from '../db/db';
 import { outboxCount } from '../db/repo';
+import { isRemoteEnabled } from './config';
 import { syncNow, type SyncResult } from './sync';
+
+/** With a real backend, poll so a device sees cases other devices created or moved. */
+const REMOTE_POLL_MS = 30_000;
 
 const SIM_KEY = 'carelink.simulateOffline';
 const READY_KEY = 'carelink.offlineReady';
@@ -115,9 +119,15 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
     if (!online || syncing) return;
     setSyncing(true);
     try {
-      setLastResult(await syncNow());
-      setSyncFailed(false);
-      autoSyncBlocked.current = false;
+      const result = await syncNow();
+      if (result.skipped) {
+        // Not signed in yet: not a failure. Stop the pending-triggered loop; the poll below retries.
+        autoSyncBlocked.current = true;
+      } else {
+        setLastResult(result);
+        setSyncFailed(false);
+        autoSyncBlocked.current = false;
+      }
     } catch {
       setSyncFailed(true);
       autoSyncBlocked.current = true;
@@ -133,6 +143,16 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (online && pending > 0 && !syncing && !autoSyncBlocked.current) void sync();
   }, [online, pending, syncing, sync]);
+
+  // Supabase mode: pull on start and then on a timer, even when nothing is pending locally.
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+  useEffect(() => {
+    if (!isRemoteEnabled() || !online) return;
+    void syncRef.current();
+    const timer = setInterval(() => void syncRef.current(), REMOTE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [online]);
 
   return (
     <Ctx.Provider

@@ -183,7 +183,7 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
 
 | Gap | Suggested next step |
 | --- | --- |
-| Simulated server, one device | Replace `src/sync/remote.ts` with the real API |
+| Supabase backend not yet used in production | Run `supabase/schema.sql`, set the env vars, then replace the open RLS policies with per-tier ones (see `supabase/README.md`) |
 | Authorization enforced in the client only | Enforce roles and record access on the server |
 | No encryption at rest | Encrypt the IndexedDB data, or use a secure store |
 | `ASHA-1001` placeholder ID | Take the worker ID from the login or ASHA registry |
