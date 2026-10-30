@@ -1,6 +1,6 @@
-import { parseAlcoholFrequency, alcoholScoreFor, ALCOHOL_OPTIONS } from './cbacAlcohol';
-import type { Sex, ScreeningArea, ScreeningFinding, ReferralRequiredAnswer, Intention, Urgency } from '../db/types';
-import { parseFreeTextWithSpans } from './parser';
+import { parseAlcoholFrequency, alcoholScoreFor, ALCOHOL_OPTIONS } from './cbacAlcohol.js';
+import type { Sex, ScreeningArea, ScreeningFinding, ReferralRequiredAnswer, Intention, Urgency } from '../db/types.js';
+import { parseFreeTextWithSpans } from './parser.js';
 import {
   CBAC_B1_SYMPTOMS,
   CBAC_B2_SYMPTOMS,
@@ -11,7 +11,7 @@ import {
   type CbacPartB,
   type CbacPartC,
   type CbacPartD,
-} from './cbacTypes';
+} from './cbacTypes.js';
 
 /**
  * Classifies age into Part A Question 1 score bracket (0 - 4).

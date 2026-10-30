@@ -13,10 +13,10 @@ import type {
   ScreeningFinding,
   Sex,
   Urgency,
-} from '../db/types';
-import { addDays, nearestWeekdayIso, today as todayISO, type WeekdayDirection } from './dates';
+} from '../db/types.js';
+import { addDays, nearestWeekdayIso, today as todayISO, type WeekdayDirection } from './dates.js';
 
-export { EXAMPLES } from './demoCases';
+export { EXAMPLES } from './demoCases.js';
 
 export interface ParsedCase {
   name?: string;

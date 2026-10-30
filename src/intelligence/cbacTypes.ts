@@ -1,4 +1,4 @@
-import type { Sex } from '../db/types';
+import type { Sex } from '../db/types.js';
 
 export interface CbacGeneralInfo {
   date: string;

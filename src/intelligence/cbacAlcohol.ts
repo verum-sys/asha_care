@@ -1,4 +1,4 @@
-import type { AlcoholFrequency } from './cbacTypes';
+import type { AlcoholFrequency } from './cbacTypes.js';
 export const ALCOHOL_OPTIONS: { value: AlcoholFrequency; label: string; score: number }[] = [
   { value: 'never', label: 'Never / no alcohol', score: 0 },
   { value: 'socially', label: 'Socially / occasionally', score: 1 },

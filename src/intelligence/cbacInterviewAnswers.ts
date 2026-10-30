@@ -1,10 +1,10 @@
-import { activityMinutesPerWeek } from './cbacActivity';
-import { parseAlcoholFrequency, alcoholScoreFor } from './cbacAlcohol';
-import { classifyAge, classifyWaist, parseCbacText, type SmartParseResult } from './cbacIntelligence';
-import { parseInterviewNumber } from '../voice/interviewRecognition';
-import { addressLocalError, mobileError, normalizeMobile, normalizePincode, pincodeError } from './contactValidation';
-import { B_CATEGORIES_ID, B_SYMPTOM_PREFIX, parsePartBCategories, parseYesNo, partBSymptomQuestion, type PartBCategory } from './cbacPartBInterview';
-import type { Sex } from '../db/types';
+import { activityMinutesPerWeek } from './cbacActivity.js';
+import { parseAlcoholFrequency, alcoholScoreFor } from './cbacAlcohol.js';
+import { classifyAge, classifyWaist, parseCbacText, type SmartParseResult } from './cbacIntelligence.js';
+import { parseInterviewNumber } from '../voice/interviewRecognition.js';
+import { addressLocalError, mobileError, normalizeMobile, normalizePincode, pincodeError } from './contactValidation.js';
+import { B_CATEGORIES_ID, B_SYMPTOM_PREFIX, parsePartBCategories, parseYesNo, partBSymptomQuestion, type PartBCategory } from './cbacPartBInterview.js';
+import type { Sex } from '../db/types.js';
 
 export type InterviewAnswerResult = { ok: true; updates: SmartParseResult; categories?: PartBCategory[] } | { ok: false; error: string };
 /** Parse only the field being asked. Never run unrestricted demographic extraction on an answer. */

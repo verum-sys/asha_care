@@ -1,7 +1,7 @@
-import { CBAC_B1_SYMPTOMS, CBAC_B2_SYMPTOMS, CBAC_B3_SYMPTOMS } from './cbacTypes';
-import { getApplicableInterviewQuestions, type InterviewQuestion } from './cbacInterviewQuestions';
-import { hiExtra } from '../i18n/hiExtra';
-import type { Sex } from '../db/types';
+import { CBAC_B1_SYMPTOMS, CBAC_B2_SYMPTOMS, CBAC_B3_SYMPTOMS } from './cbacTypes.js';
+import { getApplicableInterviewQuestions, type InterviewQuestion } from './cbacInterviewQuestions.js';
+import { hiExtra } from '../i18n/hiExtra.js';
+import type { Sex } from '../db/types.js';
 
 export type PartBCategory = 'tb' | 'eyes_ears' | 'mouth' | 'skin_nerve' | 'women' | 'elderly';
 

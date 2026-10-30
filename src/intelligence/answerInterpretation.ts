@@ -1,8 +1,8 @@
-import { CBAC_INTERVIEW_QUESTIONS } from './cbacInterviewQuestions';
-import { activityMinutesPerWeek } from './cbacActivity';
-import { parseCbacInterviewAnswer, type InterviewAnswerResult } from './cbacInterviewAnswers';
-import { B_CATEGORIES_ID, B_SYMPTOM_PREFIX } from './cbacPartBInterview';
-import type { Sex } from '../db/types';
+import { CBAC_INTERVIEW_QUESTIONS } from './cbacInterviewQuestions.js';
+import { activityMinutesPerWeek } from './cbacActivity.js';
+import { parseCbacInterviewAnswer, type InterviewAnswerResult } from './cbacInterviewAnswers.js';
+import { B_CATEGORIES_ID, B_SYMPTOM_PREFIX } from './cbacPartBInterview.js';
+import type { Sex } from '../db/types.js';
 export interface Interpretation { normalizedAnswer: string; confidence: number; needsClarification: boolean; explanation: string; }
 export function validateInterpretation(value: unknown): value is Interpretation {
   if (!value || typeof value !== 'object') return false;

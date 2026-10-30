@@ -1,6 +1,6 @@
-import { CBAC_INTERVIEW_QUESTIONS } from '../src/intelligence/cbacInterviewQuestions';
-import { findPartBQuestion } from '../src/intelligence/cbacPartBInterview';
-import { validateInterpretation, type Interpretation } from '../src/intelligence/answerInterpretation';
+import { CBAC_INTERVIEW_QUESTIONS } from '../src/intelligence/cbacInterviewQuestions.js';
+import { findPartBQuestion } from '../src/intelligence/cbacPartBInterview.js';
+import { validateInterpretation, type Interpretation } from '../src/intelligence/answerInterpretation.js';
 export function interpretationMessages(questionId: string, answer: string, alternatives: string[] = []) {
   const question = CBAC_INTERVIEW_QUESTIONS.find(q => q.id === questionId) || findPartBQuestion(questionId);
   if (!question || ['name', 'age', 'phone', 'address', 'pincode'].includes(questionId)) throw new Error('Unsupported question');

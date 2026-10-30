@@ -1,10 +1,10 @@
-import { generateClinicalNotes } from '../server/clinicalNotes';
+import { generateClinicalNotes } from '../server/clinicalNotes.js';
 import { verifyToken } from '@clerk/backend';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CBAC_INTERVIEW_QUESTIONS } from '../src/intelligence/cbacInterviewQuestions';
-import { findPartBQuestion } from '../src/intelligence/cbacPartBInterview';
-import { checkAddressWithGroq } from '../server/addressCheck';
-import { interpretWithGroq } from '../server/interpretation';
+import { CBAC_INTERVIEW_QUESTIONS } from '../src/intelligence/cbacInterviewQuestions.js';
+import { findPartBQuestion } from '../src/intelligence/cbacPartBInterview.js';
+import { checkAddressWithGroq } from '../server/addressCheck.js';
+import { interpretWithGroq } from '../server/interpretation.js';
 const requests = new Map<string, { at: number; count: number }>();
 export default async function handler(req: IncomingMessage & { body?: unknown }, res: ServerResponse) {
   const send = (status: number, data: unknown) => { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(data)); };

@@ -1,5 +1,5 @@
 import type { Lang } from '../i18n';
-import type { Sex } from '../db/types';
+import type { Sex } from '../db/types.js';
 
 export interface InterviewQuestion {
   id: string;

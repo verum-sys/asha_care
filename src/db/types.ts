@@ -222,7 +222,7 @@ export interface ScreeningInfo {
   area?: ScreeningArea;
   finding?: ScreeningFinding;
   referralRequired?: ReferralRequiredAnswer;
-  cbac?: import('../intelligence/cbacTypes').CbacAssessment;
+  cbac?: import('../intelligence/cbacTypes.js').CbacAssessment;
 }
 
 export type DraftFieldKey =
