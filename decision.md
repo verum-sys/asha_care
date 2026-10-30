@@ -63,6 +63,11 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
 - **Decision:** the summary is created and edited at ASHA. It travels with the referral inside `clinicalHandovers` and is shown only in the ASHA section of the "Notes from previous care teams" view.
 - **Why:** user feedback said the same summary repeated at PHC, DH and TCC was clutter. Later tiers add their own notes instead.
 
+### The AI summary goes into the referral notes on request
+- **Decision:** the ASHA "Refer to PHC" dialog has **Generate AI summary** and **Edit** buttons next to "Referral Reason & Handover Notes". Generate puts the summary at the top of that box, and Edit puts the cursor in the box. The notes box starts without the summary.
+- **Why:** a separate "AI summary handover" box above the notes was confusing. One editable box means the worker sees and controls exactly what is handed over.
+- **Note:** "Generate" uses `buildSummary()` in `AiSummaryModal.tsx`. It builds the text from the saved data with rules, not the LLM, so it is instant and works offline.
+
 ### ASHA notes are built from rules, not the LLM
 - **Decision:** `src/intelligence/ashaNote.ts` builds plain-language sentences from saved data, for example "CBAC assessment done for X on DATE. Will go to CHC Bero on DATE."
 - **Why:** the note shows on every list card, so it must be instant, free and offline. It is also always consistent with the record.
@@ -78,10 +83,16 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
   - Questions are labelled by section, for example "Section B · Question 1".
   - Going back shows the saved answer highlighted.
   - Every question has a Next button, and there is no separate Continue button.
+  - Next stays disabled until the question has an answer ("Answer this question to continue").
 
-### Part B asks about categories first
-- **Decision:** Part B first asks "Do you have a problem with any of these:" and lists the categories as options: TB or cough, eyes or ears, mouth, skin, women's health, elderly. Only the symptom questions for the chosen categories follow. The code is in `cbacPartBInterview.ts`.
-- **Why:** asking every Part B symptom of every person takes too long and doesn't help. Women's and elderly categories appear only when they apply, based on sex and age.
+### Part B asks about one category first
+- **Decision:** Part B first asks "Do you have a problem with any of these:" and lists the categories as options: TB or cough, eyes or ears, mouth, skin, women's health, elderly, or "None of these". The worker picks **one**, and only that category's symptom questions follow. The code is in `cbacPartBInterview.ts`.
+- **Why:** asking every Part B symptom of every person takes too long and doesn't help. Women's and elderly categories appear only when they apply, based on sex and age. One category per screening was requested.
+- **Voice:** if two areas are spoken, such as "TB and mouth", the parser refuses with "Please choose only one problem area" and changes nothing.
+
+### Cooking fuel is a single choice
+- **Decision:** Part C's "What type of fuel do you use at home for cooking?" accepts one fuel, in the guided flow, the report editor and the full form. Two spoken fuels are refused.
+- **Why:** this was requested; the household's main fuel is what the screening needs.
 
 ### Mobile, address and PIN are mandatory and asked inside the flow
 - **Decision:** these are questions in the guided flow, checked by `contactValidation.ts`, plus the AI address check. Saving is blocked until they are valid.
@@ -99,9 +110,29 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
 - **Why:** having a separate view page and edit page confused users. Back from one landed on the other, and "all the hard work of filling the form goes in vain."
 - **PHC restriction:** at PHC, only name, phone and address are editable. The rest is read-only (`inert`), because the screening belongs to ASHA.
 
-### Back skips form pages
-- **Decision:** `src/components/backNavigation.ts` records the page at each history index in sessionStorage. The app's Back link goes to the nearest earlier page that is neither a form nor the current page.
-- **Why:** after saving a new CBAC, Back used to reopen the form at its first step.
+### Back never throws away answers
+- **Decision:** three mechanisms work together.
+  - **One history entry per guided step:** a new CBAC puts its step in the URL (`#/cbac?tier=asha&step=q14`, `…&step=report`). Moving forward adds a history entry, so the app's Back and the browser's back both go to the previous question.
+  - **A draft for the tab:** the answers of a new CBAC are kept in sessionStorage (`src/intelligence/cbacDraft.ts`) and restored whenever a step is reopened, including after a reload. "New CBAC Registration" (no `step`) always clears it.
+  - **Back history trail:** `src/components/backNavigation.ts` records the page at each history index. The app's Back goes to the nearest earlier page that is not a form page and not the current page. A guided step (`/cbac?…step=…`) is not counted as a form page, because its answers can be restored.
+- **After saving:** the case page is pushed on top of the report, so Back from the new case returns to the filled-in report. Saving again from there updates the same case (`savedCaseId` in the draft) instead of creating a duplicate.
+- **Why:** users repeatedly lost a whole filled form by pressing Back ("all the hard work … goes in vain").
+
+### Referred cases stay with the referring tier
+- **Decision:**
+  - After confirming a referral from a case page, the app goes back to the referring tier's list (`#/tier/asha` after Refer to PHC), replacing the case page in history.
+  - A tier's list also shows the cases it referred onward (found through `clinicalHandovers[].fromTier`). They carry a "Referred to PHC/DH/TCC" tag, show the appointment set while referring, and have no Refer button, only follow-up.
+  - Opening a case from a list adds `?tier=<list tier>` to the case URL. `CaseView` uses it as the viewing tier, and hides Refer when the case already sits at a later tier.
+- **Why:** after referring, ASHA saw the case re-render as a PHC case with "Refer to DH", which ASHA can't do. ASHA still has to follow the person up after referral.
+
+### The appointment is set when referring
+- **Decision:** Refer to PHC, DH and TCC all require an **Appointment Date** (today or later). It is saved as the first appointment fact at the receiving tier (`referToNextTier(…, appointmentDate)`).
+- **Why:** the list order, the ASHA notes and the follow-up all depend on the appointment. Asking for it at the moment of referral means it is never missing.
+
+### Record follow-up only reschedules
+- **Decision:** the follow-up page offers one option, "Appointment rescheduled", pre-selected, with a new date (`tierFollowUpOptions.ts`).
+- **Why:** this was requested. Attendance has its own button at PHC, DH and TCC, and onward referral has the Refer button.
+- **Watch for:** TCC no longer has an "Outcome recorded" option anywhere. Add it back at TCC if the loop needs closing.
 
 ### ASHA sees only what ASHA can do
 - **Decision:** at ASHA, these are removed:
@@ -109,7 +140,7 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
   - the attendance and facility-acceptance rows
   - the AI Summary buttons
   - the separate "Edit patient / referral" page
-- **What ASHA gets instead:** two green buttons, **Record follow-up** and **Refer to PHC**.
+- **What ASHA gets instead:** two green buttons, **Record follow-up** and **Refer to PHC**. Refer disappears once the case has been referred.
 - **Why:** an ASHA worker records follow-ups and refers. Attendance and acceptance are recorded by the facility.
 
 ### Wording that depends on the tier
@@ -156,6 +187,8 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
 | Authorization enforced in the client only | Enforce roles and record access on the server |
 | No encryption at rest | Encrypt the IndexedDB data, or use a secure store |
 | `ASHA-1001` placeholder ID | Take the worker ID from the login or ASHA registry |
+| TCC has no "Outcome recorded" follow-up | Add it back at TCC if cases need closing |
+| Form drafts live only in the browser tab | Persist drafts per device if workers need to resume later |
 | Hindi is machine-drafted | Have a native speaker review it |
 | Voice input needs internet (Web Speech API) | Use offline speech recognition later |
 | Chrome Safe Browsing flagged `asha-care.vercel.app` | Request a review, or move to a fresh domain |
