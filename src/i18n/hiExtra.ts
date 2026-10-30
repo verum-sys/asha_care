@@ -625,5 +625,13 @@ export const hiExtra: Record<string, string> = {
   "Please select the appointment date.": "कृपया अपॉइंटमेंट की तिथि चुनें।",
   "Please choose only one cooking fuel.": "कृपया केवल एक खाना पकाने का ईंधन चुनें।",
   "Generate AI summary": "एआई सारांश बनाएं",
-  "Referred to": "रेफ़र किया गया"
+  "Referred to": "रेफ़र किया गया",
+  "Next appointment date (sent to ASHA) *": "अगली अपॉइंटमेंट तिथि (आशा को भेजी जाएगी) *",
+  "Saving closes the care loop. ASHA sees only this date, to follow up with the patient.": "सेव करने पर देखभाल चक्र पूरा होता है। आशा को फ़ॉलो-अप के लिए केवल यह तिथि दिखेगी।",
+  "Please select the next appointment date for ASHA follow-up.": "कृपया आशा फ़ॉलो-अप के लिए अगली अपॉइंटमेंट तिथि चुनें।",
+  "Next follow-up from TCC on {date}.": "TCC से अगला फ़ॉलो-अप {date} को।",
+  "Lab report": "लैब रिपोर्ट",
+  "Biopsy report": "बायोप्सी रिपोर्ट",
+  "Radiology report": "रेडियोलॉजी रिपोर्ट",
+  "Key findings (abnormal values / spikes, e.g. CBC Hb 8.2 low, WBC 14,000 high)": "मुख्य निष्कर्ष (असामान्य मान, जैसे CBC Hb 8.2 कम, WBC 14,000 अधिक)"
 };

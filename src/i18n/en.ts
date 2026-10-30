@@ -284,6 +284,7 @@ export const en = {
   'fu.outcome_recorded': 'Outcome recorded — loop closed',
   'fu.referral_sent': 'Referral sent',
   'fu.details_completed': 'Details updated',
+  'fu.returned_to_asha': 'TCC to ASHA',
   'fu.other': 'Other',
 
   'followup.title': 'Record follow-up',

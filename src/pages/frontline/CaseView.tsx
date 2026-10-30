@@ -65,6 +65,10 @@ export function CaseView() {
 
   // At ASHA the case page is the CBAC form itself: sections A-D and referral, editable in place.
   if (currentTier === 'asha') {
+    // Once referred, ASHA's timeline keeps its own stage plus appointment dates (reschedules, and the date TCC sent back), not later clinical detail.
+    const handedOverAt = referral.clinicalHandovers?.find(h => h.fromTier === 'asha')?.at;
+    const ashaFollowUps = followUps.filter(f => !handedOverAt || f.at <= handedOverAt || f.action === 'returned_to_asha' || f.action === 'rescheduled');
+    const ashaEvents = facilityEvents.filter(e => !handedOverAt || e.at <= handedOverAt);
     return (
       <div className="space-y-4 max-w-4xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -95,7 +99,7 @@ export function CaseView() {
         </section>
         <section className="card">
           <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
-          <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
+          <Timeline referral={referral} followUps={ashaFollowUps} facilityEvents={ashaEvents} syncEvents={syncEvents} />
         </section>
         {!alreadyReferred && <div className="flex justify-end">
           <button
@@ -335,6 +339,7 @@ export function CaseView() {
           currentTier={currentTier}
           savedSummary={referral.aiSummaryOverride}
           physicalExam={referral.physicalExam}
+          reports={[...(referral.reports || []), ...(referral.biopsyReports || []), ...(referral.radiologyReports || [])]}
           onEditSummary={() => setShowAiModal(true)}
           isOpen={true}
           onClose={() => setShowReferralModal(false)}

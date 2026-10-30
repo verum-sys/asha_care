@@ -177,6 +177,7 @@ export async function addFollowUp(referralId: string, input: FollowUpInput): Pro
   const now = new Date().toISOString();
   const w = { ...referral.worker };
   let intention = referral.patientIntention;
+  let ashaFollowUpDate = referral.ashaFollowUpDate;
 
   switch (input.action) {
     case 'facility_contacted':
@@ -190,6 +191,8 @@ export async function addFollowUp(referralId: string, input: FollowUpInput): Pro
       break;
     case 'rescheduled':
       if (input.date) w.appointmentDate = input.date;
+      // After TCC closed the loop only ASHA follows up, so a reschedule moves the date ASHA tracks.
+      if (input.date && referral.ashaFollowUpDate) ashaFollowUpDate = input.date;
       w.attendance = undefined;
       w.attendedDate = undefined;
       break;
@@ -220,7 +223,7 @@ export async function addFollowUp(referralId: string, input: FollowUpInput): Pro
     suggestedAction: input.suggestedAction,
     syncStatus: 'pending',
   };
-  const updated: Referral = { ...referral, worker: w, patientIntention: intention, updatedAt: now, syncStatus: 'pending' };
+  const updated: Referral = { ...referral, worker: w, patientIntention: intention, ashaFollowUpDate, updatedAt: now, syncStatus: 'pending' };
 
   const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');
   await tx.objectStore('referrals').put(updated);
@@ -347,7 +350,7 @@ export async function referToNextTier(
 }
 
 /** Update recorded acceptance/attendance without discarding prior follow-up history. */
-export async function updateVisitDetails(referralId: string, input: { response?: FacilityResponse; date?: string; attendance: Attendance; note: string }): Promise<void> {
+export async function updateVisitDetails(referralId: string, input: { response?: FacilityResponse; date?: string; attendance: Attendance; note: string; nextAppointment?: string }): Promise<void> {
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
@@ -358,11 +361,24 @@ export async function updateVisitDetails(referralId: string, input: { response?:
   const certainty = input.date === undefined ? current.worker.appointmentCertainty : input.date ? 'confirmed' as const : undefined;
   const updated: Referral = { ...current, worker: { ...current.worker, facilityResponse: response, appointmentDate: date || undefined, appointmentCertainty: certainty, attendance: input.attendance, attendedDate: input.attendance === 'attended' ? current.worker.attendedDate || today() : undefined }, updatedAt: now, syncStatus: 'pending' };
   const followUp: FollowUp = { id: uid('fu-'), referralId, at: now, action: 'other', data: { tier: current.tier || 'asha', attendance: input.attendance, date: updated.worker.attendedDate || date || undefined }, note: `Visit updated: ${response}; appointment ${date || 'not set'}; attendance ${input.attendance}.${input.note ? ` ${input.note}` : ''}`, syncStatus: 'pending' };
+  // TCC closes the loop when the patient attended: the next appointment goes back to ASHA, and nothing else does.
+  const closesLoop = (current.tier || 'asha') === 'tcc' && input.attendance === 'attended' && !!input.nextAppointment;
+  if (closesLoop) {
+    updated.ashaFollowUpDate = input.nextAppointment;
+    updated.worker = { ...updated.worker, outcomeRecorded: true };
+  }
+  const loopBack: FollowUp | undefined = closesLoop
+    ? { id: uid('fu-'), referralId, at: now, action: 'returned_to_asha', data: { tier: 'tcc', date: input.nextAppointment }, note: `Next follow-up with ASHA on ${input.nextAppointment}.`, syncStatus: 'pending' }
+    : undefined;
   const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');
   await tx.objectStore('referrals').put(updated);
   await tx.objectStore('followups').put(followUp);
   await tx.objectStore('outbox').put(outboxItem('referral', referralId));
   await tx.objectStore('outbox').put(outboxItem('followup', followUp.id));
+  if (loopBack) {
+    await tx.objectStore('followups').put(loopBack);
+    await tx.objectStore('outbox').put(outboxItem('followup', loopBack.id));
+  }
   await tx.done;
   notifyChange();
 }

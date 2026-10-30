@@ -129,6 +129,8 @@ export interface Referral {
   biopsyReports?: ReportAttachment[];
   radiologyReports?: ReportAttachment[];
   aiSummaryOverride?: string;
+  /** Next appointment given by TCC when it closes the loop; the only TCC detail shown to ASHA for follow-up. */
+  ashaFollowUpDate?: string;
   clinicalHandovers?: ClinicalHandover[];
   createdAt: string;
   updatedAt: string;
@@ -148,6 +150,7 @@ export type FollowUpAction =
   | 'outcome_recorded'
   | 'referral_sent'
   | 'details_completed'
+  | 'returned_to_asha'
   | 'other';
 
 export interface FollowUp {

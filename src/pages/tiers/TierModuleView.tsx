@@ -14,23 +14,28 @@ import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
-import { ashaNoteLines } from '../../intelligence/ashaNote';
+import { ashaAppointment, ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
+
+/** ASHA follows the date TCC sent back; other tiers use the appointment at their own stage. */
+const appointmentFor = (c: CaseRecord, tier: CareTier) => (tier === 'asha' ? ashaAppointment(c.referral) : c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate);
 
 const URGENCY_RANK: Record<string, number> = { urgent: 0, soon: 1, routine: 2 };
 
 /** Nearest upcoming appointment first, then past appointments (most recent first), then none; ties go to the more urgent referral. */
-function byAppointmentThenUrgency(a: CaseRecord, b: CaseRecord) {
+function byAppointmentThenUrgency(tier: CareTier) {
   const today = new Date().toISOString().slice(0, 10);
   const rank = (c: CaseRecord) => {
-    const date = (c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? '').slice(0, 10);
+    const date = (appointmentFor(c, tier) ?? '').slice(0, 10);
     if (!date) return { group: 2, key: 0 };
     const time = Date.parse(date);
     return date >= today ? { group: 0, key: time } : { group: 1, key: -time };
   };
-  const x = rank(a), y = rank(b);
-  return x.group - y.group || x.key - y.key || (URGENCY_RANK[a.referral.urgency] ?? 3) - (URGENCY_RANK[b.referral.urgency] ?? 3);
+  return (a: CaseRecord, b: CaseRecord) => {
+    const x = rank(a), y = rank(b);
+    return x.group - y.group || x.key - y.key || (URGENCY_RANK[a.referral.urgency] ?? 3) - (URGENCY_RANK[b.referral.urgency] ?? 3);
+  };
 }
 
 export function TierModuleView() {
@@ -70,7 +75,7 @@ export function TierModuleView() {
       return name.includes(q) || id.includes(q);
     }
     return true;
-  }).sort(byAppointmentThenUrgency);
+  }).sort(byAppointmentThenUrgency(activeTier));
 
   const tierMeta: Record<CareTier, {
     name: string;
@@ -265,7 +270,7 @@ export function TierModuleView() {
 
                   {activeTier === 'asha' && <p className="line-clamp-2 text-xs text-slate-600">{ashaNoteLines(c, t, formatDate).join(' ')}</p>}
                   {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate ?? t('Not set')}</span>{activeTier === 'asha'
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier === 'asha'
                     ? <Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/follow-up`} state={{ returnTo: `/tier/${activeTier}` }}>{t('Record follow-up')}</Link>
                     : <><span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>{t('Record attendance')}</button></>}</div>
                   {/* Toolbar */}
@@ -389,6 +394,7 @@ export function TierModuleView() {
           currentTier={activeTier}
           savedSummary={freshCase(activeCaseForReferral.caseRecord).referral.aiSummaryOverride}
           physicalExam={freshCase(activeCaseForReferral.caseRecord).referral.physicalExam}
+          reports={[...(freshCase(activeCaseForReferral.caseRecord).referral.reports || []), ...(freshCase(activeCaseForReferral.caseRecord).referral.biopsyReports || []), ...(freshCase(activeCaseForReferral.caseRecord).referral.radiologyReports || [])]}
           onEditSummary={() => setActiveCaseForAi({ caseRecord: freshCase(activeCaseForReferral.caseRecord) })}
           isOpen={true}
           onClose={() => setActiveCaseForReferral(null)}

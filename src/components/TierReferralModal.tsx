@@ -1,10 +1,24 @@
 import { useLang } from '../i18n';
 import { VoiceTextarea } from './VoiceTextarea';
 import React, { useState } from 'react';
-import type { CareTier, PhysicalExamNotes, Urgency } from '../db/types';
+import type { CareTier, PhysicalExamNotes, ReportAttachment, Urgency } from '../db/types';
 import { physicalExamText } from './RecordedVitals';
 import { referToNextTier } from '../db/repo';
 import { Icon } from './Icon';
+
+const REPORT_LABEL: Record<ReportAttachment['category'], string> = { general: 'Lab report', biopsy: 'Biopsy report', radiology: 'Radiology report' };
+
+/**
+ * Report findings for the referral summary. PHC hands over its lab reports (CBC, mainly the abnormal values);
+ * DH also hands over biopsy and radiology. The PDFs themselves stay on the case for the next facility to open.
+ */
+export function reportFindingsText(tier: CareTier, reports: ReportAttachment[] = []): string {
+  const categories: ReportAttachment['category'][] = tier === 'phc' ? ['general'] : tier === 'dh' ? ['general', 'biopsy', 'radiology'] : [];
+  return reports
+    .filter(report => categories.includes(report.category))
+    .map(report => `${REPORT_LABEL[report.category]} – ${report.title}: ${report.findings?.trim() || 'PDF attached, no findings entered.'}`)
+    .join('\n');
+}
 
 interface TierReferralModalProps {
   referralId: string;
@@ -15,6 +29,8 @@ interface TierReferralModalProps {
   aiSummary?: string;
   /** Recorded physical examination; its vitals and findings are pre-filled into the handover notes. */
   physicalExam?: PhysicalExamNotes;
+  /** All reports on the case; their findings are pre-filled into the handover notes at PHC and DH. */
+  reports?: ReportAttachment[];
   onEditSummary?: () => void;
   initialNotes?: string;
   isOpen: boolean;
@@ -29,6 +45,7 @@ export function TierReferralModal({
   savedSummary,
   aiSummary,
   physicalExam,
+  reports,
   onEditSummary,
   initialNotes = '',
   isOpen,
@@ -61,7 +78,8 @@ export function TierReferralModal({
   const today = new Date().toISOString().slice(0, 10);
   const [notes, setNotes] = useState(() => {
     const exam = physicalExamText(physicalExam);
-    return [initialNotes.trim(), exam && !initialNotes.includes(exam) ? exam : ''].filter(Boolean).join('\n\n');
+    const findings = reportFindingsText(currentTier, reports);
+    return [initialNotes.trim(), exam && !initialNotes.includes(exam) ? exam : '', findings && !initialNotes.includes(findings) ? findings : ''].filter(Boolean).join('\n\n');
   });
   // At ASHA the AI summary is the handover: "Generate AI summary" puts it at the top of the notes, where it can be edited.
   const summaryText = currentTier === 'asha' ? (savedSummary?.trim() || aiSummary?.trim() || '') : '';

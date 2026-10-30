@@ -289,6 +289,7 @@ export const hi: Partial<Record<MessageKey, string>> = {
   'fu.outcome_recorded': 'परिणाम दर्ज — लूप पूरा',
   'fu.referral_sent': 'रेफ़रल भेजा',
   'fu.details_completed': 'जानकारी अपडेट की',
+  'fu.returned_to_asha': 'TCC से आशा को',
   'fu.other': 'अन्य',
 
   'followup.title': 'फ़ॉलो-अप दर्ज करें',

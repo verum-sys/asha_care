@@ -179,7 +179,7 @@ export function ReportAttachmentModal({
               rows={3}
               value={findings}
               onChange={(e) => setFindings(e.target.value)}
-              placeholder={t('Key pathological diagnosis, staging, impression, or abnormal values...')}
+              placeholder={category === 'general' ? t('Key findings (abnormal values / spikes, e.g. CBC Hb 8.2 low, WBC 14,000 high)') : t('Key pathological diagnosis, staging, impression, or abnormal values...')}
               className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
             />
           </div>
