@@ -17,8 +17,13 @@ export interface RemoteCase {
   events: FacilityEvent[];
 }
 
+export interface PushResult {
+  /** Ids of patients/referrals the server ignored because it already holds a newer version. */
+  rejected: string[];
+}
+
 /** Upsert records from the field. Facility-owned facts already on the server are preserved. */
-export async function pushRecords(patients: Patient[], referrals: Referral[], followUps: FollowUp[], at: string): Promise<void> {
+export async function pushRecords(patients: Patient[], referrals: Referral[], followUps: FollowUp[], at: string): Promise<PushResult> {
   const db = await getDB();
   const tx = db.transaction(['remote_patients', 'remote_referrals', 'remote_followups'], 'readwrite');
   for (const p of patients) await tx.objectStore('remote_patients').put({ ...p, syncStatus: 'synced' });
@@ -30,6 +35,7 @@ export async function pushRecords(patients: Patient[], referrals: Referral[], fo
   }
   for (const f of followUps) await tx.objectStore('remote_followups').put({ ...f, syncStatus: 'synced' });
   await tx.done;
+  return { rejected: [] };
 }
 
 /** Facility-owned facts + facility events for the given referrals (what the field device pulls). */

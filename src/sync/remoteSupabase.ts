@@ -7,7 +7,7 @@
 import { notifyChange, uid } from '../db/db';
 import type { FacilityEvent, FacilityFacts, FollowUp, Patient, Referral } from '../db/types';
 import { getRemoteToken, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
-import { applyFacilityAction, type FacilityActionInput, type RemoteCase } from './remoteLocal';
+import { applyFacilityAction, type FacilityActionInput, type PushResult, type RemoteCase } from './remoteLocal';
 
 /** Thrown when there is no signed-in session yet; sync treats it as "try again later", not a failure. */
 export class NotSignedInError extends Error {
@@ -69,12 +69,23 @@ const upsert = (table: string, rows: object[]) =>
   rows.length ? rest('POST', `${table}?on_conflict=id`, rows, 'resolution=merge-duplicates,return=minimal') : Promise.resolve();
 
 /**
+ * Upsert and report which ids the server actually wrote. The database ignores a write older than the row it
+ * already holds (last write wins), and an ignored row is not returned, so the caller can tell and re-read it.
+ */
+async function upsertChecked(table: string, rows: { id: string }[]): Promise<string[]> {
+  if (!rows.length) return [];
+  const written = await rest<{ id: string }[]>('POST', `${table}?on_conflict=id&select=id`, rows, 'resolution=merge-duplicates,return=representation');
+  const ok = new Set((written ?? []).map((r) => r.id));
+  return rows.filter((r) => !ok.has(r.id)).map((r) => r.id);
+}
+
+/**
  * Upsert records from the field. The payload never includes `facility`, so facility-owned facts
  * already on the server are preserved (the database resets them when the tier changes).
  */
-export async function pushRecords(patients: Patient[], referrals: Referral[], followUps: FollowUp[], at: string): Promise<void> {
-  await upsert('patients', patients.map((p) => ({ id: p.id, data: { ...p, syncStatus: 'synced' }, updated_at: p.updatedAt })));
-  await upsert(
+export async function pushRecords(patients: Patient[], referrals: Referral[], followUps: FollowUp[], at: string): Promise<PushResult> {
+  const rejectedPatients = await upsertChecked('patients', patients.map((p) => ({ id: p.id, data: { ...p, syncStatus: 'synced' }, updated_at: p.updatedAt })));
+  const rejectedReferrals = await upsertChecked(
     'referrals',
     referrals.map((r) => ({
       id: r.id,
@@ -86,6 +97,7 @@ export async function pushRecords(patients: Patient[], referrals: Referral[], fo
     })),
   );
   await upsert('followups', followUps.map((f) => ({ id: f.id, referral_id: f.referralId, at: f.at, data: { ...f, syncStatus: 'synced' } })));
+  return { rejected: [...rejectedPatients, ...rejectedReferrals] };
 }
 
 /** Facility-owned facts + facility events for the given referrals (what the field device pulls). */
@@ -166,12 +178,20 @@ export async function getRemoteCase(referralId: string): Promise<RemoteCase | un
 }
 
 export async function facilityAct(referralId: string, input: FacilityActionInput): Promise<void> {
-  const [row] = await rest<{ facility: FacilityFacts }[]>('GET', `referrals?select=facility&id=eq.${enc(referralId)}`);
-  if (!row) throw new Error('Referral not on server');
-  const at = new Date().toISOString();
-  const { facility, eventText } = applyFacilityAction(row.facility, input, at);
-  const event: FacilityEvent = { id: uid('fe-'), referralId, at, kind: input.kind, text: eventText };
-  await rest('PATCH', `referrals?id=eq.${enc(referralId)}`, { facility }, 'return=minimal');
-  await rest('POST', 'facility_events', [{ id: event.id, referral_id: referralId, at, data: event }], 'return=minimal');
-  notifyChange();
+  // Two facility users can act on the same referral. Read, change, and write back only if nobody wrote in
+  // between (the facility facts carry an updatedAt stamp); otherwise read again and redo the change.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const [row] = await rest<{ facility: FacilityFacts }[]>('GET', `referrals?select=facility&id=eq.${enc(referralId)}`);
+    if (!row) throw new Error('Referral not on server');
+    const at = new Date().toISOString();
+    const { facility, eventText } = applyFacilityAction(row.facility, input, at);
+    const unchanged = row.facility.updatedAt ? `facility->>updatedAt=eq.${enc(row.facility.updatedAt)}` : 'facility->>updatedAt=is.null';
+    const done = await rest<{ id: string }[]>('PATCH', `referrals?id=eq.${enc(referralId)}&${unchanged}&select=id`, { facility }, 'return=representation');
+    if (!done?.length) continue;
+    const event: FacilityEvent = { id: uid('fe-'), referralId, at, kind: input.kind, text: eventText };
+    await rest('POST', 'facility_events', [{ id: event.id, referral_id: referralId, at, data: event }], 'return=minimal');
+    notifyChange();
+    return;
+  }
+  throw new Error('This referral was changed by someone else at the same time. Please try again.');
 }

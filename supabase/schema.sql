@@ -64,12 +64,17 @@ language plpgsql as $$
 begin
   if tg_op = 'UPDATE' then
     -- Last write wins on the client clock. Returning NULL skips the stale update without an error.
-    if tg_table_name in ('patients', 'referrals') and new.updated_at < old.updated_at then
-      return null;
+    -- (Nested ifs on purpose: plpgsql does not short-circuit `and`, and not every table has these columns.)
+    if tg_table_name in ('patients', 'referrals') then
+      if new.updated_at < old.updated_at then
+        return null;
+      end if;
     end if;
     -- A referral moving to another tier starts with fresh facility facts.
-    if tg_table_name = 'referrals' and new.tier is distinct from old.tier then
-      new.facility := '{"response":"none","attendance":"unknown","completed":false,"followUpRequired":false,"notes":[]}'::jsonb;
+    if tg_table_name = 'referrals' then
+      if new.tier is distinct from old.tier then
+        new.facility := '{"response":"none","attendance":"unknown","completed":false,"followUpRequired":false,"notes":[]}'::jsonb;
+      end if;
     end if;
     -- created_by never changes after insert.
     new.created_by := old.created_by;

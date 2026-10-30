@@ -36,7 +36,7 @@ describe('remoteSupabase', () => {
     await pushRecords([patient], [referral], [{ id: 'fu-1', referralId: 'REF-1', at: '2026-10-30T10:00:00Z', action: 'referral_sent', syncStatus: 'pending' }], '2026-10-30T11:00:00Z');
 
     expect(calls.map((c) => c.url.split('?')[0].split('/rest/v1/')[1])).toEqual(['patients', 'referrals', 'followups']);
-    expect(calls[0].headers).toMatchObject({ apikey: 'anon-key', Authorization: 'Bearer clerk-token', Prefer: 'resolution=merge-duplicates,return=minimal' });
+    expect(calls[0].headers).toMatchObject({ apikey: 'anon-key', Authorization: 'Bearer clerk-token', Prefer: 'resolution=merge-duplicates,return=representation' });
     expect(calls[1].url).toContain('on_conflict=id');
     const row = (calls[1].body as Record<string, unknown>[])[0];
     expect(row).toMatchObject({ id: 'REF-1', patient_id: 'CL-1', tier: 'phc', updated_at: referral.updatedAt });
@@ -80,7 +80,7 @@ describe('remoteSupabase', () => {
   });
 
   it('records a facility action by patching only the facility column and adding an event', async () => {
-    respond = (c) => (c.method === 'GET' ? [{ facility: emptyFacility() }] : undefined);
+    respond = (c) => (c.method === 'GET' ? [{ facility: emptyFacility() }] : c.method === 'PATCH' ? [{ id: 'REF-1' }] : undefined);
     await facilityAct('REF-1', { kind: 'accepted', text: 'ok' });
 
     const patch = calls.find((c) => c.method === 'PATCH')!;
@@ -90,6 +90,47 @@ describe('remoteSupabase', () => {
     const post = calls.find((c) => c.method === 'POST')!;
     expect(post.url).toContain('/facility_events');
     expect((post.body as { data: { kind: string } }[])[0].data.kind).toBe('accepted');
+  });
+
+  it('writes the facility change only if nobody changed it since it was read, and redoes it otherwise', async () => {
+    const first = { ...emptyFacility(), updatedAt: '2026-10-30T10:00:00.000Z' };
+    const second = { ...emptyFacility(), updatedAt: '2026-10-30T10:00:05.000Z', notes: [{ at: '2026-10-30T10:00:05.000Z', text: 'someone else' }] };
+    let reads = 0;
+    let patches = 0;
+    respond = (c) => {
+      if (c.method === 'GET') return [{ facility: reads++ === 0 ? first : second }];
+      if (c.method === 'PATCH') return patches++ === 0 ? [] : [{ id: 'REF-1' }]; // first write loses the race
+      return undefined;
+    };
+    await facilityAct('REF-1', { kind: 'note', text: 'mine' });
+
+    const patchCalls = calls.filter((c) => c.method === 'PATCH');
+    expect(patchCalls).toHaveLength(2);
+    expect(decodeURIComponent(patchCalls[0].url)).toContain('facility->>updatedAt=eq.2026-10-30T10:00:00.000Z');
+    expect(decodeURIComponent(patchCalls[1].url)).toContain('facility->>updatedAt=eq.2026-10-30T10:00:05.000Z');
+    // the retry builds on the other person's note instead of overwriting it
+    expect((patchCalls[1].body as { facility: { notes: { text: string }[] } }).facility.notes.map((n) => n.text)).toEqual(['someone else', 'mine']);
+    expect(calls.filter((c) => c.method === 'POST' && c.url.includes('/facility_events'))).toHaveLength(1);
+  });
+
+  it('gives up with a clear error when the referral keeps changing underneath it', async () => {
+    respond = (c) => (c.method === 'GET' ? [{ facility: emptyFacility() }] : c.method === 'PATCH' ? [] : undefined);
+    await expect(facilityAct('REF-1', { kind: 'accepted' })).rejects.toThrow(/changed by someone else/);
+    expect(calls.some((c) => c.url.includes('/facility_events'))).toBe(false);
+  });
+
+  it('reports the records the server ignored because it already had newer ones', async () => {
+    respond = (c) => {
+      if (c.method !== 'POST') return undefined;
+      return c.url.includes('/patients') ? [{ id: 'CL-2' }] : c.url.includes('/referrals') ? [] : undefined; // CL-1 and REF-1 were ignored
+    };
+    const result = await pushRecords(
+      [makePatient({ id: 'CL-1', name: 'A' }), makePatient({ id: 'CL-2', name: 'B' })],
+      [makeReferral({ id: 'REF-1', patientId: 'CL-1', referralDate: '2026-10-30' })],
+      [],
+      '2026-10-30T11:00:00Z',
+    );
+    expect(result.rejected).toEqual(['CL-1', 'REF-1']);
   });
 
   it('returns undefined for a case the server does not have', async () => {
