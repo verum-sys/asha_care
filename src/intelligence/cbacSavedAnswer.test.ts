@@ -30,15 +30,15 @@ describe('saved answers shown when returning to a question', () => {
     expect(savedAnswerFor('initiate_referral', { ...base, referralRequired: 'no' })).toEqual({ single: 'No, screening only' });
   });
   it('restores multi-select choices and the "none" choice', () => {
-    expect(savedAnswerFor('b_categories', { ...base, bCategories: ['tb', 'mouth'] })).toEqual({ multi: ['TB or cough', 'mouth or oral'] });
-    expect(savedAnswerFor('b_categories', { ...base, bCategories: [] })).toEqual({ multi: [], none: true });
+    expect(savedAnswerFor('b_categories', { ...base, bCategories: ['tb'] })).toEqual({ single: 'TB or cough' });
+    expect(savedAnswerFor('b_categories', { ...base, bCategories: [] })).toEqual({ single: 'none' });
     expect(savedAnswerFor('cooking_fuel', { ...base, partC: { cookingFuel: ['lpg', 'coal'], occupationalExposure: [] } as never })).toEqual({ multi: ['LPG', 'Coal'] });
   });
   it('every saved single answer is one of that question’s options (so it can be highlighted)', () => {
     const questions = buildInterviewQuestions('F', 65, ['tb', 'mouth']);
     for (const q of questions) {
       const control = manualControlFor(q, 'F', 65);
-      if (control.kind !== 'single') continue;
+      if (control.kind !== 'single' || q.id === 'b_categories') continue; // categories are covered above
       for (const option of control.options) {
         const parsed = parseCbacInterviewAnswer(q.id, option.answer, 'F', 65);
         if (!parsed.ok) continue;

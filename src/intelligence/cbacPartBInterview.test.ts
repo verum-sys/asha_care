@@ -33,8 +33,9 @@ describe('Part B category interview', () => {
     const r = parseCbacInterviewAnswer('b:night_sweats', 'yes', 'M', 30);
     expect(r.ok && r.updates.partBUpdates).toEqual({ night_sweats: true });
   });
-  it('returns the chosen categories', () => {
-    const r = parseCbacInterviewAnswer('b_categories', 'TB and skin', 'M', 30);
-    expect(r.ok && r.categories).toEqual(['tb', 'skin_nerve']);
+  it('returns the one chosen category and refuses two at once', () => {
+    const r = parseCbacInterviewAnswer('b_categories', 'TB', 'M', 30);
+    expect(r.ok && r.categories).toEqual(['tb']);
+    expect(parseCbacInterviewAnswer('b_categories', 'TB and skin', 'M', 30).ok).toBe(false);
   });
 });

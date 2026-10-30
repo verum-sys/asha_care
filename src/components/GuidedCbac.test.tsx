@@ -44,9 +44,9 @@ describe('returning to an answered question', () => {
     const smoke = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'smoke')!} saved={{ single: 'Daily' }} />);
     expect(smoke).toMatch(/aria-pressed="true"[^>]*>✓ <!-- -->Daily|aria-pressed="true"[^>]*>✓ Daily/);
     expect(smoke).toContain('aria-pressed="false"');
-    const cats = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} saved={{ multi: ['TB or cough'] }} />);
+    const cats = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} saved={{ single: 'TB or cough' }} />);
     expect(cats).toMatch(/aria-pressed="true"[^>]*>✓ <!-- -->TB or cough|aria-pressed="true"[^>]*>✓ TB or cough/);
-    const none = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} saved={{ multi: [], none: true }} />);
+    const none = renderToStaticMarkup(<GuidedQuestionCard {...baseProps} question={questions.find(q => q.id === 'b_categories')!} saved={{ single: 'none' }} />);
     expect(none).toMatch(/aria-pressed="true"[^>]*>✓ <!-- -->None of these|aria-pressed="true"[^>]*>✓ None of these/);
   });
 });

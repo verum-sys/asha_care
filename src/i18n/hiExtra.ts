@@ -618,5 +618,9 @@ export const hiExtra: Record<string, string> = {
   "Will go to {facility} on {date}.": "{date} को {facility} जाएंगे।",
   "PHC appointment date is not set yet.": "पीएचसी की अपॉइंटमेंट तिथि अभी तय नहीं है।",
   "Visit status: attended the PHC.": "विज़िट की स्थिति: पीएचसी गए।",
-  "Visit status: missed the appointment. Follow up.": "विज़िट की स्थिति: अपॉइंटमेंट छूट गई। फ़ॉलो-अप करें।"
+  "Visit status: missed the appointment. Follow up.": "विज़िट की स्थिति: अपॉइंटमेंट छूट गई। फ़ॉलो-अप करें।",
+  "Answer this question to continue.": "आगे बढ़ने के लिए इस प्रश्न का उत्तर दें।",
+  "Please choose only one problem area.": "कृपया केवल एक समस्या क्षेत्र चुनें।",
+  "Appointment Date *": "अपॉइंटमेंट की तिथि *",
+  "Please select the appointment date.": "कृपया अपॉइंटमेंट की तिथि चुनें।"
 };

@@ -35,17 +35,15 @@ describe('manual answer options are understood locally without AI', () => {
     const combo = parseCbacInterviewAnswer('cooking_fuel', joinAnswers(all6.slice(0, 3)), 'F', 40);
     expect(combo.ok && combo.updates.partCUpdates.cookingFuel?.length).toBe(3);
   });
-  it('parses every Part B category choice, alone and combined, plus none', () => {
+  it('offers Part B categories as a single choice, each understood alone, plus none; two together are refused', () => {
     const control = manualControlFor(all.find(q => q.id === 'b_categories')!, 'F', 65);
-    if (control.kind !== 'multi') throw new Error('expected multi');
+    if (control.kind !== 'single') throw new Error('expected single');
     for (const option of control.options) {
       const r = parseCbacInterviewAnswer('b_categories', option.answer, 'F', 65);
-      expect(r.ok && r.categories?.length, option.answer).toBe(1);
+      expect(r.ok && r.categories?.length, option.answer).toBe(option.answer === 'none' ? 0 : 1);
     }
-    const combined = parseCbacInterviewAnswer('b_categories', joinAnswers(control.options as ManualOption[]), 'F', 65);
-    expect(combined.ok && combined.categories?.length).toBe(control.options.length);
-    const none = parseCbacInterviewAnswer('b_categories', control.noneAnswer!.answer, 'F', 65);
-    expect(none.ok && none.categories).toEqual([]);
+    const combined = parseCbacInterviewAnswer('b_categories', joinAnswers(control.options.slice(0, 2) as ManualOption[]), 'F', 65);
+    expect(combined.ok).toBe(false);
   });
   it('referral choices are understood', () => {
     const control = manualControlFor(all[0], 'F', 65);

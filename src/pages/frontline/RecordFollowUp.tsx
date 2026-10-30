@@ -41,7 +41,8 @@ export function RecordFollowUp() {
     [matches, chooseDifferent, options],
   );
 
-  const [action, setAction] = useState<FollowUpChoice | ''>('');
+  // With a single option it is chosen up front.
+  const [action, setAction] = useState<FollowUpChoice | ''>(() => (options.length === 1 ? options[0] : ''));
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);

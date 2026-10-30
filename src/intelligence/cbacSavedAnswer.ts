@@ -39,8 +39,8 @@ export function savedAnswerFor(questionId: string, s: FormState): SavedAnswer {
     case B_CATEGORIES_ID: {
       if (!s.bCategories) return undefined;
       const allowed = applicablePartBCategories(s.general.sex, s.general.age);
-      const picked = PART_B_CATEGORIES.filter(c => s.bCategories!.includes(c.id) && allowed.includes(c.id)).map(c => c.labelEn);
-      return picked.length ? { multi: picked } : { multi: [], none: true };
+      const picked = PART_B_CATEGORIES.find(c => s.bCategories!.includes(c.id) && allowed.includes(c.id));
+      return { single: picked ? picked.labelEn : 'none' };
     }
     case 'cooking_fuel': return s.partC.cookingFuel.length ? { multi: s.partC.cookingFuel.map(id => COOKING_FUELS.find(f => f.id === id)?.label).filter((x): x is string => !!x) } : undefined;
     case 'phq1_interest': return s.partD.phq1Score === undefined ? undefined : { single: PHQ_ANSWERS[s.partD.phq1Score] };

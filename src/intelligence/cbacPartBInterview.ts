@@ -36,8 +36,8 @@ export function partBCategoryQuestion(sex: Sex | '', age: number | ''): Intervie
     id: B_CATEGORIES_ID, field: B_CATEGORIES_ID, slide: 'B',
     promptEn: 'Do you have a problem with any of these:',
     promptHi: 'क्या आपको इनमें से कोई समस्या है:',
-    hintEn: 'Say all that apply, for example "TB and mouth", or "none". Only those sections are asked next.',
-    hintHi: 'जो लागू हो बताएं, जैसे "टीबी और मुंह", या "कोई नहीं"। आगे केवल वही प्रश्न पूछे जाएंगे।',
+    hintEn: 'Choose one, for example "TB", or say "none". Only that section is asked next.',
+    hintHi: 'एक चुनें, जैसे "टीबी", या कहें "कोई नहीं"। आगे केवल वही प्रश्न पूछे जाएंगे।',
     optionsEn: categories.map(c => c.labelEn), optionsHi: categories.map(c => c.labelHi),
     sampleResponses: ['TB', 'Mouth and eyes', 'None'],
   };

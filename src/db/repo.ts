@@ -301,7 +301,8 @@ export async function referToNextTier(
   destinationFacility: string,
   notes?: string,
   urgency?: Urgency,
-  targetUnit?: CareUnit
+  targetUnit?: CareUnit,
+  appointmentDate?: string
 ): Promise<void> {
   const db = await getDB();
   const current = await db.get('referrals', referralId);
@@ -317,7 +318,8 @@ export async function referToNextTier(
       aiSummary: current.aiSummaryOverride,
       visitStatus: current.worker, facilityStatus: current.facility,
     }],
-    worker: {},
+    // The new tier starts with fresh visit facts; the appointment set while referring is its first fact.
+    worker: appointmentDate ? { appointmentDate } : {},
     facility: emptyFacility(),
     tier: targetTier,
     unit: targetUnit || current.unit,
@@ -332,7 +334,7 @@ export async function referToNextTier(
     referralId,
     at: now,
     action: 'referral_sent',
-    note: `Escalated case to ${targetTier.toUpperCase()}: ${destinationFacility}. ${notes || ''}`,
+    note: `Escalated case to ${targetTier.toUpperCase()}: ${destinationFacility}.${appointmentDate ? ` Appointment ${appointmentDate}.` : ''} ${notes || ''}`,
     syncStatus: 'pending',
   };
   const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');

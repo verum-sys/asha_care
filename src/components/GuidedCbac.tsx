@@ -65,6 +65,8 @@ export function GuidedQuestionCard(props: QuestionProps) {
     if (control.kind === 'multi' && picked.length && picked.map(o => o.answer).sort().join() !== (savedMulti?.multi ?? []).slice().sort().join()) return props.onAnswer(joinAnswers(picked), true);
     props.onSkip();
   };
+  // Every question must be answered before moving on.
+  const answered = !!props.saved || (control.kind === 'multi' ? picked.length > 0 : props.currentAnswer.trim() !== '');
   const percent = Math.round((index / total) * 100);
   const submitTyped = (event: React.FormEvent) => { event.preventDefault(); if (props.currentAnswer.trim()) props.onAnswer(props.currentAnswer, false); };
   return <section className="card space-y-4" aria-live="polite">
@@ -124,9 +126,10 @@ export function GuidedQuestionCard(props: QuestionProps) {
 
     {interpreting && <p role="status" className="text-xs text-teal-700">{t('Interpreting answer…')}</p>}
     {answerError && <p role="alert" className="text-sm text-danger">{t(answerError)}</p>}
+    {!answered && !interpreting && <p className="text-xs text-amber-700">{t('Answer this question to continue.')}</p>}
     <div className="flex items-center justify-between border-t border-line pt-3">
       <button type="button" className="btn btn-secondary !min-h-[40px] text-sm" disabled={!props.canGoBack || interpreting} onClick={props.onBack}>{t('← Previous')}</button>
-      <button type="button" className="btn btn-primary !min-h-[44px] !px-6 text-sm font-bold" disabled={interpreting} onClick={goNext}>{index === total - 1 ? t('View report →') : t('Next →')}</button>
+      <button type="button" className="btn btn-primary !min-h-[44px] !px-6 text-sm font-bold" disabled={interpreting || !answered} onClick={goNext}>{index === total - 1 ? t('View report →') : t('Next →')}</button>
     </div>
   </section>;
 }

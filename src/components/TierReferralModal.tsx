@@ -54,6 +54,8 @@ export function TierReferralModal({
 
   const [destinationFacility, setDestinationFacility] = useState(defaultFacilities[targetTier][0] || '');
   const [urgency, setUrgency] = useState<Urgency | ''>(''); // the clinician chooses; no default
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
   const [notes, setNotes] = useState(() => {
     const exam = physicalExamText(physicalExam);
     return [initialNotes.trim(), exam && !initialNotes.includes(exam) ? exam : ''].filter(Boolean).join('\n\n');
@@ -64,9 +66,10 @@ export function TierReferralModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!urgency) { setError('Please select the referral urgency.'); return; }
+    if (!appointmentDate) { setError('Please select the appointment date.'); return; }
     setSubmitting(true);
     try {
-      await referToNextTier(referralId, targetTier, destinationFacility, notes.trim(), urgency, (['a', 'b', 'c'] as const)[defaultFacilities[targetTier].indexOf(destinationFacility)]);
+      await referToNextTier(referralId, targetTier, destinationFacility, notes.trim(), urgency, (['a', 'b', 'c'] as const)[defaultFacilities[targetTier].indexOf(destinationFacility)], appointmentDate);
       onReferred?.();
       onClose();
     } catch { setError('Referral could not be saved. Please try again.'); } finally {
@@ -136,6 +139,22 @@ export function TierReferralModal({
               <option value="soon">{t('Soon')}</option>
               <option value="urgent">{t('Urgent')}</option>
             </select>
+          </div>
+
+          {/* Appointment at the receiving facility */}
+          <div>
+            <label htmlFor="referral-appointment" className="block text-xs font-semibold text-slate-700 mb-1">
+              {t('Appointment Date *')}
+            </label>
+            <input
+              id="referral-appointment"
+              type="date"
+              min={today}
+              value={appointmentDate}
+              onChange={(e) => { setAppointmentDate(e.target.value); setError(''); }}
+              className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500 bg-white"
+              required
+            />
           </div>
 
           {/* The AI summary belongs to the ASHA stage only. */}

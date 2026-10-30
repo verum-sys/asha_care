@@ -18,6 +18,7 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
   if (question === B_CATEGORIES_ID) {
     const categories = parsePartBCategories(text, sex, age);
     if (!categories) return fail('Please name the problem area, such as TB, mouth, eyes, skin, or say none.');
+    if (categories.length > 1) return fail('Please choose only one problem area.');
     updates.explanations = [{ field: question, detail: categories.length ? `Part B sections to ask: ${categories.join(', ')}` : 'No Part B problem areas reported' }];
     return { ok: true, updates, categories };
   }

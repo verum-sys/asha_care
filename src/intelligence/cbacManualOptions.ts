@@ -32,10 +32,10 @@ export function manualControlFor(question: InterviewQuestion, sex: Sex | '', age
     case 'alcohol': return { kind: 'single', options: [{ label: 'Never', answer: 'Never' }, { label: 'Socially', answer: 'Socially' }, { label: 'Weekly', answer: 'Weekly' }, { label: 'Daily', answer: 'Daily' }] };
     case 'physicalActivity': return { kind: 'single', options: [{ label: 'At least 150 minutes in a week', answer: '150 minutes per week' }, { label: 'Less than 150 minutes in a week', answer: 'Less than 150 minutes per week' }] };
     case 'familyHistory': return { kind: 'single', options: [{ label: 'No', answer: 'No' }, { label: 'Yes (Parent or Sibling)', answer: 'Yes' }] };
+    // One problem area per screening: the worker picks a single category (or none).
     case B_CATEGORIES_ID: return {
-      kind: 'multi',
-      options: PART_B_CATEGORIES.filter(c => applicablePartBCategories(sex, age).includes(c.id)).map(c => ({ label: c.labelEn, answer: c.labelEn })),
-      noneAnswer: { label: 'None of these', answer: 'none' },
+      kind: 'single',
+      options: [...PART_B_CATEGORIES.filter(c => applicablePartBCategories(sex, age).includes(c.id)).map(c => ({ label: c.labelEn, answer: c.labelEn })), { label: 'None of these', answer: 'none' }],
     };
     case 'cooking_fuel': return { kind: 'multi', options: COOKING_FUELS.map(f => ({ label: f.label, answer: f.label })) };
     case 'phq1_interest':
