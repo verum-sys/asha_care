@@ -203,7 +203,7 @@ export function CbacReport({ general, partA, partB, partC, partD, triage, referr
     { section: 'B', label: t('Do you have a problem with any of these:'), view: positives.length ? positives.map(s => t(s.label)).join('; ') : t('No symptoms reported'),
       editor: { kind: 'checklist', key: 'symptoms', options: applicable.map(s => ({ value: s.id, label: s.label })), checked: positives.map(s => s.id) } },
     { section: 'C', label: ask('cooking_fuel', 'Cooking fuel'), view: partC.cookingFuel.length ? partC.cookingFuel.map(id => t(COOKING_FUELS.find(f => f.id === id)?.label || id)).join(', ') : notAnswered,
-      editor: { kind: 'checklist', key: 'fuel', options: COOKING_FUELS.map(f => ({ value: f.id, label: f.label })), checked: partC.cookingFuel } },
+      editor: { kind: 'select', key: 'fuel', value: partC.cookingFuel[0] ?? '', options: COOKING_FUELS.map(f => ({ value: f.id, label: f.label })) } },
     { section: 'D', label: ask('phq1_interest', 'Little interest or pleasure'), view: phq(partD.phq1Score), editor: select('phq1_interest') },
     { section: 'D', label: ask('phq2_mood', 'Feeling down or hopeless'), view: phq(partD.phq2Score), editor: select('phq2_mood') },
     { section: 'R', label: t('Does this patient require referral to a health facility?'), view: !referral.referralRequired ? notAnswered : referral.referralRequired === 'yes' ? `${t('Yes — Initiate Referral')}${referral.destinationFacility ? ` · ${referral.destinationFacility}` : ''}` : t('No — Routine Community Care'),

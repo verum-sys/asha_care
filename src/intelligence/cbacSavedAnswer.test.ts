@@ -32,7 +32,7 @@ describe('saved answers shown when returning to a question', () => {
   it('restores multi-select choices and the "none" choice', () => {
     expect(savedAnswerFor('b_categories', { ...base, bCategories: ['tb'] })).toEqual({ single: 'TB or cough' });
     expect(savedAnswerFor('b_categories', { ...base, bCategories: [] })).toEqual({ single: 'none' });
-    expect(savedAnswerFor('cooking_fuel', { ...base, partC: { cookingFuel: ['lpg', 'coal'], occupationalExposure: [] } as never })).toEqual({ multi: ['LPG', 'Coal'] });
+    expect(savedAnswerFor('cooking_fuel', { ...base, partC: { cookingFuel: ['lpg'], occupationalExposure: [] } as never })).toEqual({ single: 'LPG' });
   });
   it('every saved single answer is one of that question’s options (so it can be highlighted)', () => {
     const questions = buildInterviewQuestions('F', 65, ['tb', 'mouth']);
@@ -45,7 +45,7 @@ describe('saved answers shown when returning to a question', () => {
         const u = parsed.updates;
         const saved = savedAnswerFor(q.id, {
           ...base, general: { ...(base.general as object), sex: u.generalUpdates.sex ?? 'F' } as never,
-          partA: { ...u.partAUpdates } as never, partB: { symptoms: { ...u.partBUpdates } }, partD: { phq1Score: u.partDUpdates.phq1Score, phq2Score: u.partDUpdates.phq2Score, totalScore: 0 } as never,
+          partA: { ...u.partAUpdates } as never, partB: { symptoms: { ...u.partBUpdates } }, partC: { cookingFuel: u.partCUpdates.cookingFuel ?? [], occupationalExposure: [] } as never, partD: { phq1Score: u.partDUpdates.phq1Score, phq2Score: u.partDUpdates.phq2Score, totalScore: 0 } as never,
         });
         expect(saved && 'single' in saved ? saved.single : undefined, `${q.id}:${option.answer}`).toBe(option.answer);
       }

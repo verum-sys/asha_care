@@ -11,6 +11,8 @@ interface TierReferralModalProps {
   patientName: string;
   currentTier: CareTier;
   savedSummary?: string;
+  /** Generated AI summary, used when no edited summary was saved. */
+  aiSummary?: string;
   /** Recorded physical examination; its vitals and findings are pre-filled into the handover notes. */
   physicalExam?: PhysicalExamNotes;
   onEditSummary?: () => void;
@@ -25,6 +27,7 @@ export function TierReferralModal({
   patientName,
   currentTier,
   savedSummary,
+  aiSummary,
   physicalExam,
   onEditSummary,
   initialNotes = '',
@@ -60,6 +63,14 @@ export function TierReferralModal({
     const exam = physicalExamText(physicalExam);
     return [initialNotes.trim(), exam && !initialNotes.includes(exam) ? exam : ''].filter(Boolean).join('\n\n');
   });
+  // At ASHA the AI summary is the handover: "Generate AI summary" puts it at the top of the notes, where it can be edited.
+  const summaryText = currentTier === 'asha' ? (savedSummary?.trim() || aiSummary?.trim() || '') : '';
+  const generateSummary = () => setNotes(current => (current.includes(summaryText) ? current : [summaryText, current.trim()].filter(Boolean).join('\n\n')));
+  const editNotes = () => {
+    const box = document.getElementById('referral-notes') as HTMLTextAreaElement | null;
+    box?.focus();
+    box?.setSelectionRange(box.value.length, box.value.length);
+  };
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -157,21 +168,23 @@ export function TierReferralModal({
             />
           </div>
 
-          {/* The AI summary belongs to the ASHA stage only. */}
-          {currentTier === 'asha' && (
-          <div className="rounded-xl bg-teal-50 border border-teal-100 p-3 text-xs text-teal-900">
-            <div className="flex items-center justify-between gap-2"><p className="font-semibold">{t('AI summary handover')}</p>{onEditSummary && <button type="button" className="btn btn-secondary !min-h-[30px] text-xs" onClick={onEditSummary}>{savedSummary?.trim() ? 'Edit summary' : 'Write summary'}</button>}</div>
-            {savedSummary?.trim() ? <><p className="whitespace-pre-wrap mt-2 max-h-36 overflow-y-auto">{savedSummary}</p>{!['asha', 'phc'].includes(currentTier) && <p className="mt-2">{t('This saved summary will be available to the receiving care team.')}</p>}</> : <p className="mt-1">{t('No edited summary saved yet. Save one from AI Summary to include it in the handover.')}</p>}
-          </div>
-          )}
 
           {/* Clinical Escalation Reason */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t('Referral Reason & Handover Notes')}
-            </label>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="referral-notes" className="block text-xs font-semibold text-slate-700">
+                {t('Referral Reason & Handover Notes')}
+              </label>
+              {summaryText && (
+                <div className="flex gap-2">
+                  <button type="button" onClick={generateSummary} className="btn btn-secondary !min-h-[32px] px-2.5 text-xs font-semibold">✦ {t('Generate AI summary')}</button>
+                  <button type="button" onClick={editNotes} className="btn btn-secondary !min-h-[32px] px-2.5 text-xs font-semibold">✎ {t('Edit')}</button>
+                </div>
+              )}
+            </div>
             <VoiceTextarea
-              rows={3}
+              id="referral-notes"
+              rows={summaryText ? 6 : 3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500"

@@ -60,7 +60,8 @@ export function TierModuleView() {
   const tierCases = allCases.filter((c) => {
     const t = c.referral.tier || 'asha';
     const u = c.referral.unit || 'a';
-    if (t !== activeTier) return false;
+    // A tier keeps the cases it referred onward, so it can still record follow-ups and see the appointment.
+    if (t !== activeTier && !c.referral.clinicalHandovers?.some(h => h.fromTier === activeTier)) return false;
     if (user.role !== 'super_admin' && u !== user.unit) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -190,7 +191,7 @@ export function TierModuleView() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <Link to={`/case/${c.referral.id}`} className="font-bold text-sm text-slate-900 hover:underline">
+                          <Link to={`/case/${c.referral.id}?tier=${activeTier}`} className="font-bold text-sm text-slate-900 hover:underline">
                             {c.patient.name?.trim() || t('Community member')}
                           </Link>
                           <span className="text-xs font-mono text-slate-400">({c.patient.id})</span>
@@ -206,7 +207,10 @@ export function TierModuleView() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {(c.referral.tier || 'asha') !== activeTier && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">{t('Referred to')} {(c.referral.tier || '').toUpperCase()}</span>
+                      )}
                       {cbac ? (
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${cbac.highRiskNcd ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
                           {t('CBAC Score:')} {cbac.partA.totalScore}/12
@@ -269,7 +273,7 @@ export function TierModuleView() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {/* CBAC Form */}
                       <Link
-                        to={cbac || activeTier !== 'asha' ? `/case/${c.referral.id}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`}
+                        to={cbac || activeTier !== 'asha' ? `/case/${c.referral.id}?tier=${activeTier}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`}
                         state={{ returnTo: `/tier/${activeTier}` }}
                         className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
                       >
@@ -322,7 +326,7 @@ export function TierModuleView() {
 
                     <div className="flex items-center gap-2">
                       {/* Refer to Next Tier */}
-                      {activeTier !== 'tcc' && activeTier !== 'asha' && (
+                      {activeTier !== 'tcc' && activeTier !== 'asha' && (c.referral.tier || 'asha') === activeTier && (
                         <button
                           type="button"
                           onClick={() => setActiveCaseForReferral({ caseRecord: c })}

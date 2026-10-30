@@ -41,3 +41,6 @@ TABLE_H["Please choose only one problem area."] = "कृपया केवल 
 TABLE_H["None of these"] = "इनमें से कोई नहीं"
 TABLE_H["Appointment Date *"] = "अपॉइंटमेंट की तिथि *"
 TABLE_H["Please select the appointment date."] = "कृपया अपॉइंटमेंट की तिथि चुनें।"
+TABLE_H["Please choose only one cooking fuel."] = "कृपया केवल एक खाना पकाने का ईंधन चुनें।"
+TABLE_H["Generate AI summary"] = "एआई सारांश बनाएं"
+TABLE_H["Referred to"] = "रेफ़र किया गया"

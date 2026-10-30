@@ -141,7 +141,9 @@ export function parseCbacInterviewAnswer(question: string, answer: string, sex: 
       if (/गोबर|उपला/.test(text)) fuels.push('cow_dung_cake');
       if (/गैस|एलपीजी/.test(text)) fuels.push('lpg');
       if (!fuels.length) return fail('Please specify cooking fuel, such as LPG, firewood, coal, or cow dung cake.');
-      updates.partCUpdates.cookingFuel = Array.from(new Set(fuels));
+      const unique = Array.from(new Set(fuels));
+      if (unique.length > 1) return fail('Please choose only one cooking fuel.');
+      updates.partCUpdates.cookingFuel = unique;
       break;
     }
     case 'phq1_interest':

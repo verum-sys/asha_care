@@ -3,7 +3,7 @@ import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatu
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
 import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CbacScreening } from './CbacScreening';
 import { BackLink } from '../../components/Layout';
 import { Icon } from '../../components/Icon';
@@ -17,10 +17,15 @@ import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
 import { TierReferralModal } from '../../components/TierReferralModal';
-import { AiSummaryModal } from '../../components/AiSummaryModal';
+import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 
 export function CaseView() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // The tier looking at the case (from the list it was opened in); defaults to the tier that holds it now.
+  const viewParam = params.get('tier');
+  const viewTier = (['asha', 'phc', 'dh', 'tcc'] as const).find(tier => tier === viewParam);
   const { t, formatDate } = useLang();
 
   // Modals
@@ -37,7 +42,7 @@ export function CaseView() {
     return c ? { ...c, syncEvents } : null;
   }, [id]);
 
-  useTermTier(data?.referral.tier || 'asha');
+  useTermTier(viewTier || data?.referral.tier || 'asha');
   if (loading) return <p className="text-muted">…</p>;
   if (!data)
     return (
@@ -49,8 +54,12 @@ export function CaseView() {
 
   const { patient, referral, followUps, facilityEvents, syncEvents } = data;
 
-  const currentTier: CareTier = referral.tier || 'asha';
+  const currentTier: CareTier = viewTier || referral.tier || 'asha';
+  // Already handed to the next tier: the referring team only records follow-ups now.
+  const alreadyReferred = (referral.tier || 'asha') !== currentTier;
   const currentUnit = referral.unit || 'a';
+  // Once referred, the case belongs to the next tier; the referring team goes back to its own list (replacing this page).
+  const backToTierList = () => navigate(`/tier/${currentTier}`, { replace: true, state: { toast: 'status.savedLocally' } });
   const reportsCount = (referral.reports?.length || 0) + (referral.biopsyReports?.length || 0) + (referral.radiologyReports?.length || 0);
 
 
@@ -67,14 +76,16 @@ export function CaseView() {
             >
               <span>{t('Record follow-up')}</span>
             </Link>
-            <button
-              type="button"
-              onClick={() => setShowReferralModal(true)}
-              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
-            >
-              <span>{t('Refer to PHC')}</span>
-              <Icon name="back" size={14} className="rotate-180" />
-            </button>
+            {!alreadyReferred && (
+              <button
+                type="button"
+                onClick={() => setShowReferralModal(true)}
+                className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
+              >
+                <span>{t('Refer to PHC')}</span>
+                <Icon name="back" size={14} className="rotate-180" />
+              </button>
+            )}
           </div>
         </div>
         <CbacScreening embedded />
@@ -86,7 +97,7 @@ export function CaseView() {
           <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
           <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
         </section>
-        <div className="flex justify-end">
+        {!alreadyReferred && <div className="flex justify-end">
           <button
             type="button"
             onClick={() => setShowReferralModal(true)}
@@ -95,9 +106,9 @@ export function CaseView() {
             <span>{t('Refer to PHC')}</span>
             <Icon name="back" size={14} className="rotate-180" />
           </button>
-        </div>
+        </div>}
         {showReferralModal && (
-          <TierReferralModal referralId={referral.id} patientName={patient.name?.trim() || t('Community member')} currentTier={currentTier} savedSummary={referral.aiSummaryOverride} physicalExam={referral.physicalExam} onEditSummary={() => setShowAiModal(true)} isOpen onClose={() => setShowReferralModal(false)} />
+          <TierReferralModal referralId={referral.id} patientName={patient.name?.trim() || t('Community member')} currentTier={currentTier} savedSummary={referral.aiSummaryOverride} aiSummary={buildSummary(data).text} physicalExam={referral.physicalExam} onEditSummary={() => setShowAiModal(true)} isOpen onClose={() => setShowReferralModal(false)} onReferred={backToTierList} />
         )}
         {showAiModal && <AiSummaryModal caseRecord={data} isOpen onClose={() => setShowAiModal(false)} />}
       </div>
@@ -110,7 +121,7 @@ export function CaseView() {
         <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
-          {currentTier !== 'tcc' && (
+          {currentTier !== 'tcc' && !alreadyReferred && (
             <button
               type="button"
               onClick={() => setShowReferralModal(true)}
@@ -327,6 +338,7 @@ export function CaseView() {
           onEditSummary={() => setShowAiModal(true)}
           isOpen={true}
           onClose={() => setShowReferralModal(false)}
+          onReferred={backToTierList}
         />
       )}
 

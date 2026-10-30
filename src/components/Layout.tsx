@@ -30,12 +30,14 @@ export function Layout({ children }: { children: ReactNode }) {
     </nav>
   </div>;
 }
-export function BackLink({ label }: { label?: string }) {
+/** onBack can handle the click itself (e.g. step back inside a form) by returning true. */
+export function BackLink({ label, onBack }: { label?: string; onBack?: () => boolean }) {
   const { t } = useLang();
   const navigate = useNavigate();
   const location = useLocation();
   return <Link to="/" onClick={event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (onBack?.()) { event.preventDefault(); return; }
     const target = backSteps(window.history.state, location.pathname + location.search);
     if (target !== '/') { event.preventDefault(); navigate(target); }
   }} className="mb-3 inline-flex min-h-[40px] items-center gap-1 text-sm font-semibold text-teal-700"><Icon name="back" size={18}/>{label ?? t('case.back')}</Link>;

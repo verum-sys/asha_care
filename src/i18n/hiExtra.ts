@@ -622,5 +622,8 @@ export const hiExtra: Record<string, string> = {
   "Answer this question to continue.": "आगे बढ़ने के लिए इस प्रश्न का उत्तर दें।",
   "Please choose only one problem area.": "कृपया केवल एक समस्या क्षेत्र चुनें।",
   "Appointment Date *": "अपॉइंटमेंट की तिथि *",
-  "Please select the appointment date.": "कृपया अपॉइंटमेंट की तिथि चुनें।"
+  "Please select the appointment date.": "कृपया अपॉइंटमेंट की तिथि चुनें।",
+  "Please choose only one cooking fuel.": "कृपया केवल एक खाना पकाने का ईंधन चुनें।",
+  "Generate AI summary": "एआई सारांश बनाएं",
+  "Referred to": "रेफ़र किया गया"
 };

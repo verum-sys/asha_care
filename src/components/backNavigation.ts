@@ -9,13 +9,23 @@ function historyIndex(historyState: unknown): number | undefined {
   return typeof index === 'number' && Number.isInteger(index) && index >= 0 ? index : undefined;
 }
 
-/** Pages that only exist to fill a form. Back never lands on one, so a saved CBAC is not reopened at its first step. */
+/**
+ * Pages that only exist to fill a form. Back never lands on one, so a saved CBAC is not reopened at its first step.
+ * A guided CBAC step (/cbac?…step=…) is not skipped: its answers are restored from the tab's draft.
+ */
 export function isFormPage(path: string): boolean {
-  const pathname = path.split('?')[0];
-  return pathname === '/cbac' || pathname === '/new' || /^\/case\/[^/]+\/(cbac|edit|follow-up)$/.test(pathname);
+  const [pathname, search = ''] = path.split('?');
+  if (pathname === '/cbac') return !new URLSearchParams(search).has('step');
+  return pathname === '/new' || /^\/case\/[^/]+\/(cbac|edit|follow-up)$/.test(pathname);
 }
 
 const KEY = 'carelink.backTrail';
+
+/** The page recorded one history entry back, if any. */
+export function previousPath(historyState: unknown): string | undefined {
+  const index = historyIndex(historyState);
+  return index ? readTrail()[index - 1] : undefined;
+}
 
 function readTrail(): Record<number, string> {
   try { return JSON.parse(sessionStorage.getItem(KEY) || '{}') as Record<number, string>; } catch { return {}; }

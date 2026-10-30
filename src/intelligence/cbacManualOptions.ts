@@ -37,7 +37,7 @@ export function manualControlFor(question: InterviewQuestion, sex: Sex | '', age
       kind: 'single',
       options: [...PART_B_CATEGORIES.filter(c => applicablePartBCategories(sex, age).includes(c.id)).map(c => ({ label: c.labelEn, answer: c.labelEn })), { label: 'None of these', answer: 'none' }],
     };
-    case 'cooking_fuel': return { kind: 'multi', options: COOKING_FUELS.map(f => ({ label: f.label, answer: f.label })) };
+    case 'cooking_fuel': return { kind: 'single', options: COOKING_FUELS.map(f => ({ label: f.label, answer: f.label })) };
     case 'phq1_interest':
     case 'phq2_mood': return { kind: 'single', options: FREQUENCY };
     case 'initiate_referral': return { kind: 'single', options: [{ label: 'Yes — Initiate Referral', answer: 'Yes, initiate referral' }, { label: 'No — Routine Community Care', answer: 'No, screening only' }] };

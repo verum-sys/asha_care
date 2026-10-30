@@ -173,7 +173,7 @@ export const CBAC_INTERVIEW_QUESTIONS: InterviewQuestion[] = [
     hintHi: 'लकड़ी/चूल्हा, उपला, कोयला, या गैस सिलेंडर',
     optionsEn: ['LPG Clean Fuel', 'Firewood / Chulha', 'Cow dung cake', 'Coal'],
     optionsHi: ['एलपीजी गैस', 'लकड़ी / चूल्हा', 'गोबर का उपला', 'कोयला'],
-    sampleResponses: ['Firewood cooking', 'लकड़ी और चूल्हा', 'LPG cylinder', 'Cow dung cake and firewood'],
+    sampleResponses: ['Firewood cooking', 'लकड़ी और चूल्हा', 'LPG cylinder', 'Cow dung cake'],
   },
   {
     id: 'phq1_interest', field: 'phq1_interest', slide: 'D',

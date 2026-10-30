@@ -23,9 +23,12 @@ describe('referral handover notes', () => {
   it('starts urgency on Please select', () => {
     expect(render()).toContain('<option value="" selected="">Please select</option>');
   });
-  it('shows the AI summary handover box only when referring from ASHA', () => {
-    expect(render({ currentTier: 'asha', savedSummary: 'Saved text' })).toContain('AI summary handover');
-    for (const currentTier of ['phc', 'dh']) expect(render({ currentTier, savedSummary: 'Saved text' })).not.toContain('AI summary handover');
+  it('offers Generate AI summary and Edit for the handover notes only when referring from ASHA', () => {
+    const asha = render({ currentTier: 'asha', aiSummary: 'Generated text' });
+    expect(asha).toContain('Generate AI summary');
+    expect(asha).toContain('id="referral-notes"');
+    expect(asha).not.toMatch(/<textarea[^>]*>Generated text/); // only filled when the worker taps Generate
+    for (const currentTier of ['phc', 'dh']) expect(render({ currentTier, aiSummary: 'Generated text' })).not.toContain('Generate AI summary');
   });
 });
 

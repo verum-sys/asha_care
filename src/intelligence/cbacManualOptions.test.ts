@@ -26,14 +26,13 @@ describe('manual answer options are understood locally without AI', () => {
     expect(get('smoke', 'Daily')?.smokeScore).toBe(2);
     expect(get('familyHistory', 'Yes')?.familyHistoryScore).toBe(2);
   });
-  it('accepts any combination of cooking fuels', () => {
+  it('accepts each cooking fuel on its own and refuses two at once', () => {
     const all6 = COOKING_FUELS.map(f => ({ label: f.label, answer: f.label }));
     for (const fuel of all6) {
       const r = parseCbacInterviewAnswer('cooking_fuel', fuel.answer, 'F', 40);
       expect(r.ok && r.updates.partCUpdates.cookingFuel?.length, fuel.answer).toBeGreaterThan(0);
     }
-    const combo = parseCbacInterviewAnswer('cooking_fuel', joinAnswers(all6.slice(0, 3)), 'F', 40);
-    expect(combo.ok && combo.updates.partCUpdates.cookingFuel?.length).toBe(3);
+    expect(parseCbacInterviewAnswer('cooking_fuel', joinAnswers(all6.slice(0, 3)), 'F', 40).ok).toBe(false);
   });
   it('offers Part B categories as a single choice, each understood alone, plus none; two together are refused', () => {
     const control = manualControlFor(all.find(q => q.id === 'b_categories')!, 'F', 65);

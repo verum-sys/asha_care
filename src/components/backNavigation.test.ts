@@ -27,7 +27,11 @@ describe('back skips form pages', () => {
   it('falls back to the start when only forms are behind', () => {
     expect(backSteps({ idx: 1 }, '/case/REF-0010', { 0: '/cbac?tier=asha' })).toBe('/');
   });
+  it('returns from a just-saved case to the report step it was saved from', () => {
+    expect(backSteps({ idx: 3 }, '/case/REF-0006', { 0: '/tier/asha', 1: '/cbac?tier=asha&step=q20', 2: '/cbac?tier=asha&step=report', 3: '/case/REF-0006' })).toBe(-1);
+  });
   it('recognises form pages', () => {
+    expect(isFormPage('/cbac?tier=asha&step=report')).toBe(false);
     expect(isFormPage('/cbac?tier=asha')).toBe(true);
     expect(isFormPage('/case/REF-1/cbac?tier=phc')).toBe(true);
     expect(isFormPage('/case/REF-1')).toBe(false);

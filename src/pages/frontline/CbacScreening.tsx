@@ -12,6 +12,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/Icon';
 import { BackLink } from '../../components/Layout';
+import { previousPath } from '../../components/backNavigation';
+import { clearCbacDraft, loadCbacDraft, saveCbacDraft, type CbacDraft } from '../../intelligence/cbacDraft';
 import { CaseStageSummary } from '../../components/CaseStageSummary';
 import { createCase, getCase, updateCase } from '../../db/repo';
 import { makePatient, makeReferral } from '../../db/factory';
@@ -154,7 +156,7 @@ const INITIAL_PART_D: CbacPartD = {
 
 export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?: boolean; tier?: CareTier } = {}) {
   const { id } = useParams();
-  const [urlParams] = useSearchParams();
+  const [urlParams, setUrlParams] = useSearchParams();
   // Embedded in a case page the tier comes from the case itself, not the address.
   const searchParams = tierProp ? new URLSearchParams([...urlParams.entries(), ['tier', tierProp]]) : urlParams;
   const navigate = useNavigate();
@@ -163,15 +165,24 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
   const { t, lang } = useLang();
   const { workerName } = useSettings();
 
+  // A new CBAC keeps a draft for this tab, so returning to a step (Back, or Back from the saved case) restores every answer.
+  const draftRef = useRef<CbacDraft | undefined>(undefined);
+  if (draftRef.current === undefined && !id && !embedded) {
+    if (urlParams.get('step')) draftRef.current = loadCbacDraft();
+    else clearCbacDraft(); // "New CBAC Registration" always starts empty
+  }
+  const draft = draftRef.current;
   const [activeSlide, setActiveSlide] = useState<SlideId>('A');
-  const [general, setGeneral] = useState<CbacGeneralInfo>({
+  const [general, setGeneral] = useState<CbacGeneralInfo>(() => draft?.general ?? {
     ...INITIAL_GENERAL,
     ashaName: workerName || 'ASHA-1001',
   });
-  const [partA, setPartA] = useState<CbacPartA>(INITIAL_PART_A);
-  const [partB, setPartB] = useState<CbacPartB>(INITIAL_PART_B);
-  const [partC, setPartC] = useState<CbacPartC>(INITIAL_PART_C);
-  const [partD, setPartD] = useState<CbacPartD>(INITIAL_PART_D);
+  const [partA, setPartA] = useState<CbacPartA>(() => draft?.partA ?? INITIAL_PART_A);
+  const [partB, setPartB] = useState<CbacPartB>(() => draft?.partB ?? INITIAL_PART_B);
+  const [partC, setPartC] = useState<CbacPartC>(() => draft?.partC ?? INITIAL_PART_C);
+  const [partD, setPartD] = useState<CbacPartD>(() => draft?.partD ?? INITIAL_PART_D);
+  // Set once this draft has been saved, so saving again updates that case instead of creating a duplicate.
+  const [savedCaseId, setSavedCaseId] = useState<string | undefined>(() => draft?.savedCaseId);
 
   const [smartExplanations, setSmartExplanations] = useState<SmartParseExplanation[]>([]);
   const [pulseField, setPulseField] = useState<string | null>(null);
@@ -187,15 +198,19 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
   const lock = (locked ? { inert: '', 'aria-disabled': true } : {}) as object;
   const lockedStyle = locked ? ' opacity-60' : '';
   const defaultFinding: ScreeningFinding | '' = ['phc', 'dh', 'tcc'].includes(searchParams.get('tier') || '') ? 'needs_review' : '';
-  const [referralForm, setReferralForm] = useState<ReferralFormState>({ ...INITIAL_REFERRAL, screeningFinding: defaultFinding });
+  const [referralForm, setReferralForm] = useState<ReferralFormState>(() => (draft?.referralForm as ReferralFormState | undefined) ?? { ...INITIAL_REFERRAL, screeningFinding: defaultFinding });
 
   const [interviewIndex, setInterviewIndex] = useState<number>(0);
   const [interviewActive, setInterviewActive] = useState<boolean>(false);
-  const [bCategories, setBCategories] = useState<PartBCategory[] | undefined>();
+  const [bCategories, setBCategories] = useState<PartBCategory[] | undefined>(() => draft?.bCategories);
   // ASHA registrations start with a guided, one-question-at-a-time flow; editing an existing case or other tiers open the full form.
   // Opening an existing patient shows the same report as the end of a new CBAC (with inline Edit); ?view=form opens the full form directly.
   const [guided, setGuided] = useState<GuidedMode>(() => (searchParams.get('view') === 'form' ? 'form' : id ? 'report' : (searchParams.get('tier') || 'asha') !== 'asha' ? 'form' : 'choose'));
-  const [cameFromGuided, setCameFromGuided] = useState(!!id);
+  const [cameFromGuided, setCameFromGuided] = useState(!!id || !!draft);
+  useEffect(() => {
+    if (id || embedded) return;
+    saveCbacDraft({ general, partA, partB, partC, partD, referralForm, bCategories, savedCaseId });
+  }, [id, embedded, general, partA, partB, partC, partD, referralForm, bCategories, savedCaseId]);
   const [editingReport, setEditingReport] = useState(false);
   // An existing case shows Save only once something in the report has been changed.
   const [reportDirty, setReportDirty] = useState(false);
@@ -627,7 +642,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
     if (res.partCUpdates.cookingFuel && res.partCUpdates.cookingFuel.length > 0) {
       setPartC((prev) => ({
         ...prev,
-        cookingFuel: res.partCUpdates.cookingFuel!,
+        cookingFuel: res.partCUpdates.cookingFuel!.slice(0, 1),
       }));
     }
 
@@ -685,7 +700,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
       const exists = prev.cookingFuel.includes(fuelId);
       return {
         ...prev,
-        cookingFuel: exists ? prev.cookingFuel.filter((f) => f !== fuelId) : [...prev.cookingFuel, fuelId],
+        cookingFuel: exists ? [] : [fuelId], // one cooking fuel per household
       };
     });
   }
@@ -833,7 +848,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
         setPartB(() => ({ symptoms: Object.fromEntries(applicable.map(item => [item.id, chosen.includes(item.id)])) }));
         return;
       }
-      case 'fuel': setPartC(previous => ({ ...previous, cookingFuel: value as string[] })); return;
+      case 'fuel': setPartC(previous => ({ ...previous, cookingFuel: (Array.isArray(value) ? value : [value]).slice(0, 1) })); return;
       case 'referral': setReferralForm(f => ({ ...f, referralRequired: text as ReferralRequiredAnswer | '' })); return;
       default: {
         const parsed = parseCbacInterviewAnswer(key, text, general.sex, general.age);
@@ -842,6 +857,46 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
       }
     }
   }
+
+  // Back inside a new CBAC steps to the previous question instead of leaving, so answers are never lost.
+  function stepBack(): boolean {
+    if (!id && guided !== 'choose' && previousPath(window.history.state)?.startsWith('/cbac')) { navigate(-1); return true; }
+    if (guided === 'form' && cameFromGuided) { setGuided('report'); return true; }
+    if (id) return false;
+    if (guided === 'report' && interviewQuestions.length) { setGuided('manual'); goToInterviewQuestion(interviewQuestions.length - 1); return true; }
+    if (guided === 'voice' || guided === 'manual') {
+      if (interviewIndex > 0) goToInterviewQuestion(interviewIndex - 1);
+      else { stopInterview(); setGuided('choose'); }
+      return true;
+    }
+    return false;
+  }
+
+  // Each guided step of a new CBAC gets its own history entry (?step=), so the browser's Back goes to the previous question.
+  const stepKey = guided === 'choose' ? 'start' : guided === 'report' ? 'report' : guided === 'form' ? 'form' : `q${interviewIndex}`;
+  const urlStep = urlParams.get('step');
+  // The step last seen by the effect below; a history entry is added only when the step really changes.
+  const lastStepKey = useRef(stepKey);
+  useEffect(() => {
+    if (id || embedded) return;
+    const next = new URLSearchParams(urlParams);
+    next.set('step', stepKey);
+    if (urlStep === null) { lastStepKey.current = stepKey; setUrlParams(next, { replace: true }); return; }
+    if (lastStepKey.current === stepKey) return;
+    lastStepKey.current = stepKey;
+    if (stepKey !== urlStep) setUrlParams(next);
+  }, [stepKey, urlStep]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Browser Back/Forward (or a restored page) changes ?step=; show that step.
+  useEffect(() => {
+    if (id || embedded || !urlStep || urlStep === stepKey) return;
+    if (urlStep === 'start') { stopInterview(); setGuided('choose'); return; }
+    if (urlStep === 'report') { stopInterview(); setGuided('report'); return; }
+    if (urlStep === 'form') { setGuided('form'); return; }
+    const index = Number(urlStep.slice(1));
+    if (!Number.isInteger(index) || index < 0 || index >= interviewQuestions.length) return;
+    if (guided !== 'voice' && guided !== 'manual') setGuided('manual');
+    goToInterviewQuestion(index);
+  }, [urlStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openFullForm() { stopInterview(); setGuided('form'); setActiveSlide('A'); }
   function skipGuidedQuestion() {
@@ -961,8 +1016,16 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
           setReportDirty(false);
         } else navigate(`/case/${id}`, { replace: true, state: { toast: 'status.savedLocally' } });
       } else {
-        const newId = await createCase(patientDraft, referralDraft, general.ashaName || workerName || 'ASHA');
-        navigate(`/case/${newId}`, { replace: true, state: { toast: 'status.savedLocally', showStageSummary: true } });
+        // Kept in history (not replaced): Back from the case returns to this report with every answer restored.
+        if (savedCaseId) {
+          await updateCase(savedCaseId, patientDraft, referralDraft);
+          navigate(`/case/${savedCaseId}`, { state: { toast: 'status.savedLocally' } });
+        } else {
+          const newId = await createCase(patientDraft, referralDraft, general.ashaName || workerName || 'ASHA');
+          setSavedCaseId(newId);
+          saveCbacDraft({ general, partA, partB, partC, partD, referralForm, bCategories, savedCaseId: newId });
+          navigate(`/case/${newId}`, { state: { toast: 'status.savedLocally', showStageSummary: true } });
+        }
       }
     } finally {
       setSaving(false);
@@ -975,7 +1038,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
         <div className="flex items-center gap-2">
-          <BackLink />
+          <BackLink onBack={stepBack} />
         </div>
         <div className="flex items-center gap-2">
           {guided === 'form' && (<button

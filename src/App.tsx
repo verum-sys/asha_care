@@ -80,7 +80,10 @@ function CbacRoute() {
   const [params] = useSearchParams();
   // An existing case has no separate form page: the case page itself is the form.
   if (id && params.get('view') !== 'form') return <Navigate to={`/case/${id}`} replace />;
-  return <CbacScreening key={location.pathname + location.search} />;
+  // The guided step lives in ?step= so browser Back moves between questions; it must not remount the form.
+  const stable = new URLSearchParams(params);
+  stable.delete('step');
+  return <CbacScreening key={location.pathname + stable.toString()} />;
 }
 
 export function App() {
