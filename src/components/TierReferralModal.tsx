@@ -224,7 +224,7 @@ export function TierReferralModal({
               className="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-1.5"
             >
               <Icon name="check" size={16} />
-              <span>{submitting ? 'Referring...' : `Confirm Referral to ${targetTier.toUpperCase()}`}</span>
+              <span>{submitting ? t('Referring…') : t('Confirm referral to {tier}', { tier: targetTier.toUpperCase() })}</span>
             </button>
           </div>
         </form>

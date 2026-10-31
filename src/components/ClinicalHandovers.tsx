@@ -55,7 +55,7 @@ export function ClinicalHandovers({ handovers }: { handovers?: ClinicalHandover[
       <span className="text-[11px] text-slate-500">{t('Hover or tap a stage to see its notes.')}</span>
     </div>
     <ul className="space-y-1.5">
-      {stages.map(({ handover, index, exam, showVitals, rows }) => <HandoverStage key={`${handover.at}-${index}`}
+      {stages.map(({ handover, index, exam, showVitals, rows }) => <HandoverStage key={`${handover.at}-${index}`} id={`handover-${handover.fromTier}`}
         label={`${handover.fromTier.toUpperCase()} → ${handover.toTier.toUpperCase()} · ${new Date(handover.at).toLocaleDateString()}`}>
         {showVitals && <RecordedVitals exam={exam} />}
         {rows.map(([label, value]) => <div key={label}><strong>{label}</strong><p className="whitespace-pre-wrap text-slate-700 mt-1">{value}</p></div>)}
@@ -66,9 +66,9 @@ export function ClinicalHandovers({ handovers }: { handovers?: ClinicalHandover[
 }
 
 /** One compact row per stage; its notes open in a popup on hover or keyboard focus, and on tap for touch screens. */
-function HandoverStage({ label, children }: { label: string; children: ReactNode }) {
+function HandoverStage({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   const [pinned, setPinned] = useState(false);
-  return <li className="group relative">
+  return <li id={id} className="group relative">
     <button type="button" aria-expanded={pinned} onClick={() => setPinned(open => !open)} onBlur={() => setPinned(false)}
       className="flex w-full items-center justify-between gap-2 rounded-lg border border-sky-100 bg-white px-3 py-2 text-left text-xs font-semibold text-sky-900 hover:border-sky-300 focus:border-sky-400 focus:outline-none">
       <span>{label}</span><span aria-hidden="true" className="text-sky-500">ⓘ</span>

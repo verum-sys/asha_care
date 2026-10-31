@@ -36,6 +36,10 @@ interface ConnectivityCtx {
   syncing: boolean;
   /** The last automatic or manual sync attempt failed; cleared on the next success. */
   syncFailed: boolean;
+  /** Changes are waiting but there is no signed-in session to send them with. */
+  needsSignIn: boolean;
+  /** When the last sync finished, ISO time; null until one has this session. */
+  lastSyncedAt: string | null;
   lastResult: SyncResult | null;
   sync: () => Promise<void>;
   needRefresh: boolean;
@@ -54,6 +58,8 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const autoSyncBlocked = useRef(false);
 
   // Service worker: app shell is cached for offline use after the first load.
@@ -123,8 +129,11 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
       if (result.skipped) {
         // Not signed in yet: not a failure. Stop the pending-triggered loop; the poll below retries.
         autoSyncBlocked.current = true;
+        setNeedsSignIn(true);
       } else {
         setLastResult(result);
+        setLastSyncedAt(new Date().toISOString());
+        setNeedsSignIn(false);
         setSyncFailed(false);
         autoSyncBlocked.current = false;
       }
@@ -164,6 +173,8 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
         pending,
         syncing,
         syncFailed,
+        needsSignIn,
+        lastSyncedAt,
         lastResult,
         sync,
         needRefresh,

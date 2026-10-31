@@ -14,6 +14,12 @@ import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
+import { MoreMenu, type BarAction } from '../../components/MoreMenu';
+import { NEXT_TIER, primaryCaseAction } from '../../intelligence/caseActions';
+import { analyze } from '../../intelligence/engine';
+import { needsToday } from '../../intelligence/today';
+import { CallButton } from '../../components/TodayList';
+import { getCaseCategory, type CaseCategory } from '../frontline/CategoryCases';
 import { ashaAppointment, ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
@@ -47,6 +53,7 @@ export function TierModuleView() {
   useTermTier(activeTier);
 
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'all' | 'today' | CaseCategory>('all');
 
   // Modals state
   const [activeCaseForAttachment, setActiveCaseForAttachment] = useState<{ id: string; category: 'general' | 'biopsy' | 'radiology' } | null>(null);
@@ -111,6 +118,55 @@ export function TierModuleView() {
   if (!tierMeta[activeTier]) return <Navigate to="/" replace />;
   const currentMeta = tierMeta[activeTier];
 
+  // Status tabs: Today first, then the same three groups as the ASHA home.
+  const intelById = new Map(tierCases.map(c => [c.referral.id, analyze(c.patient, c.referral, c.followUps)]));
+  const summaryOf = (c: CaseRecord) => ({ patient: c.patient, referral: c.referral, followUps: c.followUps, intel: intelById.get(c.referral.id)! });
+  const inTab = (c: CaseRecord, which: typeof tab) => which === 'all' || (which === 'today' ? needsToday(summaryOf(c)) : getCaseCategory(summaryOf(c)) === which && summaryOf(c).intel.open);
+  const tabs: { key: typeof tab; label: string }[] = [
+    { key: 'all', label: t('today.tab.all') },
+    { key: 'today', label: t('today.tab.today') },
+    { key: 'critical', label: t('home.cardCritical') },
+    { key: 'pending', label: t('home.cardPending') },
+    { key: 'on_track', label: t('home.cardOnTrack') },
+  ];
+  const shownCases = tierCases.filter(c => inTab(c, tab));
+
+  /** One main action per card, picked from the case state; everything else goes in More. */
+  function cardActionsFor(c: CaseRecord): { primary: BarAction; more: BarAction[] } {
+    const holder = c.referral.tier || 'asha';
+    const canAct = holder === activeTier;
+    const hasCbac = !!c.referral.screening?.cbac;
+    const openCase: BarAction = {
+      key: 'open',
+      label: activeTier === 'asha' ? (hasCbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : t('CBAC Form'),
+      onClick: () => navigate(hasCbac || activeTier !== 'asha' ? `/case/${c.referral.id}?tier=${activeTier}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`, { state: { returnTo: `/tier/${activeTier}` } }),
+    };
+    const followUp: BarAction = { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${c.referral.id}/follow-up`, { state: { returnTo: `/tier/${activeTier}` } }) };
+    const attendance: BarAction | undefined = activeTier !== 'asha' && canAct ? { key: 'attendance', label: t('Record attendance'), onClick: () => setVisitCase(c) } : undefined;
+    const refer: BarAction | undefined = activeTier !== 'asha' && NEXT_TIER[activeTier] && canAct ? { key: 'refer', label: activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setActiveCaseForReferral({ caseRecord: c }) } : undefined;
+    let primary: BarAction;
+    if (activeTier === 'asha') primary = hasCbac && !canAct ? followUp : openCase;
+    else {
+      const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance });
+      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : followUp) ?? openCase;
+    }
+    const extras: BarAction[] = activeTier === 'asha' ? [followUp] : [
+      { key: 'exam', label: t('Add Notes'), onClick: () => setActiveCaseForExam({ caseRecord: c }) },
+      { key: 'lab', label: t('+ Reports (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'general' }) },
+      ...(activeTier === 'dh' || activeTier === 'tcc' ? [
+        { key: 'biopsy', label: t('+ Biopsy Report (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'biopsy' }) },
+        { key: 'radiology', label: t('+ Radiology Report (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'radiology' }) },
+      ] : []),
+      followUp,
+      ...(attendance ? [attendance] : []),
+      ...(refer ? [refer] : []),
+      openCase,
+    ];
+    const more = extras.filter(action => action.key !== primary.key);
+    if (activeTier === 'asha' && primary.key !== 'open') more.unshift(openCase);
+    return { primary, more };
+  }
+
   return (
     <div key={activeTier} className="tier-module space-y-5 max-w-6xl mx-auto pb-12">
       {/* Breadcrumb & Navigation */}
@@ -121,38 +177,21 @@ export function TierModuleView() {
         </span>
       </div>
 
-      {/* Module Hero Banner */}
-      <div className={`rounded-2xl bg-gradient-to-r ${currentMeta.gradient} text-white p-6 shadow-lg border border-white/10 space-y-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80 block">
-              {activeTier.toUpperCase()} {t('OPERATIONAL MODULE')}
-            </span>
-            <div className="relative mt-2 w-full min-w-0 sm:w-[360px]">
-              <input
-                type="text"
-                placeholder={t('Search patients...')}
-                aria-label={t('Search patients...')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border-0 bg-white/95 py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-white"
-              />
-              <div className="absolute left-3 top-3 text-slate-400"><Icon name="spark" size={14} /></div>
-            </div>
-          </div>
-
-          {/* Prominent "+ Add New CBAC Form" button */}
-          <button
-            type="button"
-            onClick={() => navigate(`/cbac?tier=${activeTier}`)}
-            className="btn !min-h-[44px] px-4 rounded-xl text-xs sm:text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md flex items-center gap-2 active:scale-95 transition-all"
-          >
-            <Icon name="spark" size={16} className="text-teal-600" />
-            <span>{t('New CBAC Registration')}</span>
-          </button>
-        </div>
-
-
+      {/* Compact header: stays on screen with search and the new-registration button. */}
+      <div className="sticky top-[calc(54px+env(safe-area-inset-top,0px))] z-20 -mx-1 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white/95 p-2 shadow-sm backdrop-blur sm:top-0">
+        <span className="chip bg-brand font-bold text-white" aria-label={`${activeTier.toUpperCase()} ${t('OPERATIONAL MODULE')}`}>{activeTier.toUpperCase()}</span>
+        <input
+          type="text"
+          placeholder={t('Search patients...')}
+          aria-label={t('Search patients...')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-[9rem] flex-1 rounded-xl border border-line bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/40"
+        />
+        <button type="button" onClick={() => navigate(`/cbac?tier=${activeTier}`)} className="btn btn-primary !min-h-[44px] shrink-0 text-sm font-bold">
+          <Icon name="plus" size={16} />
+          <span>{t('New CBAC Registration')}</span>
+        </button>
       </div>
 
       {/* Patient List in this Module */}
@@ -161,10 +200,18 @@ export function TierModuleView() {
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 font-display">
             <span>{t('Patients at')} {t(currentMeta.name)}</span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              {tierCases.length} {tierCases.length === 1 ? 'case' : 'cases'}
+              {tierCases.length} {tierCases.length === 1 ? t('case') : t('cases')}
             </span>
           </h2>
 
+        </div>
+
+        <div role="tablist" aria-label={t('Patients at')} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          {tabs.map(({ key, label }) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`btn !min-h-[44px] shrink-0 whitespace-nowrap text-sm font-semibold ${tab === key ? 'btn-primary' : 'btn-secondary'}`}>
+              {label} <span className="opacity-80">{tierCases.filter(c => inTab(c, key)).length}</span>
+            </button>
+          ))}
         </div>
 
         {tierCases.length === 0 ? (
@@ -180,9 +227,11 @@ export function TierModuleView() {
           </div>
         ) : (
           <div className="space-y-3">
-            {tierCases.map((c) => {
+            {shownCases.length === 0 && <p className="py-6 text-center text-sm text-muted">{t('today.emptyTab')}</p>}
+            {shownCases.map((c) => {
               const cbac = c.referral.screening?.cbac;
               const reportsCount = (c.referral.reports?.length || 0) + (c.referral.biopsyReports?.length || 0) + (c.referral.radiologyReports?.length || 0);
+              const cardActions = cardActionsFor(c);
 
               return (
                 <div
@@ -207,7 +256,7 @@ export function TierModuleView() {
                           )}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {c.patient.age ? `${c.patient.age}y` : ''} · {c.patient.locality || 'Locality unrecorded'}
+                          {c.patient.age ? `${c.patient.age}y` : ''} · {c.patient.locality || t('Locality unrecorded')}
                         </div>
                       </div>
                     </div>
@@ -270,80 +319,12 @@ export function TierModuleView() {
 
                   {activeTier === 'asha' && <p className="line-clamp-2 text-xs text-slate-600">{ashaNoteLines(c, t, formatDate).join(' ')}</p>}
                   {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier === 'asha'
-                    ? <Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/follow-up`} state={{ returnTo: `/tier/${activeTier}` }}>{t('Record follow-up')}</Link>
-                    : <><span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>{t('Record attendance')}</button></>}</div>
-                  {/* Toolbar */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {/* CBAC Form */}
-                      <Link
-                        to={cbac || activeTier !== 'asha' ? `/case/${c.referral.id}?tier=${activeTier}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`}
-                        state={{ returnTo: `/tier/${activeTier}` }}
-                        className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
-                      >
-                        <Icon name="spark" size={13} className="text-teal-600" />
-                        <span>{activeTier === 'asha' ? (cbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : t('CBAC Form')}</span>
-                      </Link>
-
-                      {/* Physical Exam Notes */}
-                      {activeTier !== 'asha' && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseForExam({ caseRecord: c })}
-                          className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
-                        >
-                          <Icon name="user" size={13} className="text-sky-600" />
-                          <span>{t('Add Notes')}</span>
-                        </button>
-                      )}
-                      {/* PDF Reports Attachments */}
-                      {activeTier !== 'asha' && (
-                        <div className="flex flex-wrap items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'general' })}
-                            className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
-                          >
-                            {t('+ Reports (PDF)')}
-                          </button>
-                          {(activeTier === 'dh' || activeTier === 'tcc') && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'biopsy' })}
-                                className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
-                              >
-                                {t('+ Biopsy Report (PDF)')}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'radiology' })}
-                                className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200"
-                              >
-                                {t('+ Radiology Report (PDF)')}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* Refer to Next Tier */}
-                      {activeTier !== 'tcc' && activeTier !== 'asha' && (c.referral.tier || 'asha') === activeTier && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseForReferral({ caseRecord: c })}
-                          className="btn !min-h-[34px] px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1"
-                        >
-                          <span>
-                            {activeTier === 'phc' ? 'Refer to DH' : 'Refer to TCC'}
-                          </span>
-                          <Icon name="back" size={13} className="rotate-180" />
-                        </button>
-                      )}
-                    </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier !== 'asha' && <span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span>}</div>
+                  {/* One main action for this case; the rest behind More. */}
+                  <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                    <button type="button" className="btn btn-primary min-w-0 flex-1 !min-h-[48px] text-sm font-bold" onClick={cardActions.primary.onClick}>{cardActions.primary.label}</button>
+                    <CallButton phone={c.patient.phone} compact className="!min-h-[48px]" />
+                    <MoreMenu actions={cardActions.more} placement="bottom" />
                   </div>
                 </div>
               );

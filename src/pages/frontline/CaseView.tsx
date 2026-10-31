@@ -3,7 +3,7 @@ import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatu
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
 import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CbacScreening } from './CbacScreening';
 import { BackLink } from '../../components/Layout';
 import { Icon } from '../../components/Icon';
@@ -16,6 +16,11 @@ import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
+import { JourneyStepper } from '../../components/JourneyStepper';
+import { SyncChip } from '../../components/StatusChip';
+import { CaseHeader } from '../../components/CaseHeader';
+import { CaseActionBar, type BarAction } from '../../components/CaseActionBar';
+import { NEXT_TIER, primaryCaseAction, type CaseAction } from '../../intelligence/caseActions';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 
@@ -63,6 +68,37 @@ export function CaseView() {
   const reportsCount = (referral.reports?.length || 0) + (referral.biopsyReports?.length || 0) + (referral.radiologyReports?.length || 0);
 
 
+  // Tapping a finished step opens that stage's handover note below.
+  const openHandover = (step: string) => {
+    const item = document.getElementById(`handover-${step}`);
+    if (!item) return;
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const button = item.querySelector('button');
+    button?.focus();
+    if (button?.getAttribute('aria-expanded') === 'false') button.click();
+  };
+
+  // One main action for this case right now; everything else sits behind "More".
+  const nextTier = NEXT_TIER[currentTier];
+  const attendance = referral.worker.attendance ?? referral.facility.attendance;
+  const available: Record<CaseAction, BarAction | undefined> = {
+    refer: nextTier && !alreadyReferred ? { key: 'refer', label: currentTier === 'asha' ? t('Refer to PHC') : currentTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setShowReferralModal(true) } : undefined,
+    attendance: currentTier !== 'asha' && !alreadyReferred ? { key: 'attendance', label: t('Record attendance'), onClick: () => setShowVisitModal(true) } : undefined,
+    followUp: { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${referral.id}/follow-up`) },
+  };
+  let primaryKey = primaryCaseAction({ viewTier: currentTier, holderTier: referral.tier || 'asha', attendance });
+  if (!available[primaryKey]) primaryKey = 'followUp';
+  const moreActions: BarAction[] = [
+    ...(['refer', 'attendance', 'followUp'] as const).filter(key => key !== primaryKey).map(key => available[key]),
+    ...(currentTier === 'asha' ? [] : [
+      { key: 'exam', label: referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setShowExamModal(true) },
+      { key: 'lab', label: t('+ Lab PDF'), onClick: () => setAttachmentCat('general') },
+      { key: 'biopsy', label: t('+ Biopsy PDF'), onClick: () => setAttachmentCat('biopsy') },
+      { key: 'radiology', label: t('+ Radiology PDF'), onClick: () => setAttachmentCat('radiology') },
+    ]),
+  ].filter((action): action is BarAction => !!action);
+  const actionBar = <CaseActionBar primary={available[primaryKey]!} more={moreActions} />;
+
   // At ASHA the case page is the CBAC form itself: sections A-D and referral, editable in place.
   if (currentTier === 'asha') {
     // Once referred, ASHA's timeline keeps its own stage plus appointment dates (reschedules, and the date TCC sent back), not later clinical detail.
@@ -73,25 +109,10 @@ export function CaseView() {
       <div className="space-y-4 max-w-4xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <BackLink />
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link
-              to={`/case/${referral.id}/follow-up`}
-              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
-            >
-              <span>{t('Record follow-up')}</span>
-            </Link>
-            {!alreadyReferred && (
-              <button
-                type="button"
-                onClick={() => setShowReferralModal(true)}
-                className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
-              >
-                <span>{t('Refer to PHC')}</span>
-                <Icon name="back" size={14} className="rotate-180" />
-              </button>
-            )}
-          </div>
+          <SyncChip status={referral.syncStatus} />
         </div>
+        <CaseHeader patient={patient} referral={referral} tier={currentTier} />
+        <JourneyStepper referral={referral} />
         <CbacScreening embedded />
         <section className="card space-y-2">
           <h2 className="text-lg font-bold flex items-center gap-2"><Icon name="user" size={20} className="text-sky-600" /><span>{t('Notes (ASHA Worker)')}</span></h2>
@@ -101,16 +122,7 @@ export function CaseView() {
           <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
           <Timeline referral={referral} followUps={ashaFollowUps} facilityEvents={ashaEvents} syncEvents={syncEvents} />
         </section>
-        {!alreadyReferred && <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowReferralModal(true)}
-            className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
-          >
-            <span>{t('Refer to PHC')}</span>
-            <Icon name="back" size={14} className="rotate-180" />
-          </button>
-        </div>}
+        {actionBar}
         {showReferralModal && (
           <TierReferralModal referralId={referral.id} patientName={patient.name?.trim() || t('Community member')} currentTier={currentTier} savedSummary={referral.aiSummaryOverride} aiSummary={buildSummary(data).text} physicalExam={referral.physicalExam} onEditSummary={() => setShowAiModal(true)} isOpen onClose={() => setShowReferralModal(false)} onReferred={backToTierList} />
         )}
@@ -123,22 +135,12 @@ export function CaseView() {
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <BackLink />
-        {/* AI Summary and Referral Buttons in top bar */}
-        <div className="flex items-center gap-2">
-          {currentTier !== 'tcc' && !alreadyReferred && (
-            <button
-              type="button"
-              onClick={() => setShowReferralModal(true)}
-              className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
-            >
-              <span>
-                {currentTier === 'phc' ? 'Refer to DH' : 'Refer to TCC'}
-              </span>
-              <Icon name="back" size={14} className="rotate-180" />
-            </button>
-          )}
-        </div>
+        <SyncChip status={referral.syncStatus} />
       </div>
+
+      <CaseHeader patient={patient} referral={referral} tier={currentTier} />
+
+      <JourneyStepper referral={referral} onSelect={openHandover} />
 
       {/* One form layout for every tier: sections A-D and referral, editable in place. */}
       <CbacScreening embedded tier={currentTier} />
@@ -159,7 +161,7 @@ export function CaseView() {
             onClick={() => setShowExamModal(true)}
             className="btn btn-secondary !min-h-[36px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1"
           >
-            <span>{referral.physicalExam ? 'Edit Physical Exam' : '+ Record Physical Exam'}</span>
+            <span>{referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam')}</span>
           </button>
         </div>
 
@@ -286,16 +288,13 @@ export function CaseView() {
         </section>
       )}
 
-      {/* Follow-up Action Link */}
-      <Link to={`/case/${referral.id}/follow-up`} className="btn btn-primary btn-block !min-h-[52px] text-base font-bold shadow-md" role="button">
-        {t('case.recordFollowUp')}
-      </Link>
-
       {/* Timeline */}
       <section className="card">
         <h2 className="mb-3 text-lg font-bold">{t('case.timeline')}</h2>
         <Timeline referral={referral} followUps={followUps} facilityEvents={facilityEvents} syncEvents={syncEvents} />
       </section>
+
+      {actionBar}
 
       {/* MODALS */}
       {showVisitModal && <VisitStatusModal referral={referral} onClose={() => setShowVisitModal(false)} />}

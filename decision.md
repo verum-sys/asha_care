@@ -175,7 +175,6 @@ Each entry gives the decision, the reason for it, and what it costs us or what t
 
 - **Tests:** these are Vitest tests. Pure logic is tested directly, and UI is tested with `renderToStaticMarkup`, so no browser is needed. Run `npm test` and `npx tsc --noEmit` before every push.
 - **Small, focused changes:** each user request went in as its own commit on `main`.
-- **No Claude attribution:** commits have no Claude co-author line, at the owner's request.
 
 ---
 
