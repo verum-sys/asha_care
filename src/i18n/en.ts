@@ -469,6 +469,8 @@ export const en = {
   'journey.title': 'Care journey',
   'journey.back': 'Back to ASHA',
   'journey.here': 'Now',
+  'case.header.age': '{n} yrs',
+  'case.more': 'More',
   'journey.openNote': 'open handover note',
   'journey.appt': 'Appt {date}',
   'journey.referred': 'Referred {date}',

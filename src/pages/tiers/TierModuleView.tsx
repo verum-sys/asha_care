@@ -14,6 +14,8 @@ import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
+import { MoreMenu, type BarAction } from '../../components/MoreMenu';
+import { NEXT_TIER, primaryCaseAction } from '../../intelligence/caseActions';
 import { ashaAppointment, ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
@@ -111,6 +113,42 @@ export function TierModuleView() {
   if (!tierMeta[activeTier]) return <Navigate to="/" replace />;
   const currentMeta = tierMeta[activeTier];
 
+  /** One main action per card, picked from the case state; everything else goes in More. */
+  function cardActionsFor(c: CaseRecord): { primary: BarAction; more: BarAction[] } {
+    const holder = c.referral.tier || 'asha';
+    const canAct = holder === activeTier;
+    const hasCbac = !!c.referral.screening?.cbac;
+    const openCase: BarAction = {
+      key: 'open',
+      label: activeTier === 'asha' ? (hasCbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : t('CBAC Form'),
+      onClick: () => navigate(hasCbac || activeTier !== 'asha' ? `/case/${c.referral.id}?tier=${activeTier}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`, { state: { returnTo: `/tier/${activeTier}` } }),
+    };
+    const followUp: BarAction = { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${c.referral.id}/follow-up`, { state: { returnTo: `/tier/${activeTier}` } }) };
+    const attendance: BarAction | undefined = activeTier !== 'asha' && canAct ? { key: 'attendance', label: t('Record attendance'), onClick: () => setVisitCase(c) } : undefined;
+    const refer: BarAction | undefined = activeTier !== 'asha' && NEXT_TIER[activeTier] && canAct ? { key: 'refer', label: activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setActiveCaseForReferral({ caseRecord: c }) } : undefined;
+    let primary: BarAction;
+    if (activeTier === 'asha') primary = hasCbac && !canAct ? followUp : openCase;
+    else {
+      const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance });
+      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : followUp) ?? openCase;
+    }
+    const extras: BarAction[] = activeTier === 'asha' ? [followUp] : [
+      { key: 'exam', label: t('Add Notes'), onClick: () => setActiveCaseForExam({ caseRecord: c }) },
+      { key: 'lab', label: t('+ Reports (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'general' }) },
+      ...(activeTier === 'dh' || activeTier === 'tcc' ? [
+        { key: 'biopsy', label: t('+ Biopsy Report (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'biopsy' }) },
+        { key: 'radiology', label: t('+ Radiology Report (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'radiology' }) },
+      ] : []),
+      followUp,
+      ...(attendance ? [attendance] : []),
+      ...(refer ? [refer] : []),
+      openCase,
+    ];
+    const more = extras.filter(action => action.key !== primary.key);
+    if (activeTier === 'asha' && primary.key !== 'open') more.unshift(openCase);
+    return { primary, more };
+  }
+
   return (
     <div key={activeTier} className="tier-module space-y-5 max-w-6xl mx-auto pb-12">
       {/* Breadcrumb & Navigation */}
@@ -183,6 +221,7 @@ export function TierModuleView() {
             {tierCases.map((c) => {
               const cbac = c.referral.screening?.cbac;
               const reportsCount = (c.referral.reports?.length || 0) + (c.referral.biopsyReports?.length || 0) + (c.referral.radiologyReports?.length || 0);
+              const cardActions = cardActionsFor(c);
 
               return (
                 <div
@@ -270,80 +309,11 @@ export function TierModuleView() {
 
                   {activeTier === 'asha' && <p className="line-clamp-2 text-xs text-slate-600">{ashaNoteLines(c, t, formatDate).join(' ')}</p>}
                   {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier === 'asha'
-                    ? <Link className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" to={`/case/${c.referral.id}/follow-up`} state={{ returnTo: `/tier/${activeTier}` }}>{t('Record follow-up')}</Link>
-                    : <><span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span><button type="button" className="btn btn-secondary text-xs" onClick={() => setVisitCase(c)}>{t('Record attendance')}</button></>}</div>
-                  {/* Toolbar */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {/* CBAC Form */}
-                      <Link
-                        to={cbac || activeTier !== 'asha' ? `/case/${c.referral.id}?tier=${activeTier}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`}
-                        state={{ returnTo: `/tier/${activeTier}` }}
-                        className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
-                      >
-                        <Icon name="spark" size={13} className="text-teal-600" />
-                        <span>{activeTier === 'asha' ? (cbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : t('CBAC Form')}</span>
-                      </Link>
-
-                      {/* Physical Exam Notes */}
-                      {activeTier !== 'asha' && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseForExam({ caseRecord: c })}
-                          className="btn !min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-1"
-                        >
-                          <Icon name="user" size={13} className="text-sky-600" />
-                          <span>{t('Add Notes')}</span>
-                        </button>
-                      )}
-                      {/* PDF Reports Attachments */}
-                      {activeTier !== 'asha' && (
-                        <div className="flex flex-wrap items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'general' })}
-                            className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
-                          >
-                            {t('+ Reports (PDF)')}
-                          </button>
-                          {(activeTier === 'dh' || activeTier === 'tcc') && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'biopsy' })}
-                                className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
-                              >
-                                {t('+ Biopsy Report (PDF)')}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveCaseForAttachment({ id: c.referral.id, category: 'radiology' })}
-                                className="btn !min-h-[34px] px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200"
-                              >
-                                {t('+ Radiology Report (PDF)')}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* Refer to Next Tier */}
-                      {activeTier !== 'tcc' && activeTier !== 'asha' && (c.referral.tier || 'asha') === activeTier && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseForReferral({ caseRecord: c })}
-                          className="btn !min-h-[34px] px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1"
-                        >
-                          <span>
-                            {activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC')}
-                          </span>
-                          <Icon name="back" size={13} className="rotate-180" />
-                        </button>
-                      )}
-                    </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier !== 'asha' && <span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span>}</div>
+                  {/* One main action for this case; the rest behind More. */}
+                  <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                    <button type="button" className="btn btn-primary flex-1 !min-h-[48px] text-sm font-bold" onClick={cardActions.primary.onClick}>{cardActions.primary.label}</button>
+                    <MoreMenu actions={cardActions.more} placement="bottom" />
                   </div>
                 </div>
               );

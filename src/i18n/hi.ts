@@ -474,6 +474,8 @@ export const hi: Partial<Record<MessageKey, string>> = {
   'journey.title': 'देखभाल की यात्रा',
   'journey.back': 'वापस आशा के पास',
   'journey.here': 'अभी यहाँ',
+  'case.header.age': '{n} वर्ष',
+  'case.more': 'और',
   'journey.openNote': 'हैंडओवर नोट खोलें',
   'journey.appt': 'अपॉइंटमेंट {date}',
   'journey.referred': 'रेफ़र किया {date}',
