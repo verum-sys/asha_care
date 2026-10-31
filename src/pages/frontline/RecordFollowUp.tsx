@@ -87,7 +87,8 @@ export function RecordFollowUp() {
         )}
       </div>
 
-      {suggested && suggested !== 'none' && ordered.some(option => matches.includes(option as FollowUpAction)) && (
+      {/* The suggestions are ASHA-level actions (remind, visit home); PHC, DH and TCC choose their own next step. */}
+      {tier === 'asha' && suggested && suggested !== 'none' && ordered.some(option => matches.includes(option as FollowUpAction)) && (
         <p className="flex items-start gap-1.5 rounded-xl bg-accent-soft px-3 py-2 text-brand">
           <Icon name="spark" size={18} className="mt-0.5 text-accent" />
           <span>

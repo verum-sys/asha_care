@@ -16,7 +16,7 @@ import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
 import { MoreMenu, type BarAction } from '../../components/MoreMenu';
 import { today } from '../../intelligence/dates';
-import { NEXT_TIER, actionLocks, primaryCaseAction } from '../../intelligence/caseActions';
+import { NEXT_TIER, actionLocks, primaryCaseAction, referralBlockers } from '../../intelligence/caseActions';
 import { analyze } from '../../intelligence/engine';
 import { needsToday } from '../../intelligence/today';
 import { CallButton } from '../../components/TodayList';
@@ -145,12 +145,16 @@ export function TierModuleView() {
     const locks = actionLocks({ viewTier: activeTier, holderTier: holder, appointmentDate: c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate, today: today(), referred: !!c.referral.clinicalHandovers?.length || !!c.referral.ashaFollowUpDate });
     const followUp: BarAction = { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${c.referral.id}/follow-up`, { state: { returnTo: `/tier/${activeTier}` } }), disabledReason: locks.followUp };
     const attendance: BarAction | undefined = activeTier !== 'asha' && canAct ? { key: 'attendance', label: t('Record attendance'), onClick: () => setVisitCase(c), disabledReason: locks.attendance } : undefined;
-    const refer: BarAction | undefined = activeTier !== 'asha' && NEXT_TIER[activeTier] && canAct ? { key: 'refer', label: activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setActiveCaseForReferral({ caseRecord: c }) } : undefined;
+    // PHC and DH record attendance and the physical examination before they can refer on.
+    const hasExam = !!c.referral.physicalExam;
+    const blockers = referralBlockers({ tier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam });
+    const exam: BarAction = { key: 'exam', label: hasExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setActiveCaseForExam({ caseRecord: c }) };
+    const refer: BarAction | undefined = activeTier !== 'asha' && NEXT_TIER[activeTier] && canAct && blockers.length === 0 ? { key: 'refer', label: activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setActiveCaseForReferral({ caseRecord: c }) } : undefined;
     let primary: BarAction;
     if (activeTier === 'asha') primary = hasCbac && !canAct ? followUp : openCase;
     else {
-      const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance });
-      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : followUp) ?? openCase;
+      const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam });
+      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : wanted === 'exam' ? exam : followUp) ?? openCase;
     }
     const extras: BarAction[] = activeTier === 'asha' ? [followUp] : [
       { key: 'exam', label: t('Add Notes'), onClick: () => setActiveCaseForExam({ caseRecord: c }) },
