@@ -126,6 +126,15 @@ function urgencyRow(parsed: ParsedCase, formUrgency: Urgency): DraftFieldRow {
       status: 'known',
     };
   }
+  // The form always carries a chosen urgency (Routine unless the worker picked another), so show it.
+  if (formUrgency) {
+    return {
+      key: 'urgency',
+      labelKey: 'parsed.urgency',
+      displayValueKey: `urgency.${formUrgency}`,
+      status: 'known',
+    };
+  }
   return {
     key: 'urgency',
     labelKey: 'parsed.urgency',
