@@ -10,7 +10,7 @@ export function LanguageSwitch() {
       aria-pressed={lang === code}
       lang={code}
       onClick={() => setLang(code)}
-      className={`px-2.5 py-1 text-xs font-semibold transition-colors ${lang === code ? 'bg-brand text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+      className={`!min-h-0 !rounded-none !border-0 !px-2.5 !py-1 !text-xs font-semibold transition-colors ${lang === code ? 'bg-brand text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
     >
       {label}
     </button>

@@ -31,9 +31,9 @@ export function SyncPill() {
     failed: t('pill.failed'),
   }[state];
   return (
-    <Link to="/sync" className={`chip shrink-0 font-semibold ${TONE[state]}`} data-testid="sync-pill" data-state={state} aria-label={label}>
+    <Link to="/sync" className={`chip min-w-0 !h-auto !py-1 font-semibold ${TONE[state]}`} data-testid="sync-pill" data-state={state} aria-label={label}>
       <Icon name={ICON[state]} size={14} className={state === 'sending' ? 'animate-spin' : ''} />
-      <span className="max-w-[7.5rem] sm:max-w-[14rem] truncate">{label}</span>
+      <span className="max-w-[8.5rem] whitespace-normal text-left text-[0.7rem] leading-tight sm:max-w-[16rem] sm:text-xs">{label}</span>
     </Link>
   );
 }
