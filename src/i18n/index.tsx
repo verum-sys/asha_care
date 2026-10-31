@@ -12,6 +12,16 @@ const STORAGE_KEY = 'carelink.lang';
 type Params = Record<string, string | number | undefined>;
 export type T = (key: string, params?: Params) => string;
 
+/** True once the person has picked a language (or the browser cannot store one, so we never nag). */
+export function hasChosenLang(): boolean {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY);
+    return v === 'en' || v === 'hi';
+  } catch {
+    return true;
+  }
+}
+
 function readLang(): Lang {
   try {
     return localStorage.getItem(STORAGE_KEY) === 'hi' ? 'hi' : 'en';
@@ -40,6 +50,8 @@ function lookup(lang: Lang, key: string, params?: Params): string {
 interface LangCtx {
   lang: Lang;
   setLang: (l: Lang) => void;
+  /** False on first launch, until a language is picked. */
+  langChosen: boolean;
   /** Care tier the screen belongs to; decides "community member" (ASHA, PHC) vs "patient" (DH, TCC). */
   setTermTier: (tier: CareTier | undefined) => void;
   t: T;
@@ -49,15 +61,17 @@ interface LangCtx {
 
 const Ctx = createContext<LangCtx | null>(null);
 const FALLBACK: LangCtx = {
-  lang: 'en', setLang: () => undefined, setTermTier: () => undefined, t: (key, params) => translate('en', key, params, 'dh'), // 'dh' = leave the word "patient" as written outside the provider
+  lang: 'en', setLang: () => undefined, langChosen: true, setTermTier: () => undefined, t: (key, params) => translate('en', key, params, 'dh'), // 'dh' = leave the word "patient" as written outside the provider
   formatDate: iso => (iso ? iso.slice(0, 10) : '—'), formatDateTime: iso => iso,
 };
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(readLang);
   const [tier, setTermTier] = useState<CareTier | undefined>(undefined);
+  const [langChosen, setLangChosen] = useState(hasChosenLang);
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
+    setLangChosen(true);
     try {
       localStorage.setItem(STORAGE_KEY, l);
     } catch {
@@ -71,6 +85,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
     return {
       lang,
       setLang,
+      langChosen,
       setTermTier,
       t: (key, params) => translate(lang, key, params, tier),
       formatDate: (iso) => {
@@ -81,7 +96,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
       formatDateTime: (iso) =>
         new Date(iso).toLocaleString(locale, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
     };
-  }, [lang, setLang, tier]);
+  }, [lang, setLang, langChosen, tier]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1227,7 +1227,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
                       isSel ? 'btn-primary shadow-xs' : 'btn-secondary text-muted'
                     } ${pulseField === 'sex' && isSel ? 'ring-2 ring-accent' : ''}`}
                   >
-                    {s === 'F' ? 'Female' : s === 'M' ? 'Male' : 'Other'}
+                    {s === 'F' ? t('Female') : s === 'M' ? t('Male') : t('Other')}
                   </button>
                 );
               })}

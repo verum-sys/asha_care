@@ -32,3 +32,10 @@ describe('JourneyStepper taps', () => {
     expect(renderToStaticMarkup(<JourneyStepper referral={referral} />)).not.toContain('<button');
   });
 });
+
+describe('LanguageChoice', () => {
+  it('stays hidden outside a provider (isolated renders and tests)', async () => {
+    const { LanguageChoice } = await import('./LanguageChoice');
+    expect(renderToStaticMarkup(<LanguageChoice />)).toBe('');
+  });
+});

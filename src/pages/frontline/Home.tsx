@@ -4,6 +4,8 @@ import { listCases } from '../../db/repo';
 import { useLive } from '../../db/useLive';
 import { useLang } from '../../i18n';
 import { rankCases, type CaseSummary } from '../../intelligence/priority';
+import { pickToday } from '../../intelligence/today';
+import { TodayList } from '../../components/TodayList';
 import { useSettings } from '../../settings';
 import { getCaseCategory } from './CategoryCases';
 
@@ -17,6 +19,7 @@ export function Home() {
   const criticalCases = allOpenCases.filter((c) => getCaseCategory(c) === 'critical');
   const pendingCases = allOpenCases.filter((c) => getCaseCategory(c) === 'pending');
   const onTrackCases = allOpenCases.filter((c) => getCaseCategory(c) === 'on_track');
+  const todayCases = pickToday(allOpenCases);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -30,6 +33,8 @@ export function Home() {
           <span>{t('home.sync')}</span>
         </Link>
       </div>
+
+      {!loading && <TodayList cases={todayCases} />}
 
       {/* 2x2 Square Cards Grid:
           CBAC NCD (1st)       Critical (2nd)

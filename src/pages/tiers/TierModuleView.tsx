@@ -16,6 +16,10 @@ import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
 import { MoreMenu, type BarAction } from '../../components/MoreMenu';
 import { NEXT_TIER, primaryCaseAction } from '../../intelligence/caseActions';
+import { analyze } from '../../intelligence/engine';
+import { needsToday } from '../../intelligence/today';
+import { CallButton } from '../../components/TodayList';
+import { getCaseCategory, type CaseCategory } from '../frontline/CategoryCases';
 import { ashaAppointment, ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
@@ -49,6 +53,7 @@ export function TierModuleView() {
   useTermTier(activeTier);
 
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'all' | 'today' | CaseCategory>('all');
 
   // Modals state
   const [activeCaseForAttachment, setActiveCaseForAttachment] = useState<{ id: string; category: 'general' | 'biopsy' | 'radiology' } | null>(null);
@@ -113,6 +118,19 @@ export function TierModuleView() {
   if (!tierMeta[activeTier]) return <Navigate to="/" replace />;
   const currentMeta = tierMeta[activeTier];
 
+  // Status tabs: Today first, then the same three groups as the ASHA home.
+  const intelById = new Map(tierCases.map(c => [c.referral.id, analyze(c.patient, c.referral, c.followUps)]));
+  const summaryOf = (c: CaseRecord) => ({ patient: c.patient, referral: c.referral, followUps: c.followUps, intel: intelById.get(c.referral.id)! });
+  const inTab = (c: CaseRecord, which: typeof tab) => which === 'all' || (which === 'today' ? needsToday(summaryOf(c)) : getCaseCategory(summaryOf(c)) === which && summaryOf(c).intel.open);
+  const tabs: { key: typeof tab; label: string }[] = [
+    { key: 'all', label: t('today.tab.all') },
+    { key: 'today', label: t('today.tab.today') },
+    { key: 'critical', label: t('home.cardCritical') },
+    { key: 'pending', label: t('home.cardPending') },
+    { key: 'on_track', label: t('home.cardOnTrack') },
+  ];
+  const shownCases = tierCases.filter(c => inTab(c, tab));
+
   /** One main action per card, picked from the case state; everything else goes in More. */
   function cardActionsFor(c: CaseRecord): { primary: BarAction; more: BarAction[] } {
     const holder = c.referral.tier || 'asha';
@@ -159,38 +177,21 @@ export function TierModuleView() {
         </span>
       </div>
 
-      {/* Module Hero Banner */}
-      <div className={`rounded-2xl bg-gradient-to-r ${currentMeta.gradient} text-white p-6 shadow-lg border border-white/10 space-y-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80 block">
-              {activeTier.toUpperCase()} {t('OPERATIONAL MODULE')}
-            </span>
-            <div className="relative mt-2 w-full min-w-0 sm:w-[360px]">
-              <input
-                type="text"
-                placeholder={t('Search patients...')}
-                aria-label={t('Search patients...')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border-0 bg-white/95 py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-white"
-              />
-              <div className="absolute left-3 top-3 text-slate-400"><Icon name="spark" size={14} /></div>
-            </div>
-          </div>
-
-          {/* Prominent "+ Add New CBAC Form" button */}
-          <button
-            type="button"
-            onClick={() => navigate(`/cbac?tier=${activeTier}`)}
-            className="btn !min-h-[44px] px-4 rounded-xl text-xs sm:text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md flex items-center gap-2 active:scale-95 transition-all"
-          >
-            <Icon name="spark" size={16} className="text-teal-600" />
-            <span>{t('New CBAC Registration')}</span>
-          </button>
-        </div>
-
-
+      {/* Compact header: stays on screen with search and the new-registration button. */}
+      <div className="sticky top-[calc(54px+env(safe-area-inset-top,0px))] z-20 -mx-1 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white/95 p-2 shadow-sm backdrop-blur sm:top-0">
+        <span className="chip bg-brand font-bold text-white" aria-label={`${activeTier.toUpperCase()} ${t('OPERATIONAL MODULE')}`}>{activeTier.toUpperCase()}</span>
+        <input
+          type="text"
+          placeholder={t('Search patients...')}
+          aria-label={t('Search patients...')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-[9rem] flex-1 rounded-xl border border-line bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/40"
+        />
+        <button type="button" onClick={() => navigate(`/cbac?tier=${activeTier}`)} className="btn btn-primary !min-h-[44px] shrink-0 text-sm font-bold">
+          <Icon name="plus" size={16} />
+          <span>{t('New CBAC Registration')}</span>
+        </button>
       </div>
 
       {/* Patient List in this Module */}
@@ -199,10 +200,18 @@ export function TierModuleView() {
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 font-display">
             <span>{t('Patients at')} {t(currentMeta.name)}</span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              {tierCases.length} {tierCases.length === 1 ? 'case' : 'cases'}
+              {tierCases.length} {tierCases.length === 1 ? t('case') : t('cases')}
             </span>
           </h2>
 
+        </div>
+
+        <div role="tablist" aria-label={t('Patients at')} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          {tabs.map(({ key, label }) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`btn !min-h-[44px] shrink-0 whitespace-nowrap text-sm font-semibold ${tab === key ? 'btn-primary' : 'btn-secondary'}`}>
+              {label} <span className="opacity-80">{tierCases.filter(c => inTab(c, key)).length}</span>
+            </button>
+          ))}
         </div>
 
         {tierCases.length === 0 ? (
@@ -218,7 +227,8 @@ export function TierModuleView() {
           </div>
         ) : (
           <div className="space-y-3">
-            {tierCases.map((c) => {
+            {shownCases.length === 0 && <p className="py-6 text-center text-sm text-muted">{t('today.emptyTab')}</p>}
+            {shownCases.map((c) => {
               const cbac = c.referral.screening?.cbac;
               const reportsCount = (c.referral.reports?.length || 0) + (c.referral.biopsyReports?.length || 0) + (c.referral.radiologyReports?.length || 0);
               const cardActions = cardActionsFor(c);
@@ -246,7 +256,7 @@ export function TierModuleView() {
                           )}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {c.patient.age ? `${c.patient.age}y` : ''} · {c.patient.locality || 'Locality unrecorded'}
+                          {c.patient.age ? `${c.patient.age}y` : ''} · {c.patient.locality || t('Locality unrecorded')}
                         </div>
                       </div>
                     </div>
@@ -312,7 +322,8 @@ export function TierModuleView() {
                   <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier !== 'asha' && <span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span>}</div>
                   {/* One main action for this case; the rest behind More. */}
                   <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-                    <button type="button" className="btn btn-primary flex-1 !min-h-[48px] text-sm font-bold" onClick={cardActions.primary.onClick}>{cardActions.primary.label}</button>
+                    <button type="button" className="btn btn-primary min-w-0 flex-1 !min-h-[48px] text-sm font-bold" onClick={cardActions.primary.onClick}>{cardActions.primary.label}</button>
+                    <CallButton phone={c.patient.phone} compact className="!min-h-[48px]" />
                     <MoreMenu actions={cardActions.more} placement="bottom" />
                   </div>
                 </div>

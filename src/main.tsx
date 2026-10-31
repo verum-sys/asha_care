@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { seedIfEmpty } from './db/seed';
 import { LangProvider } from './i18n';
+import { LanguageChoice } from './components/LanguageChoice';
 import { SettingsProvider } from './settings';
 import { ConnectivityProvider } from './sync/connectivity';
 import './index.css';
@@ -14,6 +15,7 @@ async function boot() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <LangProvider>
+        <LanguageChoice />
         <SettingsProvider>
           <ConnectivityProvider>
             <App />
