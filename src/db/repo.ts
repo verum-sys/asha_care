@@ -250,6 +250,42 @@ export async function outboxCount(): Promise<number> {
   return (await getDB()).count('outbox');
 }
 
+export interface WaitingChange {
+  id: string;
+  /** Who the change is about; falls back to the record id when the patient is not on this device. */
+  patientName: string;
+  referralId?: string;
+  /** Plain labels, e.g. 'patient', 'referral', 'follow-up'. */
+  parts: ('patient' | 'referral' | 'followup')[];
+}
+
+/** What is queued to be sent, grouped by patient, for the Sync page. */
+export async function listWaitingChanges(): Promise<WaitingChange[]> {
+  const db = await getDB();
+  const outbox = await db.getAll('outbox');
+  const groups = new Map<string, WaitingChange>();
+  for (const item of outbox) {
+    let patientId: string | undefined;
+    let referralId: string | undefined;
+    if (item.entity === 'patient') patientId = item.entityId;
+    else if (item.entity === 'referral') {
+      referralId = item.entityId;
+      patientId = (await db.get('referrals', item.entityId))?.patientId;
+    } else {
+      const fu = await db.get('followups', item.entityId);
+      referralId = fu?.referralId;
+      if (referralId) patientId = (await db.get('referrals', referralId))?.patientId;
+    }
+    const patient = patientId ? await db.get('patients', patientId) : undefined;
+    const key = patientId ?? item.entityId;
+    const group = groups.get(key) ?? { id: key, patientName: patient?.name?.trim() || key, referralId, parts: [] };
+    if (!group.referralId && referralId) group.referralId = referralId;
+    if (!group.parts.includes(item.entity)) group.parts.push(item.entity);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
 export async function listSyncEvents(): Promise<SyncEvent[]> {
   const all = await (await getDB()).getAll('sync_events');
   return all.sort((a, b) => (a.at < b.at ? 1 : -1));

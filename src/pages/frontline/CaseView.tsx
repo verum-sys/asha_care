@@ -16,6 +16,7 @@ import type { CareTier, ReportAttachment } from '../../db/types';
 import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
+import { JourneyStepper } from '../../components/JourneyStepper';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 
@@ -92,6 +93,7 @@ export function CaseView() {
             )}
           </div>
         </div>
+        <JourneyStepper referral={referral} />
         <CbacScreening embedded />
         <section className="card space-y-2">
           <h2 className="text-lg font-bold flex items-center gap-2"><Icon name="user" size={20} className="text-sky-600" /><span>{t('Notes (ASHA Worker)')}</span></h2>
@@ -132,13 +134,15 @@ export function CaseView() {
               className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
             >
               <span>
-                {currentTier === 'phc' ? 'Refer to DH' : 'Refer to TCC'}
+                {currentTier === 'phc' ? t('Refer to DH') : t('Refer to TCC')}
               </span>
               <Icon name="back" size={14} className="rotate-180" />
             </button>
           )}
         </div>
       </div>
+
+      <JourneyStepper referral={referral} />
 
       {/* One form layout for every tier: sections A-D and referral, editable in place. */}
       <CbacScreening embedded tier={currentTier} />
@@ -159,7 +163,7 @@ export function CaseView() {
             onClick={() => setShowExamModal(true)}
             className="btn btn-secondary !min-h-[36px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1"
           >
-            <span>{referral.physicalExam ? 'Edit Physical Exam' : '+ Record Physical Exam'}</span>
+            <span>{referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam')}</span>
           </button>
         </div>
 

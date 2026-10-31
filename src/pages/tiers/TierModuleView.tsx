@@ -338,7 +338,7 @@ export function TierModuleView() {
                           className="btn !min-h-[34px] px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1"
                         >
                           <span>
-                            {activeTier === 'phc' ? 'Refer to DH' : 'Refer to TCC'}
+                            {activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC')}
                           </span>
                           <Icon name="back" size={13} className="rotate-180" />
                         </button>

@@ -32,13 +32,6 @@ export function StatusBar({ showSync = true }: { showSync?: boolean }) {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Sync status is only relevant offline; online, changes are sent automatically. */}
-          {!online && (
-            <span className="text-[0.78rem] sm:text-[0.85rem] text-slate-200">
-              {pending > 0 ? t('status.pending', { n: pending }) : t('status.allSynced')}
-            </span>
-          )}
-          {online && syncing && <span className="text-[0.78rem] sm:text-[0.85rem] text-muted">{t('status.syncing')}</span>}
           {showSync && online && syncFailed && (
             <button
               type="button"
