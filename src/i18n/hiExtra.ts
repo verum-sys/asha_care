@@ -645,5 +645,9 @@ export const hiExtra: Record<string, string> = {
   "Lab report": "लैब रिपोर्ट",
   "Biopsy report": "बायोप्सी रिपोर्ट",
   "Radiology report": "रेडियोलॉजी रिपोर्ट",
-  "Key findings (abnormal values / spikes, e.g. CBC Hb 8.2 low, WBC 14,000 high)": "मुख्य निष्कर्ष (असामान्य मान, जैसे CBC Hb 8.2 कम, WBC 14,000 अधिक)"
+  "Key findings (abnormal values / spikes, e.g. CBC Hb 8.2 low, WBC 14,000 high)": "मुख्य निष्कर्ष (असामान्य मान, जैसे CBC Hb 8.2 कम, WBC 14,000 अधिक)",
+  "To refer this case on, first record": "इस केस को आगे रेफर करने से पहले दर्ज करें",
+  "the visit attendance": "मरीज़ की उपस्थिति",
+  "the physical examination": "शारीरिक जाँच",
+  "and": "और"
 };

@@ -6,6 +6,7 @@ import { today } from '../intelligence/dates';
 import { getDB, getMeta, notifyChange, setMeta, uid } from './db';
 import { isRemoteEnabled } from '../sync/config';
 import { emptyFacility } from './factory';
+import { referralBlockers } from '../intelligence/caseActions';
 import type {
   ActionKey,
   Attendance,
@@ -358,6 +359,9 @@ export async function referToNextTier(
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
+  // PHC and DH must record attendance and the physical examination before referring on (reports stay optional).
+  const missing = referralBlockers({ tier: current.tier || 'asha', attendance: current.worker.attendance ?? current.facility.attendance, hasExam: !!current.physicalExam });
+  if (missing.length) throw new Error(`Record ${missing.join(' and ')} before referring`);
   const now = new Date().toISOString();
   const updated: Referral = {
     ...current,

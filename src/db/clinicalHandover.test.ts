@@ -16,7 +16,7 @@ vi.mock('./db', () => ({
 beforeEach(() => state.referrals.clear());
 describe('clinical handover persistence', () => {
   it('carries edited summaries and preserves PHC and DH notes through TCC', async () => {
-    state.referrals.set('current', makeReferral({ id: 'current', patientId: 'patient', referralDate: '2026-10-25', tier: 'phc', notes: 'PHC clinical notes', physicalExam: { generalFindings: 'PHC examination' } }));
+    state.referrals.set('current', makeReferral({ id: 'current', patientId: 'patient', referralDate: '2026-10-25', tier: 'phc', notes: 'PHC clinical notes', physicalExam: { generalFindings: 'PHC examination' }, worker: { attendance: 'attended' } }));
     await updateCaseClinical('current', { aiSummaryOverride: 'Edited PHC summary' });
     await referToNextTier('current', 'dh', 'District hospital', 'PHC referral reason');
     let record = state.referrals.get('current')!;
@@ -24,6 +24,7 @@ describe('clinical handover persistence', () => {
     expect(record.clinicalHandovers?.[0]).toMatchObject({ fromTier: 'phc', toTier: 'dh', aiSummary: 'Edited PHC summary', physicalExam: { generalFindings: 'PHC examination' } });
     expect(record.clinicalHandovers?.[0].notes).toContain('PHC clinical notes');
     await updateCaseClinical('current', { physicalExam: { generalFindings: 'DH examination' }, dhNotes: 'DH specialist notes', aiSummaryOverride: 'Edited DH summary' });
+    await updateVisitDetails('current', { attendance: 'attended', note: 'Reached DH' });
     await referToNextTier('current', 'tcc', 'Cancer centre');
     record = state.referrals.get('current')!;
     expect(record.clinicalHandovers).toHaveLength(2);
@@ -72,12 +73,29 @@ describe('follow-up scope and care-stage visits', () => {
     expect(state.referrals.get('current')?.worker.outcomeRecorded).toBe(true);
   });
   it('preserves the actual visit date in handover and resets attendance for the receiving stage', async () => {
-    state.referrals.set('current', makeReferral({ id: 'current', patientId: 'p', referralDate: '2026-10-25', tier: 'phc' }));
+    state.referrals.set('current', makeReferral({ id: 'current', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', physicalExam: { generalFindings: 'Examined' } }));
     await addFollowUp('current', { action: 'patient_attended', date: '2026-10-20' });
     await referToNextTier('current', 'dh', 'DH');
     const record = state.referrals.get('current')!;
     expect(record.clinicalHandovers?.[0].visitStatus).toMatchObject({ attendance: 'attended', attendedDate: '2026-10-20' });
     expect(record.worker.attendance).toBeUndefined();
     expect(record.facility.attendance).toBe('unknown');
+  });
+});
+
+describe('PHC and DH must record attendance and the physical exam before referring on', () => {
+  it('blocks referral without attendance, then without the exam, and allows it once both are recorded', async () => {
+    state.referrals.set('gate', makeReferral({ id: 'gate', patientId: 'p', referralDate: '2026-10-25', tier: 'phc' }));
+    await expect(referToNextTier('gate', 'dh', 'DH')).rejects.toThrow('attendance and exam');
+    await updateVisitDetails('gate', { attendance: 'attended', note: 'Reached the PHC' });
+    await expect(referToNextTier('gate', 'dh', 'DH')).rejects.toThrow('exam');
+    await updateCaseClinical('gate', { physicalExam: { generalFindings: 'Examined' } });
+    await referToNextTier('gate', 'dh', 'DH');
+    expect(state.referrals.get('gate')?.tier).toBe('dh');
+  });
+  it('does not ask ASHA for either', async () => {
+    state.referrals.set('asha', makeReferral({ id: 'asha', patientId: 'p', referralDate: '2026-10-25', tier: 'asha' }));
+    await referToNextTier('asha', 'phc', 'PHC');
+    expect(state.referrals.get('asha')?.tier).toBe('phc');
   });
 });
