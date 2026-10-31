@@ -55,8 +55,8 @@ export const en = {
   'cases.subtitle.on_track': 'Upcoming scheduled appointments and active care',
   'cases.subtitle.all': 'Overview of all registered patient cases',
 
-  'chip.pendingSync': 'Pending sync',
-  'chip.synced': 'Synced',
+  'chip.pendingSync': 'Waiting to send',
+  'chip.synced': 'Sent',
   'chip.overdue': '{n} day(s) overdue',
   'chip.dueToday': 'Due today',
   'chip.dueIn': 'In {n} day(s)',
@@ -469,6 +469,7 @@ export const en = {
   'journey.title': 'Care journey',
   'journey.back': 'Back to ASHA',
   'journey.here': 'Now',
+  'journey.openNote': 'open handover note',
   'journey.appt': 'Appt {date}',
   'journey.referred': 'Referred {date}',
 };

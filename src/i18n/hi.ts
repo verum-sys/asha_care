@@ -59,8 +59,8 @@ export const hi: Partial<Record<MessageKey, string>> = {
   'cases.subtitle.on_track': 'आगामी अपॉइंटमेंट और सक्रिय देखभाल',
   'cases.subtitle.all': 'पंजीकृत सभी मरीज़ों के केस',
 
-  'chip.pendingSync': 'सिंक बाकी',
-  'chip.synced': 'सिंक हुआ',
+  'chip.pendingSync': 'भेजना बाकी',
+  'chip.synced': 'भेज दिया',
   'chip.overdue': '{n} दिन देर',
   'chip.dueToday': 'आज',
   'chip.dueIn': '{n} दिन में',
@@ -474,6 +474,7 @@ export const hi: Partial<Record<MessageKey, string>> = {
   'journey.title': 'देखभाल की यात्रा',
   'journey.back': 'वापस आशा के पास',
   'journey.here': 'अभी यहाँ',
+  'journey.openNote': 'हैंडओवर नोट खोलें',
   'journey.appt': 'अपॉइंटमेंट {date}',
   'journey.referred': 'रेफ़र किया {date}',
 };

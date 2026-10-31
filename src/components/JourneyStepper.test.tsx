@@ -23,3 +23,12 @@ describe('LanguageSwitch', () => {
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
   });
 });
+
+describe('JourneyStepper taps', () => {
+  const referral = makeReferral({ id: 'r', patientId: 'p', referralDate: '2026-10-20', tier: 'dh' });
+  it('makes only finished steps tappable, and only when a handler is given', () => {
+    const tappable = renderToStaticMarkup(<JourneyStepper referral={referral} onSelect={() => {}} />);
+    expect(tappable.match(/<button/g)).toHaveLength(2); // ASHA and PHC are done
+    expect(renderToStaticMarkup(<JourneyStepper referral={referral} />)).not.toContain('<button');
+  });
+});

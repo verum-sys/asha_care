@@ -17,6 +17,7 @@ import { ReportAttachmentModal } from '../../components/ReportAttachmentModal';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
 import { PhysicalExamNotesModal } from '../../components/PhysicalExamNotesModal';
 import { JourneyStepper } from '../../components/JourneyStepper';
+import { SyncChip } from '../../components/StatusChip';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 
@@ -64,6 +65,16 @@ export function CaseView() {
   const reportsCount = (referral.reports?.length || 0) + (referral.biopsyReports?.length || 0) + (referral.radiologyReports?.length || 0);
 
 
+  // Tapping a finished step opens that stage's handover note below.
+  const openHandover = (step: string) => {
+    const item = document.getElementById(`handover-${step}`);
+    if (!item) return;
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const button = item.querySelector('button');
+    button?.focus();
+    if (button?.getAttribute('aria-expanded') === 'false') button.click();
+  };
+
   // At ASHA the case page is the CBAC form itself: sections A-D and referral, editable in place.
   if (currentTier === 'asha') {
     // Once referred, ASHA's timeline keeps its own stage plus appointment dates (reschedules, and the date TCC sent back), not later clinical detail.
@@ -75,6 +86,7 @@ export function CaseView() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <BackLink />
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <SyncChip status={referral.syncStatus} />
             <Link
               to={`/case/${referral.id}/follow-up`}
               className="btn !min-h-[36px] px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
@@ -127,6 +139,7 @@ export function CaseView() {
         <BackLink />
         {/* AI Summary and Referral Buttons in top bar */}
         <div className="flex items-center gap-2">
+          <SyncChip status={referral.syncStatus} />
           {currentTier !== 'tcc' && !alreadyReferred && (
             <button
               type="button"
@@ -142,7 +155,7 @@ export function CaseView() {
         </div>
       </div>
 
-      <JourneyStepper referral={referral} />
+      <JourneyStepper referral={referral} onSelect={openHandover} />
 
       {/* One form layout for every tier: sections A-D and referral, editable in place. */}
       <CbacScreening embedded tier={currentTier} />
