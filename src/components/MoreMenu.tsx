@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLang } from '../i18n';
 
-export interface BarAction { key: string; label: string; onClick: () => void }
+export interface BarAction { key: string; label: string; onClick: () => void; /** When set, the action is shown but cannot be used yet; this is the reason (a message key). */ disabledReason?: string }
 
 /** A "More" button with a small menu of secondary actions. Closes on Escape or a tap outside. */
 export function MoreMenu({ actions, placement = 'top' }: { actions: BarAction[]; placement?: 'top' | 'bottom' }) {
@@ -30,9 +30,10 @@ export function MoreMenu({ actions, placement = 'top' }: { actions: BarAction[];
         <ul role="menu" className={`absolute right-0 z-30 w-64 max-w-[calc(100vw-2rem)] space-y-1 rounded-2xl border border-line bg-white p-2 shadow-xl ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
           {actions.map(action => (
             <li key={action.key} role="none">
-              <button type="button" role="menuitem" className="btn btn-secondary btn-block !min-h-[44px] !justify-start text-sm" onClick={() => { setOpen(false); action.onClick(); }}>
+              <button type="button" role="menuitem" className="btn btn-secondary btn-block !min-h-[44px] !justify-start text-sm" disabled={!!action.disabledReason} onClick={() => { setOpen(false); action.onClick(); }}>
                 {action.label}
               </button>
+              {action.disabledReason && <p className="px-2 pb-1 text-xs text-muted">{t(action.disabledReason)}</p>}
             </li>
           ))}
         </ul>

@@ -101,7 +101,7 @@ const INITIAL_REFERRAL: ReferralFormState = {
   referralDate: today(),
   urgency: '',
   appointmentDate: '',
-  patientIntention: '',
+  patientIntention: 'will_attend', // the care loop is participatory: referred patients are assumed willing until the worker records otherwise
   notes: '',
   facilityResponse: undefined,
 };
