@@ -100,6 +100,8 @@ export const hiExtra: Record<string, string> = {
   "Attendance": "उपस्थिति",
   "Not yet recorded": "अभी दर्ज नहीं",
   "Missed appointment": "अपॉइंटमेंट छूटा",
+  "Available from the appointment date": "अपॉइंटमेंट की तारीख से उपलब्ध",
+  "Follow-up starts after the referral": "रेफरल के बाद फ़ॉलो-अप शुरू होगा",
   "Attended": "उपस्थित हुए",
   "Update notes": "नोट्स अपडेट करें",
   "Care modules": "देखभाल मॉड्यूल",

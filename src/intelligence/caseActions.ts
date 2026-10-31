@@ -27,3 +27,21 @@ export function referralBlockers({ tier, attendance, hasExam }: { tier: CareTier
   if (!hasExam) missing.push('exam');
   return missing;
 }
+
+export interface ActionLocks { attendance?: string; followUp?: string }
+
+/**
+ * Actions that exist but cannot be used yet, with the reason (a message key) shown to the worker.
+ * - A facility cannot record attendance or a follow-up before the appointment date arrives.
+ * - ASHA cannot record a follow-up until the case has been referred.
+ */
+export function actionLocks({ viewTier, holderTier, appointmentDate, today, referred }: { viewTier: CareTier; holderTier: CareTier; appointmentDate?: string; today: string; referred: boolean }): ActionLocks {
+  const locks: ActionLocks = {};
+  const notYet = !!appointmentDate && appointmentDate.slice(0, 10) > today;
+  if (viewTier !== 'asha' && viewTier === holderTier && notYet) {
+    locks.attendance = 'Available from the appointment date';
+    locks.followUp = 'Available from the appointment date';
+  }
+  if (viewTier === 'asha' && holderTier === 'asha' && !referred) locks.followUp = 'Follow-up starts after the referral';
+  return locks;
+}

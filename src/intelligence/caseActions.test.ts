@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { primaryCaseAction, referralBlockers } from './caseActions';
+import { actionLocks, primaryCaseAction, referralBlockers } from './caseActions';
 
 describe('primaryCaseAction', () => {
   it('ASHA refers a case she holds', () => expect(primaryCaseAction({ viewTier: 'asha', holderTier: 'asha', attendance: 'unknown' })).toBe('refer'));
@@ -35,5 +35,25 @@ describe('referral requirements at PHC and DH', () => {
   it('asks for the exam once the patient has attended', () => {
     expect(primaryCaseAction({ viewTier: 'phc', holderTier: 'phc', attendance: 'attended', hasExam: false })).toBe('exam');
     expect(primaryCaseAction({ viewTier: 'phc', holderTier: 'phc', attendance: 'attended', hasExam: true })).toBe('refer');
+  });
+});
+
+describe('actions that are locked for now', () => {
+  const base = { holderTier: 'phc' as const, today: '2026-11-01', referred: true };
+  it('PHC cannot record attendance or a follow-up before the appointment date', () => {
+    const locks = actionLocks({ ...base, viewTier: 'phc', appointmentDate: '2026-11-04' });
+    expect(locks.attendance).toBeTruthy();
+    expect(locks.followUp).toBeTruthy();
+  });
+  it('opens on the appointment date and after', () => {
+    expect(actionLocks({ ...base, viewTier: 'phc', appointmentDate: '2026-11-01' })).toEqual({});
+    expect(actionLocks({ ...base, viewTier: 'phc', appointmentDate: '2026-10-20' })).toEqual({});
+  });
+  it('ASHA tracking a case that went on to PHC is not locked by the PHC appointment', () => {
+    expect(actionLocks({ ...base, viewTier: 'asha', appointmentDate: '2026-11-04' })).toEqual({});
+  });
+  it('ASHA has no follow-up before the referral', () => {
+    expect(actionLocks({ viewTier: 'asha', holderTier: 'asha', today: '2026-11-01', referred: false }).followUp).toBeTruthy();
+    expect(actionLocks({ viewTier: 'asha', holderTier: 'asha', today: '2026-11-01', referred: true }).followUp).toBeUndefined();
   });
 });
