@@ -42,7 +42,16 @@ describe('buildDraftFieldRows', () => {
     expect(rowStatus(rows, 'facilityResponse')).toBe('pending');
     expect(rowStatus(rows, 'appointmentDate')).toBe('pending');
     expect(rowStatus(rows, 'attendance')).toBe('not_applicable');
-    expect(rowStatus(rows, 'urgency')).toBe('not_assessed');
+    // The form shows Routine selected by default, so the summary says so too.
+    expect(rowStatus(rows, 'urgency')).toBe('known');
     expect(rowStatus(rows, 'age')).toBe('unknown');
+  });
+
+  it('shows the urgency picked on the form, not "Not assessed"', () => {
+    const parsed = parseFreeText(BRIEFING_HI, NOW);
+    const { rows } = buildDraftFieldRows(BRIEFING_HI, parsed, { ...emptyForm, urgency: 'soon' });
+    const urgency = rows.find((r) => r.key === 'urgency');
+    expect(urgency?.status).toBe('known');
+    expect(urgency?.displayValueKey).toBe('urgency.soon');
   });
 });
