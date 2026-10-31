@@ -53,14 +53,17 @@ async function syncOnce(): Promise<SyncResult> {
       if (f) followUps.push(f);
     }
   }
-  await pushRecords(patients, referrals, followUps, at);
+  const { rejected } = await pushRecords(patients, referrals, followUps, at);
 
   // ---- pull facility-owned facts for every case on this device ----
   const localReferrals = await db.getAll('referrals');
   const pushedIds = new Set(referrals.map((r) => r.id));
   const { facility, events } = await pullFacilityUpdates(localReferrals.map((r) => r.id));
   // Other devices' cases (e.g. a PHC device receiving an ASHA referral). Fetched before the transaction opens.
-  const pulledCases = isRemoteEnabled() ? await pullCases(await getMeta<string>(CURSOR_KEY)) : undefined;
+  // If the server ignored an older edit of ours, re-read everything once so we take its newer version
+  // instead of keeping a copy that looks synced but is not on the server.
+  const since = rejected.length ? undefined : await getMeta<string>(CURSOR_KEY);
+  const pulledCases = isRemoteEnabled() ? await pullCases(since) : undefined;
 
   let facilityUpdates = 0;
   const touched = new Set<string>(pushedIds);

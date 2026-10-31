@@ -5,6 +5,7 @@ import { resetDemoData } from '../../db/seed';
 import { useLive } from '../../db/useLive';
 import { useLang } from '../../i18n';
 import { useSettings } from '../../settings';
+import { isRemoteEnabled } from '../../sync/config';
 import { useConnectivity } from '../../sync/connectivity';
 
 export function SyncPage() {
@@ -116,6 +117,8 @@ export function SyncPage() {
         )}
       </section>
 
+      {/* Demo reset would push sample cases into the shared database, so it is demo mode only. */}
+      {!isRemoteEnabled() && (
       <section className="space-y-2">
         <p className="text-[0.85rem] text-muted">{t('sync.demoNote')}</p>
         <button
@@ -128,6 +131,7 @@ export function SyncPage() {
           {t('sync.reset')}
         </button>
       </section>
+      )}
     </div>
   );
 }
