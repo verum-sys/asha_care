@@ -11,6 +11,7 @@ import { addFollowUp, getCase } from '../../db/repo';
 import type { ActionKey, FollowUpAction } from '../../db/types';
 import { useLive } from '../../db/useLive';
 import { useLang, useTermTier } from '../../i18n';
+import { today } from '../../intelligence/dates';
 import { ACTION_MATCHES, analyze } from '../../intelligence/engine';
 
 export function RecordFollowUp() {
@@ -53,7 +54,9 @@ export function RecordFollowUp() {
   }, [matches, chooseDifferent, action, options]);
 
   const needsDate = action === 'rescheduled' || action === 'patient_attended';
-  const canSave = !!data && !!action && options.includes(action) && (!needsDate || !!date) && (action !== 'outcome_recorded' || !!note.trim()) && !saving;
+  // A visit that already happened cannot be dated in the future.
+  const futureVisit = action === 'patient_attended' && !!date && date > today();
+  const canSave = !!data && !!action && options.includes(action) && (!needsDate || !!date) && !futureVisit && (action !== 'outcome_recorded' || !!note.trim()) && !saving;
 
   async function save() {
     if (!action || !data || !options.includes(action)) return;
@@ -127,7 +130,7 @@ export function RecordFollowUp() {
             <label htmlFor="fu-date2" className="mb-1 block font-semibold">
               {action === 'patient_attended' ? 'Actual visit date' : t('followup.newDate')}
             </label>
-            <input id="fu-date2" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            <input id="fu-date2" type="date" max={action === 'patient_attended' ? today() : undefined} value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
         )}
 
