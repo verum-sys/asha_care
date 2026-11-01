@@ -28,6 +28,8 @@ export const hiExtra: Record<string, string> = {
   "Workspace overview →": "वर्कस्पेस अवलोकन →",
   "Home": "होम",
   "General Clinical & Diagnostic Report (PDF)": "सामान्य क्लिनिकल और जांच रिपोर्ट (PDF)",
+  "Available from the appointment date": "अपॉइंटमेंट की तारीख से उपलब्ध",
+  "Follow-up starts after the referral": "रेफरल के बाद फ़ॉलो-अप शुरू होगा",
   "Biopsy / Histopathology Report (PDF)": "बायोप्सी / हिस्टोपैथोलॉजी रिपोर्ट (PDF)",
   "Radiology / Diagnostic Imaging Report (PDF)": "रेडियोलॉजी / इमेजिंग रिपोर्ट (PDF)",
   "Locality unrecorded": "इलाका दर्ज नहीं",

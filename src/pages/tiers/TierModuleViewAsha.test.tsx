@@ -7,7 +7,7 @@ vi.mock('../../i18n', () => ({ useTermTier: () => undefined, useLang: () => ({ t
 vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ user: { role: 'super_admin', unit: 'a' } }) }));
 vi.mock('../../db/useLive', () => ({ useLive: () => ({ data: ['asha', 'phc', 'dh'].map(tier => ({
   patient: makePatient({ id: tier, name: `Person-${tier}`, phone: '98765 43210' }),
-  referral: makeReferral({ id: `ref-${tier}`, patientId: tier, tier: tier as 'asha' | 'phc' | 'dh', referralDate: '2026-10-25', worker: { appointmentDate: '2026-11-03', ...(tier === 'dh' ? { attendance: 'attended' as const } : {}) } }),
+  referral: makeReferral({ id: `ref-${tier}`, patientId: tier, tier: tier as 'asha' | 'phc' | 'dh', referralDate: '2026-10-25', worker: { appointmentDate: '2026-11-03', ...(tier === 'dh' ? { attendance: 'attended' as const } : {}) }, ...(tier === 'dh' ? { physicalExam: { generalFindings: 'Examined' } } : {}) }),
   followUps: [], facilityEvents: [],
 })) }) }));
 const render = (tier: string) => renderToStaticMarkup(<MemoryRouter initialEntries={[`/tier/${tier}`]}><Routes><Route path="/tier/:tier" element={<TierModuleView />} /></Routes></MemoryRouter>);
