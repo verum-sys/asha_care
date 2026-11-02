@@ -89,7 +89,7 @@ export function CaseView() {
   const available: Record<CaseAction, BarAction | undefined> = {
     refer: nextTier && !alreadyReferred && blockers.length === 0 ? { key: 'refer', label: currentTier === 'asha' ? t('Refer to PHC') : currentTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setShowReferralModal(true) } : undefined,
     attendance: currentTier !== 'asha' && !alreadyReferred ? { key: 'attendance', label: t('Record attendance'), onClick: () => setShowVisitModal(true), disabledReason: locks.attendance } : undefined,
-    exam: currentTier !== 'asha' ? { key: 'exam', label: referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setShowExamModal(true) } : undefined,
+    exam: currentTier !== 'asha' ? { key: 'exam', label: referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setShowExamModal(true), disabledReason: locks.attendance } : undefined,
     followUp: { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${referral.id}/follow-up`), disabledReason: locks.followUp },
   };
   let primaryKey = primaryCaseAction({ viewTier: currentTier, holderTier: referral.tier || 'asha', attendance, hasExam });
@@ -162,7 +162,7 @@ export function CaseView() {
       <CareJourneySummary record={data} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />
 
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span><button type="button" className="btn btn-secondary text-xs" onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button></div>
+      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span><button type="button" className="btn btn-secondary text-xs" disabled={!!locks.attendance} title={locks.attendance ? t(locks.attendance) : undefined} onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button></div>
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">
@@ -173,6 +173,8 @@ export function CaseView() {
           <button
             type="button"
             onClick={() => setShowExamModal(true)}
+            disabled={!!locks.attendance}
+            title={locks.attendance ? t(locks.attendance) : undefined}
             className="btn btn-secondary !min-h-[36px] !px-3 text-xs sm:text-sm font-semibold flex items-center gap-1"
           >
             <span>{referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam')}</span>
