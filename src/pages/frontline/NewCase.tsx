@@ -86,7 +86,7 @@ const EMPTY: FormState = {
   referralDate: today(),
   urgency: 'routine',
   appointmentDate: '',
-  patientIntention: '',
+  patientIntention: 'will_attend',
   notes: '',
   screeningCompleted: false,
   screeningArea: '',
