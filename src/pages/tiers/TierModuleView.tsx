@@ -154,10 +154,10 @@ export function TierModuleView() {
     if (activeTier === 'asha') primary = hasCbac && !canAct ? followUp : openCase;
     else {
       const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam });
-      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : wanted === 'exam' ? exam : followUp) ?? openCase;
+      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : wanted === 'exam' && canAct ? exam : followUp) ?? openCase;
     }
     const extras: BarAction[] = activeTier === 'asha' ? [followUp] : [
-      { key: 'exam', label: t('Add Notes'), onClick: () => setActiveCaseForExam({ caseRecord: c }), disabledReason: locks.attendance },
+      ...(canAct ? [{ key: 'exam', label: t('Add Notes'), onClick: () => setActiveCaseForExam({ caseRecord: c }), disabledReason: locks.attendance }] : []),
       { key: 'lab', label: t('+ Reports (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'general' }) },
       ...(activeTier === 'dh' || activeTier === 'tcc' ? [
         { key: 'biopsy', label: t('+ Biopsy Report (PDF)'), onClick: () => setActiveCaseForAttachment({ id: c.referral.id, category: 'biopsy' }) },

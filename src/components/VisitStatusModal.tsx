@@ -3,6 +3,7 @@ import { VoiceTextarea } from './VoiceTextarea';
 import { useState } from 'react';
 import type { Attendance, Referral } from '../db/types';
 import { updateVisitDetails } from '../db/repo';
+import { today } from '../intelligence/dates';
 
 export const ATTENDANCE_LABELS: Record<Attendance, string> = { unknown: 'Not yet recorded', attended: 'Attended', not_attended: 'Missed appointment' };
 
@@ -22,7 +23,7 @@ export function VisitStatusModal({ referral, onClose }: { referral: Referral; on
     if (closesLoop && !nextAppointment) { setError('Please select the next appointment date for ASHA follow-up.'); return; }
     setSaving(true); setError('');
     try { await updateVisitDetails(referral.id, { attendance, note: note.trim(), nextAppointment: closesLoop ? nextAppointment : undefined }); onClose(); }
-    catch { setError('Visit details could not be saved. Please retry.'); }
+    catch (e) { setError(e instanceof Error && e.message === 'Available from the appointment date' ? e.message : 'Visit details could not be saved. Please retry.'); }
     finally { setSaving(false); }
   }}>
     <h2 id="visit-title" className="text-lg font-bold">{t('Attendance')}</h2>
@@ -36,7 +37,7 @@ export function VisitStatusModal({ referral, onClose }: { referral: Referral; on
     </fieldset>
     {closesLoop && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 space-y-1">
       <label htmlFor="next-appointment" className="block text-sm font-semibold">{t('Next appointment date (sent to ASHA) *')}</label>
-      <input id="next-appointment" type="date" min={new Date().toISOString().slice(0, 10)} value={nextAppointment} onChange={event => { setNextAppointment(event.target.value); setError(''); }} required />
+      <input id="next-appointment" type="date" min={today()} value={nextAppointment} onChange={event => { setNextAppointment(event.target.value); setError(''); }} required />
       <p className="text-xs text-muted">{t('Saving closes the care loop. ASHA sees only this date, to follow up with the patient.')}</p>
     </div>}
     <label className="block text-sm font-semibold">{t('Update notes')}<VoiceTextarea rows={2} value={note} onChange={event => setNote(event.target.value)} /></label>

@@ -99,3 +99,23 @@ describe('PHC and DH must record attendance and the physical exam before referri
     expect(state.referrals.get('asha')?.tier).toBe('phc');
   });
 });
+
+describe('facility tiers cannot record attendance or the exam before the appointment date', () => {
+  it('rejects both before the date and allows them once it arrives', async () => {
+    state.referrals.set('early', makeReferral({ id: 'early', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', worker: { appointmentDate: '2099-01-01' } }));
+    await expect(updateVisitDetails('early', { attendance: 'attended', note: '' })).rejects.toThrow('appointment date');
+    await expect(updateCaseClinical('early', { physicalExam: { generalFindings: 'Examined' } })).rejects.toThrow('appointment date');
+    state.referrals.set('due', makeReferral({ id: 'due', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', worker: { appointmentDate: '2020-01-01' } }));
+    await updateVisitDetails('due', { attendance: 'attended', note: '' });
+    await updateCaseClinical('due', { physicalExam: { generalFindings: 'Examined' } });
+    expect(state.referrals.get('due')?.worker.attendance).toBe('attended');
+  });
+  it('gives the receiving tier its own exam, keeping the previous one in the handover', async () => {
+    state.referrals.set('handover', makeReferral({ id: 'handover', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', physicalExam: { generalFindings: 'PHC exam' }, worker: { attendance: 'attended' } }));
+    await referToNextTier('handover', 'dh', 'DH');
+    const record = state.referrals.get('handover')!;
+    expect(record.physicalExam).toBeUndefined();
+    expect(record.clinicalHandovers?.[0].physicalExam?.generalFindings).toBe('PHC exam');
+    await expect(referToNextTier('handover', 'tcc', 'TCC')).rejects.toThrow('attendance and exam');
+  });
+});
