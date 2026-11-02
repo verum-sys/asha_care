@@ -20,7 +20,8 @@ import { JourneyStepper } from '../../components/JourneyStepper';
 import { SyncChip } from '../../components/StatusChip';
 import { CaseHeader } from '../../components/CaseHeader';
 import { CaseActionBar, type BarAction } from '../../components/CaseActionBar';
-import { NEXT_TIER, primaryCaseAction, referralBlockers, type CaseAction } from '../../intelligence/caseActions';
+import { today } from '../../intelligence/dates';
+import { NEXT_TIER, actionLocks, primaryCaseAction, referralBlockers, type CaseAction } from '../../intelligence/caseActions';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 
@@ -84,11 +85,12 @@ export function CaseView() {
   // PHC and DH record attendance and the physical examination before they can refer on; reports stay optional.
   const hasExam = !!referral.physicalExam;
   const blockers = referralBlockers({ tier: currentTier, attendance, hasExam });
+  const locks = actionLocks({ viewTier: currentTier, holderTier: referral.tier || 'asha', appointmentDate: referral.worker.appointmentDate ?? referral.facility.appointmentDate, today: today(), referred: !!referral.clinicalHandovers?.length || !!referral.ashaFollowUpDate });
   const available: Record<CaseAction, BarAction | undefined> = {
     refer: nextTier && !alreadyReferred && blockers.length === 0 ? { key: 'refer', label: currentTier === 'asha' ? t('Refer to PHC') : currentTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setShowReferralModal(true) } : undefined,
-    attendance: currentTier !== 'asha' && !alreadyReferred ? { key: 'attendance', label: t('Record attendance'), onClick: () => setShowVisitModal(true) } : undefined,
+    attendance: currentTier !== 'asha' && !alreadyReferred ? { key: 'attendance', label: t('Record attendance'), onClick: () => setShowVisitModal(true), disabledReason: locks.attendance } : undefined,
     exam: currentTier !== 'asha' ? { key: 'exam', label: referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setShowExamModal(true) } : undefined,
-    followUp: { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${referral.id}/follow-up`) },
+    followUp: { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${referral.id}/follow-up`), disabledReason: locks.followUp },
   };
   let primaryKey = primaryCaseAction({ viewTier: currentTier, holderTier: referral.tier || 'asha', attendance, hasExam });
   if (!available[primaryKey]) primaryKey = 'followUp';
