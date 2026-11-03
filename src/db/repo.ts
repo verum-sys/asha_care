@@ -330,6 +330,8 @@ export async function addCaseAttachment(
   if (!current) throw new Error('Referral not found');
   const now = new Date().toISOString();
   const cat = attachment.category;
+  // Each report remembers the tier that attached it, so a tier's export can include only its own reports.
+  attachment = { ...attachment, tier: attachment.tier ?? current.tier ?? 'asha' };
   const updated: Referral = {
     ...current,
     reports: cat === 'general' ? [...(current.reports || []), attachment] : current.reports,

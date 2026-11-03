@@ -156,8 +156,8 @@ export function CaseView() {
 
       <JourneyStepper referral={referral} onSelect={openHandover} />
 
-      {/* One form layout for every tier: sections A-D and referral, editable in place. */}
-      <CbacScreening embedded tier={currentTier} />
+      {/* PHC reviews the ASHA's CBAC form in place; DH and TCC work from the handover and their own examination. */}
+      {currentTier === 'phc' && <CbacScreening embedded tier={currentTier} />}
 
       <CareJourneySummary record={data} />
       <ClinicalHandovers handovers={referral.clinicalHandovers} />

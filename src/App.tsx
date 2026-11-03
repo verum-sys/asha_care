@@ -9,6 +9,7 @@ import { Layout } from './components/Layout';
 import { Icon } from './components/Icon';
 import { useLang } from './i18n';
 import { SuperAdminDashboard } from './pages/admin/SuperAdminDashboard';
+import { AnalyticsDashboard } from './pages/admin/AnalyticsDashboard';
 import { TierModuleView } from './pages/tiers/TierModuleView';
 import { RoleDashboard } from './pages/auth/RoleDashboard';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -109,6 +110,7 @@ export function App() {
               <Route path="/case/:id/cbac" element={<CbacRoute />} />
               <Route path="/case/:id/follow-up" element={<RecordFollowUp />} />
               <Route path="/sync" element={<SyncPage />} />
+              <Route path="/analytics" element={<AnalyticsDashboard />} />
               <Route path="/facility" element={<Inbox />} />
               <Route path="/facility/referral/:id" element={<ReferralDetail />} />
               <Route path="*" element={<SuperAdminDashboard />} />

@@ -24,6 +24,8 @@ import { getCaseCategory, type CaseCategory } from '../frontline/CategoryCases';
 import { ashaAppointment, ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
+import { WalkInModal } from '../../components/WalkInModal';
+import { exportReport } from '../../export/caseReport';
 
 /** ASHA follows the date TCC sent back; other tiers use the appointment at their own stage. */
 const appointmentFor = (c: CaseRecord, tier: CareTier) => (tier === 'asha' ? ashaAppointment(c.referral) : c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate);
@@ -64,18 +66,24 @@ export function TierModuleView() {
   const [visitCase, setVisitCase] = useState<CaseRecord | null>(null);
   const [editReport, setEditReport] = useState<{ id: string; attachment: ReportAttachment } | null>(null);
   const [activeCaseForAi, setActiveCaseForAi] = useState<{ caseRecord: CaseRecord } | null>(null);
+  const [walkIn, setWalkIn] = useState(false);
 
   const { data: allCases = [] } = useLive(listCases, []);
   /** Modals hold a snapshot; read the live record so saved summaries show immediately. */
   const freshCase = (record: CaseRecord) => allCases.find(c => c.referral.id === record.referral.id) ?? record;
 
   // Super admins see every unit in the module; staff retain their assigned access.
-  const tierCases = allCases.filter((c) => {
+  const moduleCases = allCases.filter((c) => {
     const t = c.referral.tier || 'asha';
     const u = c.referral.unit || 'a';
     // A tier keeps the cases it referred onward, so it can still record follow-ups and see the appointment.
-    if (t !== activeTier && !c.referral.clinicalHandovers?.some(h => h.fromTier === activeTier)) return false;
+    // ASHA also sees a case TCC sent back for follow-up, even when the patient came to TCC directly.
+    const sentBackToAsha = activeTier === 'asha' && !!c.referral.ashaFollowUpDate;
+    if (t !== activeTier && !sentBackToAsha && !c.referral.clinicalHandovers?.some(h => h.fromTier === activeTier)) return false;
     if (user.role !== 'super_admin' && u !== user.unit) return false;
+    return true;
+  });
+  const tierCases = moduleCases.filter((c) => {
     if (search.trim()) {
       const q = search.toLowerCase();
       const name = (c.patient.name || '').toLowerCase();
@@ -117,6 +125,9 @@ export function TierModuleView() {
   };
 
   if (!tierMeta[activeTier]) return <Navigate to="/" replace />;
+  // ASHA screens with CBAC and PHC reviews it; DH and TCC work without the CBAC form.
+  const withCbac = activeTier === 'asha' || activeTier === 'phc';
+  const startRegistration = () => (withCbac ? navigate(`/cbac?tier=${activeTier}`) : setWalkIn(true));
   const currentMeta = tierMeta[activeTier];
 
   // Status tabs: Today first, then the same three groups as the ASHA home.
@@ -139,7 +150,7 @@ export function TierModuleView() {
     const hasCbac = !!c.referral.screening?.cbac;
     const openCase: BarAction = {
       key: 'open',
-      label: activeTier === 'asha' ? (hasCbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : t('CBAC Form'),
+      label: activeTier === 'asha' ? (hasCbac ? t('CBAC View / Edit') : t('Conduct CBAC')) : activeTier === 'phc' ? t('CBAC Form') : t('Open case'),
       onClick: () => navigate(hasCbac || activeTier !== 'asha' ? `/case/${c.referral.id}?tier=${activeTier}` : `/case/${c.referral.id}/cbac?tier=asha&unit=${c.referral.unit || 'a'}`, { state: { returnTo: `/tier/${activeTier}` } }),
     };
     const locks = actionLocks({ viewTier: activeTier, holderTier: holder, appointmentDate: c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate, today: today(), referred: !!c.referral.clinicalHandovers?.length || !!c.referral.ashaFollowUpDate });
@@ -151,7 +162,7 @@ export function TierModuleView() {
     const exam: BarAction = { key: 'exam', label: hasExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setActiveCaseForExam({ caseRecord: c }), disabledReason: locks.attendance };
     const refer: BarAction | undefined = activeTier !== 'asha' && NEXT_TIER[activeTier] && canAct && blockers.length === 0 ? { key: 'refer', label: activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setActiveCaseForReferral({ caseRecord: c }) } : undefined;
     let primary: BarAction;
-    if (activeTier === 'asha') primary = hasCbac && !canAct ? followUp : openCase;
+    if (activeTier === 'asha') primary = !canAct ? followUp : openCase; // a case held by another tier (also one TCC sent back) is ASHA's follow-up
     else {
       const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam });
       primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : wanted === 'exam' && canAct ? exam : followUp) ?? openCase;
@@ -194,9 +205,13 @@ export function TierModuleView() {
           onChange={(e) => setSearch(e.target.value)}
           className="min-w-[9rem] flex-1 rounded-xl border border-line bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/40"
         />
-        <button type="button" onClick={() => navigate(`/cbac?tier=${activeTier}`)} className="btn btn-primary !min-h-[44px] shrink-0 text-sm font-bold">
+        <button type="button" onClick={() => exportReport(moduleCases, activeTier)} className="btn btn-secondary !min-h-[44px] shrink-0 text-sm font-bold" title={t('Download this module\'s cases as an Excel file')}>
+          <Icon name="download" size={16} />
+          <span>{t('Export report')}</span>
+        </button>
+        <button type="button" onClick={startRegistration} className="btn btn-primary !min-h-[44px] shrink-0 text-sm font-bold">
           <Icon name="plus" size={16} />
-          <span>{t('New CBAC Registration')}</span>
+          <span>{withCbac ? t('New CBAC Registration') : t('Register walk-in patient')}</span>
         </button>
       </div>
 
@@ -225,10 +240,10 @@ export function TierModuleView() {
             <p className="text-slate-400 text-sm">{t('No patient cases currently in')} {t(currentMeta.name)}.</p>
             <button
               type="button"
-              onClick={() => navigate(`/cbac?tier=${activeTier}`)}
+              onClick={startRegistration}
               className="btn btn-primary !min-h-[40px] text-xs font-bold"
             >
-              {t('New CBAC Registration')}
+              {withCbac ? t('New CBAC Registration') : t('Register walk-in patient')}
             </button>
           </div>
         ) : (
@@ -271,7 +286,7 @@ export function TierModuleView() {
                       {(c.referral.tier || 'asha') !== activeTier && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">{t('Referred to')} {(c.referral.tier || '').toUpperCase()}</span>
                       )}
-                      {cbac ? (
+                      {!withCbac ? null : cbac ? (
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${cbac.highRiskNcd ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
                           {t('CBAC Score:')} {cbac.partA.totalScore}/12
                         </span>
@@ -342,6 +357,7 @@ export function TierModuleView() {
 
       {/* MODALS */}
       {visitCase && <VisitStatusModal referral={visitCase.referral} onClose={() => setVisitCase(null)} />}
+      {walkIn && <WalkInModal tier={activeTier} unit={user.unit} onClose={() => setWalkIn(false)} onSaved={id => navigate(`/case/${id}?tier=${activeTier}`, { state: { returnTo: `/tier/${activeTier}` } })} />}
       {editReport && <ReportAttachmentModal referralId={editReport.id} category={editReport.attachment.category} initialAttachment={editReport.attachment} isOpen onClose={() => setEditReport(null)} />}
 
       {activeCaseForAttachment && (

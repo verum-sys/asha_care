@@ -80,6 +80,8 @@ export interface ReportAttachment {
   uploadedAt: string;
   uploadedBy: string;
   findings?: string;
+  /** The care tier holding the case when the report was attached. */
+  tier?: CareTier;
   fileUrl?: string;
   dataUrl?: string;
 }
