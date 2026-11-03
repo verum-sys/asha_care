@@ -23,7 +23,11 @@ describe('patient care journey', () => {
   it('does not invent dates for legacy records', () => {
     const data = record();
     data.referral.clinicalHandovers = [{ fromTier: 'phc', toTier: 'dh', at: '2026-10-23T00:00:00Z', visitStatus: { attendance: 'attended', appointmentDate: '2026-10-20' } }];
-    expect(careJourney(data)[1].detail).toContain('actual visit date not recorded');
-    expect(careJourney(data)[1].detail).not.toContain('Attended on 2026-10-20');
+    const phc = careJourney(data).find(step => step.tier === 'phc');
+    expect(phc?.detail).toContain('actual visit date not recorded');
+    expect(phc?.detail).not.toContain('Attended on 2026-10-20');
+  });
+  it('lists only the levels the patient went through (walk-in at TCC)', () => {
+    expect(careJourney(record()).map(step => step.tier)).toEqual(['tcc']);
   });
 });

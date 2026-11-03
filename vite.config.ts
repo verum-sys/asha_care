@@ -2,6 +2,34 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+/**
+ * The OCR engine, its worker and the English language data are served from CareLink's own site (not a public CDN),
+ * at fixed paths under /ocr/. Only DH and TCC load them, when a report is summarised.
+ */
+const require = createRequire(import.meta.url);
+const OCR_FILES: Record<string, string> = {
+  'ocr/worker.min.js': require.resolve('tesseract.js/dist/worker.min.js'),
+  'ocr/tesseract-core-lstm.wasm.js': require.resolve('tesseract.js-core/tesseract-core-lstm.wasm.js'),
+  'ocr/eng.traineddata.gz': require.resolve('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz'),
+};
+const ocrFiles = {
+  name: 'self-hosted-ocr',
+  configureServer(server: { middlewares: { use: (fn: (req: { url?: string }, res: { setHeader: (k: string, v: string) => void; end: (b: Buffer) => void }, next: () => void) => void) => void } }) {
+    server.middlewares.use((req, res, next) => {
+      const path = (req.url ?? '').split('?')[0].replace(/^\//, '');
+      const file = OCR_FILES[path];
+      if (!file) return next();
+      res.setHeader('Content-Type', path.endsWith('.gz') ? 'application/octet-stream' : 'text/javascript');
+      res.end(readFileSync(file));
+    });
+  },
+  generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: Uint8Array }) => void }) {
+    for (const [fileName, file] of Object.entries(OCR_FILES)) this.emitFile({ type: 'asset', fileName, source: readFileSync(file) });
+  },
+};
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -17,7 +45,7 @@ export default defineConfig(({ mode }) => {
             let body = '';
             for await (const chunk of req) {
               body += chunk.toString();
-              if (body.length > 5000) { res.statusCode = 413; res.end('Request too large'); return; }
+              if (body.length > 20000) { res.statusCode = 413; res.end('Request too large'); return; }
             }
             const request = req as typeof req & { body?: unknown };
             try { request.body = body ? JSON.parse(body) : undefined; } catch { res.statusCode = 400; res.end('Invalid JSON'); return; }
@@ -27,6 +55,7 @@ export default defineConfig(({ mode }) => {
         });
       },
     },
+    ocrFiles,
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -48,6 +77,8 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,m4a}'],
+        // Report reading (PDF and OCR) is only used online at DH and TCC; keep it out of the offline install.
+        globIgnores: ['ocr/**', '**/pdf.worker*', '**/reportText*', '**/pdf-*', '**/tesseract*'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         skipWaiting: true,

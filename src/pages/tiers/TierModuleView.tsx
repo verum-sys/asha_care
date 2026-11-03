@@ -26,6 +26,7 @@ import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
 import { WalkInModal } from '../../components/WalkInModal';
 import { exportReport } from '../../export/caseReport';
+import { addDemoScenarios, DEMO_NAMES } from '../../db/demoCases';
 
 /** ASHA follows the date TCC sent back; other tiers use the appointment at their own stage. */
 const appointmentFor = (c: CaseRecord, tier: CareTier) => (tier === 'asha' ? ashaAppointment(c.referral) : c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate);
@@ -67,6 +68,8 @@ export function TierModuleView() {
   const [editReport, setEditReport] = useState<{ id: string; attachment: ReportAttachment } | null>(null);
   const [activeCaseForAi, setActiveCaseForAi] = useState<{ caseRecord: CaseRecord } | null>(null);
   const [walkIn, setWalkIn] = useState(false);
+  const [demo, setDemo] = useState<'idle' | 'confirm' | 'adding' | 'done'>('idle');
+  const [demoAdded, setDemoAdded] = useState(0);
 
   const { data: allCases = [] } = useLive(listCases, []);
   /** Modals hold a snapshot; read the live record so saved summaries show immediately. */
@@ -214,6 +217,20 @@ export function TierModuleView() {
           <span>{withCbac ? t('New CBAC Registration') : t('Register walk-in patient')}</span>
         </button>
       </div>
+
+      {/* Demo scenarios for TCC (super admin): detected early, detected late, missed early (walk-in). */}
+      {activeTier === 'tcc' && user.role === 'super_admin' && (
+        <div className="flex flex-wrap items-center justify-end gap-2 text-xs" data-testid="demo-scenarios">
+          {demo === 'idle' && !DEMO_NAMES.every(name => allCases.some(c => c.patient.name === name)) && <button type="button" className="btn btn-secondary !min-h-[36px] text-xs font-semibold" onClick={() => setDemo('confirm')}>{t('Add demo cases')}</button>}
+          {demo === 'confirm' && <>
+            <span className="text-muted">{t('Add 3 demo patients to TCC (detected early, detected late, missed early)? They are saved and shared like real records, with (demo) in the name.')}</span>
+            <button type="button" className="btn btn-primary !min-h-[36px] text-xs font-semibold" onClick={async () => { setDemo('adding'); setDemoAdded(await addDemoScenarios(today(), user.unit)); setDemo('done'); }}>{t('Add')}</button>
+            <button type="button" className="btn btn-secondary !min-h-[36px] text-xs font-semibold" onClick={() => setDemo('idle')}>{t('Cancel')}</button>
+          </>}
+          {demo === 'adding' && <span className="text-muted">{t('Saving…')}</span>}
+          {demo === 'done' && <span role="status" className="text-emerald-700 font-semibold">{t('{n} demo patients added.', { n: demoAdded })}</span>}
+        </div>
+      )}
 
       {/* Patient List in this Module */}
       <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4">

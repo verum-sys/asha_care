@@ -14,12 +14,19 @@ export function ashaNoteLines(data: CaseRecord, t: (key: string, params?: Record
   const appointment = referral.worker.appointmentDate ?? referral.facility.appointmentDate;
   const attendance = referral.worker.attendance ?? referral.facility.attendance;
   const lines: string[] = [];
-  if (!cbac) return [t('CBAC assessment is not done yet for {name}.', { name })];
-  lines.push(t('CBAC assessment done for {name} on {date}.', { name, date: formatDate(referral.referralDate) }));
-  lines.push(t('NCD risk score is {a} out of 12 and PHQ-2 score is {d} out of 6.', { a: cbac.partA.totalScore, d: cbac.partD.totalScore }));
-  if (cbac.tbSuspectAlert) lines.push(t('TB suspect: sputum collection is needed.'));
-  // After TCC closes the loop, ASHA is told only the next appointment date.
-  if (referral.ashaFollowUpDate) { lines.push(t('Next follow-up from TCC on {date}.', { date: formatDate(referral.ashaFollowUpDate) })); return lines; }
+  if (!cbac) lines.push(t('CBAC assessment is not done yet for {name}.', { name }));
+  else {
+    lines.push(t('CBAC assessment done for {name} on {date}.', { name, date: formatDate(referral.referralDate) }));
+    lines.push(t('NCD risk score is {a} out of 12 and PHQ-2 score is {d} out of 6.', { a: cbac.partA.totalScore, d: cbac.partD.totalScore }));
+    if (cbac.tbSuspectAlert) lines.push(t('TB suspect: sputum collection is needed.'));
+  }
+  // After TCC closes the loop (also for a patient who went straight to TCC), ASHA is told only the date and TCC's instructions.
+  if (referral.ashaFollowUpDate) {
+    lines.push(t('Next follow-up from TCC on {date}.', { date: formatDate(referral.ashaFollowUpDate) }));
+    if (referral.ashaFollowUpNote) lines.push(t('Instructions from TCC: {note}', { note: referral.ashaFollowUpNote }));
+    return lines;
+  }
+  if (!cbac) return lines;
   if (referral.screening?.referralRequired === 'no') lines.push(t('No referral needed; continue routine community care.'));
   else if (appointment) lines.push(t('Will go to {facility} on {date}.', { facility: referral.destinationFacility || 'PHC', date: formatDate(appointment) }));
   else lines.push(t('PHC appointment date is not set yet.'));

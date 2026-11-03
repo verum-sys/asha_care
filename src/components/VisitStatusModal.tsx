@@ -15,6 +15,7 @@ export function VisitStatusModal({ referral, onClose }: { referral: Referral; on
   // At TCC an attended visit closes the loop: the next appointment date is sent back to ASHA for follow-up.
   const closesLoop = (referral.tier || 'asha') === 'tcc' && attendance === 'attended';
   const [nextAppointment, setNextAppointment] = useState(referral.ashaFollowUpDate ?? '');
+  const [ashaNote, setAshaNote] = useState(referral.ashaFollowUpNote ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const appointment = referral.worker.appointmentDate ?? referral.facility.appointmentDate;
@@ -22,7 +23,7 @@ export function VisitStatusModal({ referral, onClose }: { referral: Referral; on
     event.preventDefault();
     if (closesLoop && !nextAppointment) { setError('Please select the next appointment date for ASHA follow-up.'); return; }
     setSaving(true); setError('');
-    try { await updateVisitDetails(referral.id, { attendance, note: note.trim(), nextAppointment: closesLoop ? nextAppointment : undefined }); onClose(); }
+    try { await updateVisitDetails(referral.id, { attendance, note: note.trim(), nextAppointment: closesLoop ? nextAppointment : undefined, ashaNote: closesLoop ? ashaNote : undefined }); onClose(); }
     catch (e) { setError(e instanceof Error && e.message === 'Available from the appointment date' ? e.message : 'Visit details could not be saved. Please retry.'); }
     finally { setSaving(false); }
   }}>
@@ -38,7 +39,9 @@ export function VisitStatusModal({ referral, onClose }: { referral: Referral; on
     {closesLoop && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 space-y-1">
       <label htmlFor="next-appointment" className="block text-sm font-semibold">{t('Next appointment date (sent to ASHA) *')}</label>
       <input id="next-appointment" type="date" min={today()} value={nextAppointment} onChange={event => { setNextAppointment(event.target.value); setError(''); }} required />
-      <p className="text-xs text-muted">{t('Saving closes the care loop. ASHA sees only this date, to follow up with the patient.')}</p>
+      <label htmlFor="asha-note" className="block text-sm font-semibold pt-1">{t('Instructions for ASHA (optional)')}</label>
+      <VoiceTextarea id="asha-note" rows={2} value={ashaNote} onChange={event => setAshaNote(event.target.value)} />
+      <p className="text-xs text-muted">{t('Saving closes the care loop and sends the patient back to ASHA. ASHA sees only this date and these instructions, not the clinical details.')}</p>
     </div>}
     <label className="block text-sm font-semibold">{t('Update notes')}<VoiceTextarea rows={2} value={note} onChange={event => setNote(event.target.value)} /></label>
     {error && <p role="alert" className="text-sm text-danger">{t(error)}</p>}

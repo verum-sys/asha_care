@@ -73,7 +73,7 @@ const STAGE_HEAD = [
   'BP systolic', 'BP diastolic', 'Pulse', 'SpO2 %', 'Temperature', 'Height cm', 'Weight kg', 'BMI',
   'General findings', 'Systemic examination', 'Oral cavity findings', 'Breast findings', 'Cervical findings', 'Examined by', 'Examined at',
   'Clinical notes', 'DH notes', 'TCC notes', 'Summary', 'Reports attached here',
-  'Referred on to', 'Referred on (date)', 'Next ASHA follow-up', 'Care loop closed', 'Last updated', 'Sync status',
+  'Referred on to', 'Referred on (date)', 'Next ASHA follow-up', 'Instructions for ASHA', 'Care loop closed', 'Last updated', 'Sync status',
 ];
 
 function stageRow(c: CaseRecord, s: Stage): Cell[] {
@@ -89,7 +89,7 @@ function stageRow(c: CaseRecord, s: Stage): Cell[] {
     e.generalFindings, e.systemicExam, e.oralCavityFindings, e.breastExamFindings, e.cervicalExamFindings, e.recordedBy, dateTime(e.recordedAt),
     s.notes, s.tier === 'dh' || s.tier === 'tcc' ? s.dhNotes : '', s.tier === 'tcc' ? s.tccNotes : '', s.summary, reportsAt(c, s.tier).length,
     s.left ? TIER_NAME[s.left.toTier] : '', s.left ? dateTime(s.left.at) : '',
-    atTcc || s.tier === 'asha' ? r.ashaFollowUpDate : '', atTcc ? yesNo(!!r.worker.outcomeRecorded) : '', dateTime(r.updatedAt), r.syncStatus,
+    atTcc || s.tier === 'asha' ? r.ashaFollowUpDate : '', atTcc || s.tier === 'asha' ? r.ashaFollowUpNote : '', atTcc ? yesNo(!!r.worker.outcomeRecorded) : '', dateTime(r.updatedAt), r.syncStatus,
   ];
 }
 
@@ -116,7 +116,7 @@ function cbacRow(c: CaseRecord): Cell[] | undefined {
 }
 
 const TIMELINE_HEAD = ['Patient ID', 'Name', 'Referral ID', 'Date and time', 'Tier', 'Action', 'Details'];
-const REPORT_HEAD = ['Patient ID', 'Name', 'Referral ID', 'Tier', 'Type', 'Title', 'File name', 'File size', 'Uploaded on', 'Uploaded by', 'Findings'];
+const REPORT_HEAD = ['Patient ID', 'Name', 'Referral ID', 'Tier', 'Type', 'Title', 'File name', 'File size', 'Uploaded on', 'Uploaded by', 'Findings', 'AI summary (draft, unverified)', 'AI summary made on'];
 const REPORT_TYPE = { general: 'Lab', biopsy: 'Biopsy', radiology: 'Radiology' } as const;
 
 function timelineRows(c: CaseRecord, scope: ReportScope): Cell[][] {
@@ -136,10 +136,10 @@ function timelineRows(c: CaseRecord, scope: ReportScope): Cell[][] {
 function reportRows(c: CaseRecord, scope: ReportScope): Cell[][] {
   const current = c.referral.tier || 'asha';
   const list = scope === 'all' ? allReports(c) : reportsAt(c, scope);
-  return list.map(rep => [c.patient.id, c.patient.name?.trim() || 'Community member', c.referral.id, TIER_NAME[rep.tier ?? current], REPORT_TYPE[rep.category], rep.title, rep.fileName, rep.fileSize, dateTime(rep.uploadedAt), rep.uploadedBy, rep.findings]);
+  return list.map(rep => [c.patient.id, c.patient.name?.trim() || 'Community member', c.referral.id, TIER_NAME[rep.tier ?? current], REPORT_TYPE[rep.category], rep.title, rep.fileName, rep.fileSize, dateTime(rep.uploadedAt), rep.uploadedBy, rep.findings, rep.aiSummary, dateTime(rep.aiSummaryAt)]);
 }
 
-const OVERVIEW_HEAD = [...PATIENT_HEAD, 'Referral ID', 'Unit', 'Current tier', 'Care path', 'Urgency', 'Referral date', 'CBAC score (of 12)', 'High NCD risk', 'Current appointment', 'Current attendance', 'Reports', 'Next ASHA follow-up', 'Care loop closed', 'Created', 'Last updated'];
+const OVERVIEW_HEAD = [...PATIENT_HEAD, 'Referral ID', 'Unit', 'Current tier', 'Care path', 'Urgency', 'Referral date', 'CBAC score (of 12)', 'High NCD risk', 'Current appointment', 'Current attendance', 'Reports', 'Next ASHA follow-up', 'Care loop closed', 'Walk-in', 'Earlier linked case', 'Created', 'Last updated'];
 
 function overviewRow(c: CaseRecord): Cell[] {
   const r = c.referral;
@@ -147,7 +147,7 @@ function overviewRow(c: CaseRecord): Cell[] {
   return [
     ...patientCells(c), r.id, (r.unit || 'a').toUpperCase(), TIER_NAME[r.tier || 'asha'], tiersVisited(c).map(t => TIER_NAME[t]).join(' > '), r.urgency, r.referralDate,
     cb?.partA.totalScore, yesNo(cb?.highRiskNcd), r.worker.appointmentDate ?? r.facility.appointmentDate, ATTENDANCE[r.worker.attendance ?? r.facility.attendance],
-    allReports(c).length, r.ashaFollowUpDate, yesNo((r.tier || 'asha') === 'tcc' ? !!r.ashaFollowUpDate : undefined), dateTime(r.createdAt), dateTime(r.updatedAt),
+    allReports(c).length, r.ashaFollowUpDate, yesNo((r.tier || 'asha') === 'tcc' ? !!r.ashaFollowUpDate : undefined), yesNo(r.referringWorker?.startsWith('Walk-in')), r.linkedReferralId, dateTime(r.createdAt), dateTime(r.updatedAt),
   ];
 }
 
@@ -170,4 +170,47 @@ export function buildReport(cases: CaseRecord[], scope: ReportScope): Sheet[] {
 export function exportReport(cases: CaseRecord[], scope: ReportScope): void {
   const label = scope === 'all' ? 'Program' : TIER_NAME[scope];
   downloadXlsx(`CareLink-${label}-report-${today()}.xlsx`, buildReport(cases, scope));
+}
+
+/** One patient's complete record, as the tier looking at it is allowed to see it: a summary sheet, then the details. */
+export function buildPatientReport(c: CaseRecord, scope: ReportScope): Sheet[] {
+  const r = c.referral;
+  const cb = r.screening?.cbac;
+  const withCbac = scope === 'all' || scope === 'asha' || scope === 'phc';
+  const tiers = scope === 'all' ? TIERS : [scope];
+  const rows: Cell[][] = [['Field', 'Value']];
+  const add = (field: string, value: Cell) => { if (value !== undefined && value !== null && value !== '') rows.push([field, value]); };
+  add('Report covers', scope === 'all' ? 'All care levels' : `${TIER_NAME[scope]} only`);
+  add('Report made on', dateTime(new Date().toISOString()));
+  add('Patient ID', c.patient.id); add('Name', c.patient.name); add('Age', c.patient.age); add('Sex', c.patient.sex);
+  add('Phone', c.patient.phone); add('Village / locality', c.patient.locality); add('PIN code', c.patient.pincode);
+  add('Referral ID', r.id); add('Unit', (r.unit || 'a').toUpperCase()); add('Urgency', r.urgency); add('Referral date', r.referralDate);
+  add('Referral reason', r.reason); add('Destination facility', r.destinationFacility); add('Registered by', r.referringWorker);
+  if (scope === 'all') { add('Current level', TIER_NAME[r.tier || 'asha']); add('Care path', tiersVisited(c).map(t => TIER_NAME[t]).join(' > ')); }
+  add('Earlier linked case', r.linkedReferralId);
+  if (withCbac && cb) {
+    add('CBAC Part A score (of 12)', cb.partA.totalScore); add('High NCD risk', yesNo(cb.highRiskNcd));
+    add('Symptoms reported', Object.entries(cb.partB?.symptoms ?? {}).filter(([, yes]) => yes).map(([id]) => SYMPTOM_LABEL.get(id) ?? id).join('; '));
+    add('PHQ-2 score (of 6)', cb.partD?.totalScore);
+  }
+  for (const tier of tiers) {
+    const s = stageAt(c, tier);
+    if (!s) continue;
+    const label = TIER_NAME[tier];
+    add(`${label}: arrived`, dateTime(s.arrived));
+    add(`${label}: appointment`, s.visit.appointmentDate ?? s.facility?.appointmentDate);
+    if (tier !== 'asha') add(`${label}: attendance`, ATTENDANCE[s.visit.attendance ?? s.facility?.attendance ?? 'unknown']);
+    add(`${label}: oral cavity findings`, s.exam?.oralCavityFindings); add(`${label}: general findings`, s.exam?.generalFindings);
+    if (tier === 'dh' || tier === 'tcc') add(`${label}: DH notes`, s.dhNotes);
+    if (tier === 'tcc') add(`${label}: TCC notes`, s.tccNotes);
+    add(`${label}: reports attached`, reportsAt(c, tier).length || '');
+    if (s.left) add(`${label}: referred on to`, `${TIER_NAME[s.left.toTier]} on ${dateTime(s.left.at)}`);
+  }
+  if (scope === 'all' || scope === 'tcc' || scope === 'asha') { add('Next ASHA follow-up', r.ashaFollowUpDate); add('Instructions for ASHA', r.ashaFollowUpNote); }
+  return [{ name: 'Patient summary', rows }, ...buildReport([c], scope).filter(s => s.name !== 'Overview')];
+}
+
+export function exportPatientReport(c: CaseRecord, scope: ReportScope): void {
+  const label = scope === 'all' ? 'all-levels' : TIER_NAME[scope];
+  downloadXlsx(`CareLink-${c.patient.id}-${label}-${today()}.xlsx`, buildPatientReport(c, scope));
 }

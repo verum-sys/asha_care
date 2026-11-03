@@ -2,8 +2,19 @@ import type { CaseRecord } from '../db/repo';
 import type { CareTier, WorkerFacts, FacilityFacts } from '../db/types';
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 const english: Translate = (key, params) => key.replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? ''));
+/**
+ * The levels this case actually went through, in order: those it was handed on from, those with a recorded visit, and
+ * where it is now. A patient who came straight to TCC has only TCC.
+ */
+export function careLevels(record: Pick<CaseRecord, 'referral' | 'followUps'>): CareTier[] {
+  const seen = new Set<CareTier>((record.referral.clinicalHandovers || []).map(handover => handover.fromTier));
+  for (const followUp of record.followUps) if (followUp.data?.tier) seen.add(followUp.data.tier);
+  seen.add(record.referral.tier || 'asha');
+  return (['asha', 'phc', 'dh', 'tcc'] as const).filter(tier => seen.has(tier));
+}
+
 export function careJourney(record: CaseRecord, t: Translate = english): { tier: CareTier; detail: string }[] {
-  return (['asha', 'phc', 'dh', 'tcc'] as const).map(tier => {
+  return careLevels(record).map(tier => {
     const visits = record.followUps.filter(followUp => followUp.data?.tier === tier && (followUp.action === 'patient_attended' || followUp.data?.attendance === 'attended'));
     const dates = [...new Set(visits.map(visit => visit.data?.date).filter(Boolean))].sort();
     const snapshots = (record.referral.clinicalHandovers || []).filter(handover => handover.fromTier === tier);

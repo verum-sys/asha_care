@@ -93,3 +93,19 @@ describe('program analytics', () => {
     expect(computeAnalytics([journey(), closed], 'b', '2026-11-04').total).toBe(1);
   });
 });
+
+describe('patient report', () => {
+  it('gives a summary sheet plus details, limited to the tier looking at it', async () => {
+    const { buildPatientReport } = await import('./caseReport');
+    const phc = buildPatientReport(journey(), 'phc');
+    expect(phc.map(s => s.name)).toEqual(['Patient summary', 'PHC cases', 'CBAC screening', 'Timeline', 'Reports']);
+    const out = JSON.stringify(phc);
+    expect(out).toContain('PHC: white patch');
+    expect(out).toContain('PHC only');
+    expect(out).not.toContain('DH: indurated');
+    const all = JSON.stringify(buildPatientReport(journey(), 'all'));
+    expect(all).toContain('DH: indurated');
+    expect(all).toContain('ASHA > PHC > DH');
+    expect(all).not.toContain('1234 5678 9012');
+  });
+});

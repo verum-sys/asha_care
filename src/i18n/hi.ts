@@ -473,6 +473,7 @@ export const hi: Partial<Record<MessageKey, string>> = {
   'sync.developer': 'डेवलपर टूल',
   'journey.title': 'देखभाल की यात्रा',
   'journey.back': 'वापस आशा के पास',
+  'journey.skipped': 'यहाँ नहीं गए',
   'journey.here': 'अभी यहाँ',
   'today.title': 'आज',
   'today.hint': 'इनसे शुरू करें।',

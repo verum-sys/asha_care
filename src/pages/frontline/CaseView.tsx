@@ -24,6 +24,8 @@ import { today } from '../../intelligence/dates';
 import { NEXT_TIER, actionLocks, primaryCaseAction, referralBlockers, type CaseAction } from '../../intelligence/caseActions';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
+import { exportPatientReport } from '../../export/caseReport';
+import { ReportSummaryModal } from '../../components/ReportSummaryModal';
 
 export function CaseView() {
   const { id = '' } = useParams();
@@ -42,6 +44,7 @@ export function CaseView() {
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [editReport, setEditReport] = useState<ReportAttachment | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
+  const [summaryReport, setSummaryReport] = useState<ReportAttachment | null>(null);
 
   const { data, loading } = useLive(async () => {
     const [c, syncEvents] = await Promise.all([getCase(id), listSyncEvents()]);
@@ -66,6 +69,12 @@ export function CaseView() {
   const currentUnit = referral.unit || 'a';
   // Once referred, the case belongs to the next tier; the referring team goes back to its own list (replacing this page).
   const backToTierList = () => navigate(`/tier/${currentTier}`, { replace: true, state: { toast: 'status.savedLocally' } });
+  // The patient's full record as this tier may see it (PHC gets only PHC's part, like the module export).
+  const reportButton = (
+    <button type="button" className="btn btn-secondary !min-h-[36px] !px-3 text-xs font-semibold" onClick={() => exportPatientReport(data, currentTier)} title={t('Download this patient\'s complete record as an Excel file')}>
+      <Icon name="download" size={14} /><span>{t('Patient report')}</span>
+    </button>
+  );
   const reportsCount = (referral.reports?.length || 0) + (referral.biopsyReports?.length || 0) + (referral.radiologyReports?.length || 0);
 
 
@@ -123,7 +132,7 @@ export function CaseView() {
       <div className="space-y-4 max-w-4xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <BackLink />
-          <SyncChip status={referral.syncStatus} />
+          <div className="flex items-center gap-2">{reportButton}<SyncChip status={referral.syncStatus} /></div>
         </div>
         <CaseHeader patient={patient} referral={referral} tier={currentTier} />
         <JourneyStepper referral={referral} />
@@ -149,7 +158,7 @@ export function CaseView() {
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <BackLink />
-        <SyncChip status={referral.syncStatus} />
+        <div className="flex items-center gap-2">{reportButton}<SyncChip status={referral.syncStatus} /></div>
       </div>
 
       <CaseHeader patient={patient} referral={referral} tier={currentTier} />
@@ -258,9 +267,9 @@ export function CaseView() {
               <div
                 key={att.id}
                 onClick={() => setPreviewPdf(att)}
-                className="p-3 rounded-xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all flex items-start justify-between gap-2"
+                className="p-3 rounded-xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all flex flex-col gap-2"
               >
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
                       att.category === 'biopsy' ? 'bg-amber-100 text-amber-800' :
@@ -273,9 +282,11 @@ export function CaseView() {
                   </div>
                   <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{att.title}</h4>
                   <p className="text-[11px] text-slate-500 line-clamp-2">{att.findings || att.fileName}</p>
+                  {att.aiSummary && <p className="text-[10px] font-bold text-violet-700">{t('AI summary saved')}</p>}
                 </div>
-                <div className="text-sky-600 text-xs font-bold shrink-0 mt-1">
-                  <button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold mr-3" onClick={event => { event.stopPropagation(); setEditReport(att); }}>{t('✎ Edit report')}</button>{t('View PDF →')}
+                <div className="text-sky-600 text-xs font-bold flex flex-wrap items-center gap-1.5">
+                  {(currentTier === 'dh' || currentTier === 'tcc') && <button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold text-violet-800 bg-violet-50" onClick={event => { event.stopPropagation(); setSummaryReport(att); }}><Icon name="spark" size={12} />{att.aiSummary ? t('AI summary') : t('Summarise with AI')}</button>}
+                  <button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold" onClick={event => { event.stopPropagation(); setEditReport(att); }}>{t('✎ Edit report')}</button><span className="ml-auto">{t('View PDF →')}</span>
                 </div>
               </div>
             ))}
@@ -316,6 +327,7 @@ export function CaseView() {
 
       {/* MODALS */}
       {showVisitModal && <VisitStatusModal referral={referral} onClose={() => setShowVisitModal(false)} />}
+      {summaryReport && <ReportSummaryModal referralId={referral.id} report={summaryReport} patient={patient} onClose={() => setSummaryReport(null)} />}
       {editReport && <ReportAttachmentModal referralId={referral.id} category={editReport.category} initialAttachment={editReport} isOpen onClose={() => setEditReport(null)} />}
 
       {attachmentCat && (
