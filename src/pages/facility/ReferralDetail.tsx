@@ -152,10 +152,10 @@ export function ReferralDetail() {
 
             {f.appointmentDate && (
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void act({ kind: 'attended', text: msg() })}>
+                <button type="button" className="btn btn-secondary" disabled={busy || f.appointmentDate.slice(0, 10) > today()} onClick={() => void act({ kind: 'attended', text: msg() })}>
                   {t('facility.markAttended')}
                 </button>
-                <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void act({ kind: 'not_attended', text: msg() })}>
+                <button type="button" className="btn btn-secondary" disabled={busy || f.appointmentDate.slice(0, 10) > today()} onClick={() => void act({ kind: 'not_attended', text: msg() })}>
                   {t('facility.markNotAttended')}
                 </button>
               </div>

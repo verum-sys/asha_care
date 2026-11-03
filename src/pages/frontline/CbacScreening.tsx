@@ -2422,6 +2422,7 @@ export function CbacScreening({ embedded = false, tier: tierProp }: { embedded?:
                       <input
                         type="date"
                         value={referralForm.appointmentDate}
+                        disabled={!!loadedCase && (loadedCase.referral.tier || 'asha') !== 'asha'}
                         onChange={(e) => setReferralForm((f) => ({ ...f, appointmentDate: e.target.value }))}
                       />
                     </div>

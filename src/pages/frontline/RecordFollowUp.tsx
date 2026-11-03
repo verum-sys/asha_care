@@ -131,7 +131,7 @@ export function RecordFollowUp() {
             <label htmlFor="fu-date2" className="mb-1 block font-semibold">
               {action === 'patient_attended' ? 'Actual visit date' : t('followup.newDate')}
             </label>
-            <input id="fu-date2" type="date" max={action === 'patient_attended' ? today() : undefined} value={date} onChange={(e) => setDate(e.target.value)} required />
+            <input id="fu-date2" type="date" max={action === 'patient_attended' ? today() : undefined} min={action === 'rescheduled' ? today() : undefined} value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
         )}
 

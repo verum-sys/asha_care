@@ -97,7 +97,7 @@ export function PhysicalExamNotesModal({
 
       onSaved?.();
       onClose();
-    } catch { setError('Notes could not be saved. Please try again.'); } finally {
+    } catch (e) { setError(e instanceof Error && e.message === 'Available from the appointment date' ? e.message : 'Notes could not be saved. Please try again.'); } finally {
       setSaving(false);
     }
   };

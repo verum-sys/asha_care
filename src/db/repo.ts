@@ -153,7 +153,8 @@ export async function updateCase(referralId: string, p: PatientDraft, r: Referra
     ...rest,
     worker: {
       ...current.referral.worker,
-      appointmentDate: appointmentDate || current.referral.worker.appointmentDate,
+      // Once the case has left ASHA the appointment belongs to the receiving tier: it is set when referring and moved only by a reschedule.
+      appointmentDate: (current.referral.tier || 'asha') === 'asha' ? appointmentDate || current.referral.worker.appointmentDate : current.referral.worker.appointmentDate,
       facilityResponse: facilityResponse ?? current.referral.worker.facilityResponse,
     },
     updatedAt: now,
@@ -292,6 +293,12 @@ export async function listSyncEvents(): Promise<SyncEvent[]> {
   return all.sort((a, b) => (a.at < b.at ? 1 : -1));
 }
 
+/** A facility tier cannot record attendance or the physical exam before its appointment date. */
+function beforeAppointment(r: Referral): boolean {
+  const date = r.worker.appointmentDate ?? r.facility.appointmentDate;
+  return (r.tier || 'asha') !== 'asha' && !!date && date.slice(0, 10) > today();
+}
+
 export async function updateCaseClinical(
   referralId: string,
   updates: Partial<Pick<Referral, 'tier' | 'unit' | 'physicalExam' | 'dhNotes' | 'tccNotes' | 'reports' | 'biopsyReports' | 'radiologyReports' | 'aiSummaryOverride' | 'notes'>>
@@ -299,6 +306,7 @@ export async function updateCaseClinical(
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
+  if (updates.physicalExam && beforeAppointment(current)) throw new Error('Available from the appointment date');
   const now = new Date().toISOString();
   const updated: Referral = {
     ...current,
@@ -373,7 +381,9 @@ export async function referToNextTier(
       aiSummary: current.aiSummaryOverride,
       visitStatus: current.worker, facilityStatus: current.facility,
     }],
-    // The new tier starts with fresh visit facts; the appointment set while referring is its first fact.
+    // The new tier starts with fresh visit facts and its own physical exam (the previous one is kept in the handover);
+    // the appointment set while referring is its first fact.
+    physicalExam: undefined,
     worker: appointmentDate ? { appointmentDate } : {},
     facility: emptyFacility(),
     tier: targetTier,
@@ -406,6 +416,7 @@ export async function updateVisitDetails(referralId: string, input: { response?:
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
+  if (beforeAppointment(current)) throw new Error('Available from the appointment date');
   const now = new Date().toISOString();
   // Acceptance and appointment date are only changed when supplied; recording attendance alone leaves them as they are.
   const date = input.date === undefined ? current.worker.appointmentDate ?? '' : input.date;
