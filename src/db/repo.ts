@@ -105,14 +105,63 @@ export type ReferralDraft = Pick<
   biopsyReports?: ReportAttachment[];
   radiologyReports?: ReportAttachment[];
   aiSummaryOverride?: string;
+  linkedReferralId?: string;
 };
 
 export async function createCase(p: PatientDraft, r: ReferralDraft, referringWorker: string): Promise<string> {
-  const db = await getDB();
   const now = new Date().toISOString();
   const patientId = await nextId('patient');
-  const referralId = await nextId('referral');
   const patient: Patient = { ...p, id: patientId, createdAt: now, updatedAt: now, syncStatus: 'pending' };
+  return saveNewReferral(r, referringWorker, now, patient, patientId);
+}
+
+/**
+ * A new case for someone already in the system, such as a patient who comes straight to DH or TCC and is traced to an
+ * earlier record. The earlier case gets a timeline note, so the tier holding it sees where the patient went.
+ */
+export async function createCaseForExistingPatient(patientId: string, r: ReferralDraft, referringWorker: string, linkedReferralId?: string): Promise<string> {
+  const db = await getDB();
+  if (!(await db.get('patients', patientId))) throw new Error('Patient not found');
+  const linked = linkedReferralId ? await db.get('referrals', linkedReferralId) : undefined;
+  const now = new Date().toISOString();
+  const referralId = await saveNewReferral({ ...r, linkedReferralId: linked?.id }, referringWorker, now, undefined, patientId);
+  if (linked) {
+    const tier = (r.tier || 'asha').toUpperCase();
+    const note: FollowUp = { id: uid('fu-'), referralId: linked.id, at: now, action: 'other', note: `Patient came directly to ${tier} on ${today()}; new case ${referralId}.`, syncStatus: 'pending' };
+    const tx = db.transaction(['followups', 'outbox'], 'readwrite');
+    await tx.objectStore('followups').put(note);
+    await tx.objectStore('outbox').put(outboxItem('followup', note.id));
+    await tx.done;
+    notifyChange();
+  }
+  return referralId;
+}
+
+/** Adds a ready-made case with its own history (the demo scenarios), queued for sync like any other record. */
+export async function addPreparedCase(make: (ids: { patientId: string; referralId: string }) => { patient: Patient; referral: Referral; followUps: FollowUp[] }): Promise<string> {
+  const db = await getDB();
+  const patientId = await nextId('patient');
+  const referralId = await nextId('referral');
+  const { patient, referral, followUps } = make({ patientId, referralId });
+  const tx = db.transaction(['patients', 'referrals', 'followups', 'outbox'], 'readwrite');
+  await tx.objectStore('patients').put({ ...patient, id: patientId, syncStatus: 'pending' });
+  await tx.objectStore('outbox').put(outboxItem('patient', patientId));
+  await tx.objectStore('referrals').put({ ...referral, id: referralId, patientId, syncStatus: 'pending' });
+  await tx.objectStore('outbox').put(outboxItem('referral', referralId));
+  for (const f of followUps) {
+    // Timeline ids include the case id, so the same scenario added on two devices never collides.
+    const id = `${f.id}-${referralId}`;
+    await tx.objectStore('followups').put({ ...f, id, referralId, syncStatus: 'pending' });
+    await tx.objectStore('outbox').put(outboxItem('followup', id));
+  }
+  await tx.done;
+  notifyChange();
+  return referralId;
+}
+
+async function saveNewReferral(r: ReferralDraft, referringWorker: string, now: string, patient: Patient | undefined, patientId: string): Promise<string> {
+  const db = await getDB();
+  const referralId = await nextId('referral');
   const { appointmentDate, facilityResponse, appointmentCertainty, ...rest } = r;
   const referral: Referral = {
     ...rest,
@@ -132,9 +181,11 @@ export async function createCase(p: PatientDraft, r: ReferralDraft, referringWor
     syncStatus: 'pending',
   };
   const tx = db.transaction(['patients', 'referrals', 'outbox'], 'readwrite');
-  await tx.objectStore('patients').put(patient);
+  if (patient) {
+    await tx.objectStore('patients').put(patient);
+    await tx.objectStore('outbox').put(outboxItem('patient', patientId));
+  }
   await tx.objectStore('referrals').put(referral);
-  await tx.objectStore('outbox').put(outboxItem('patient', patientId));
   await tx.objectStore('outbox').put(outboxItem('referral', referralId));
   await tx.done;
   notifyChange();
@@ -330,6 +381,8 @@ export async function addCaseAttachment(
   if (!current) throw new Error('Referral not found');
   const now = new Date().toISOString();
   const cat = attachment.category;
+  // Each report remembers the tier that attached it, so a tier's export can include only its own reports.
+  attachment = { ...attachment, tier: attachment.tier ?? current.tier ?? 'asha' };
   const updated: Referral = {
     ...current,
     reports: cat === 'general' ? [...(current.reports || []), attachment] : current.reports,
@@ -412,7 +465,7 @@ export async function referToNextTier(
 }
 
 /** Update recorded acceptance/attendance without discarding prior follow-up history. */
-export async function updateVisitDetails(referralId: string, input: { response?: FacilityResponse; date?: string; attendance: Attendance; note: string; nextAppointment?: string }): Promise<void> {
+export async function updateVisitDetails(referralId: string, input: { response?: FacilityResponse; date?: string; attendance: Attendance; note: string; nextAppointment?: string; ashaNote?: string }): Promise<void> {
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
@@ -428,10 +481,11 @@ export async function updateVisitDetails(referralId: string, input: { response?:
   const closesLoop = (current.tier || 'asha') === 'tcc' && input.attendance === 'attended' && !!input.nextAppointment;
   if (closesLoop) {
     updated.ashaFollowUpDate = input.nextAppointment;
+    updated.ashaFollowUpNote = input.ashaNote?.trim() || undefined;
     updated.worker = { ...updated.worker, outcomeRecorded: true };
   }
   const loopBack: FollowUp | undefined = closesLoop
-    ? { id: uid('fu-'), referralId, at: now, action: 'returned_to_asha', data: { tier: 'tcc', date: input.nextAppointment }, note: `Next follow-up with ASHA on ${input.nextAppointment}.`, syncStatus: 'pending' }
+    ? { id: uid('fu-'), referralId, at: now, action: 'returned_to_asha', data: { tier: 'tcc', date: input.nextAppointment }, note: `Next follow-up with ASHA on ${input.nextAppointment}.${input.ashaNote?.trim() ? ` Instructions for ASHA: ${input.ashaNote.trim()}` : ''}`, syncStatus: 'pending' }
     : undefined;
   const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');
   await tx.objectStore('referrals').put(updated);

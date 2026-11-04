@@ -468,6 +468,7 @@ export const en = {
   'sync.developer': 'Developer tools',
   'journey.title': 'Care journey',
   'journey.back': 'Back to ASHA',
+  'journey.skipped': 'Not visited',
   'journey.here': 'Now',
   'today.title': 'Today',
   'today.hint': 'Start with these.',

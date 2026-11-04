@@ -31,3 +31,17 @@ describe('journeyProgress', () => {
     expect(states(nodes)).toEqual(['done', 'done', 'done', 'done', 'current']);
   });
 });
+
+describe('journeyProgress for walk-ins and closed loops', () => {
+  it('marks steps the patient never went through as not visited (came straight to TCC)', () => {
+    expect(states(journeyProgress({ ...base, tier: 'tcc' } as never))).toEqual(['skipped', 'skipped', 'skipped', 'current', 'upcoming']);
+  });
+  it('moves to back-to-ASHA when TCC records the next follow-up date, with that date', () => {
+    const nodes = journeyProgress({ ...base, tier: 'tcc', ashaFollowUpDate: '2026-12-15', clinicalHandovers: [at('asha', 'phc', '2026-10-01'), at('phc', 'dh', '2026-10-08'), at('dh', 'tcc', '2026-10-15')] } as never);
+    expect(states(nodes)).toEqual(['done', 'done', 'done', 'done', 'current']);
+    expect(nodes[4]).toMatchObject({ date: '2026-12-15', dateKind: 'appointment' });
+  });
+  it('shows a walk-in sent back to ASHA as TCC done, earlier steps not visited', () => {
+    expect(states(journeyProgress({ ...base, tier: 'tcc', ashaFollowUpDate: '2026-12-15' } as never))).toEqual(['skipped', 'skipped', 'skipped', 'done', 'current']);
+  });
+});

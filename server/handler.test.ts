@@ -5,6 +5,7 @@ vi.mock('@clerk/backend', () => ({ verifyToken: vi.fn(async () => ({ sub: 'user_
 vi.mock('../server/interpretation', () => ({ interpretWithGroq: vi.fn(async () => ({ normalizedAnswer: 'Socially', confidence: 0.95, needsClarification: false, explanation: '' })) }));
 vi.mock('../server/addressCheck', () => ({ checkAddressWithGroq: vi.fn(async () => ({ looksLikeAddress: false, confidence: 0.95, reason: 'random characters' })) }));
 vi.mock('../server/clinicalNotes', () => ({ generateClinicalNotes: vi.fn(async () => 'Screening notes. Draft for worker review.') }));
+vi.mock('../server/reportSummary', () => ({ REPORT_KINDS: ['biopsy', 'radiology', 'general'], summariseReport: vi.fn(async () => 'Report type: biopsy. AI draft - check against the original report.') }));
 function response() { return { statusCode: 0, setHeader: vi.fn(), end: vi.fn() }; }
 beforeEach(() => { vi.stubEnv('CLERK_SECRET_KEY', 'test'); vi.stubEnv('GROQ_API_KEY', 'test'); vi.mocked(verifyToken).mockResolvedValue({ sub: 'user_test', sid: 'session_test' } as never); });
 describe('authenticated answer API', () => {
@@ -66,5 +67,16 @@ describe('authenticated clinical notes API', () => {
     const res = response();
     await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { task: 'clinical-notes', context: 'x'.repeat(3501) } } as never, res as never);
     expect(res.statusCode).toBe(400);
+  });
+  it('summarises report text for a valid session, and checks the request', async () => {
+    const ok = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { task: 'report-summary', kind: 'biopsy', context: 'Impression: squamous cell carcinoma, moderately differentiated.' } } as never, ok as never);
+    expect(ok.statusCode).toBe(200);
+    expect(JSON.parse(ok.end.mock.calls[0][0]).summary).toContain('AI draft');
+    const badKind = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { task: 'report-summary', kind: 'x', context: 'Impression: squamous cell carcinoma.' } } as never, badKind as never);
+    expect(badKind.statusCode).toBe(400);
+    const tooLong = response(); await handler({ method: 'POST', headers: { authorization: 'Bearer fake' }, body: { task: 'report-summary', kind: 'biopsy', context: 'x'.repeat(12001) } } as never, tooLong as never);
+    expect(tooLong.statusCode).toBe(400);
+    const noAuth = response(); await handler({ method: 'POST', headers: {}, body: { task: 'report-summary', kind: 'biopsy', context: 'Impression: SCC here.' } } as never, noAuth as never);
+    expect(noAuth.statusCode).toBe(401);
   });
 });

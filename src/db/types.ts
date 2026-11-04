@@ -80,6 +80,13 @@ export interface ReportAttachment {
   uploadedAt: string;
   uploadedBy: string;
   findings?: string;
+  /** The care tier holding the case when the report was attached. */
+  tier?: CareTier;
+  /** AI draft summary of the report text, kept apart from the findings a clinician typed. */
+  aiSummary?: string;
+  aiSummaryAt?: string;
+  /** How the report text was read for the summary: embedded PDF text, or OCR of a scanned page. */
+  aiSummarySource?: 'text' | 'ocr';
   fileUrl?: string;
   dataUrl?: string;
 }
@@ -131,6 +138,10 @@ export interface Referral {
   aiSummaryOverride?: string;
   /** Next appointment given by TCC when it closes the loop; the only TCC detail shown to ASHA for follow-up. */
   ashaFollowUpDate?: string;
+  /** Instructions TCC writes for ASHA when sending the patient back for follow-up (back referral). */
+  ashaFollowUpNote?: string;
+  /** For a patient who came straight to DH or TCC: the earlier referral of the same person, when one was traced. */
+  linkedReferralId?: string;
   clinicalHandovers?: ClinicalHandover[];
   createdAt: string;
   updatedAt: string;

@@ -15,10 +15,14 @@
   "dependencies": {
     "@clerk/backend": "^3.26.2",
     "@clerk/clerk-react": "^5.61.11",
+    "@tesseract.js-data/eng": "1.0.0",
     "idb": "^8.0.3",
+    "pdfjs-dist": "6.4.299",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.6"
+    "react-router-dom": "^6.30.6",
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

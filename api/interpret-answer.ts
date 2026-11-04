@@ -5,6 +5,7 @@ import { CBAC_INTERVIEW_QUESTIONS } from '../src/intelligence/cbacInterviewQuest
 import { findPartBQuestion } from '../src/intelligence/cbacPartBInterview.js';
 import { checkAddressWithGroq } from '../server/addressCheck.js';
 import { interpretWithGroq } from '../server/interpretation.js';
+import { REPORT_KINDS, summariseReport, type ReportKind } from '../server/reportSummary.js';
 const requests = new Map<string, { at: number; count: number }>();
 export default async function handler(req: IncomingMessage & { body?: unknown }, res: ServerResponse) {
   const send = (status: number, data: unknown) => { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(data)); };
@@ -31,6 +32,16 @@ export default async function handler(req: IncomingMessage & { body?: unknown },
     if (typeof context !== 'string' || !context.trim() || context.length > 3500) return send(400, { error: 'Invalid screening context' });
     try { return send(200, { notes: await generateClinicalNotes(context, process.env.GROQ_API_KEY, process.env.GROQ_MODEL || 'qwen/qwen3.8-27b') }); }
     catch { return send(502, { error: 'AI notes unavailable. Please retry or enter notes manually.' }); }
+  }
+  if (task === 'report-summary') {
+    const { kind } = body as Record<string, unknown>;
+    if (typeof context !== 'string' || context.trim().length < 20 || context.length > 12000) return send(400, { error: 'The report text is too short or too long to summarise.' });
+    if (typeof kind !== 'string' || !(REPORT_KINDS as readonly string[]).includes(kind)) return send(400, { error: 'Invalid report type' });
+    try { return send(200, { summary: await summariseReport(context.trim(), kind as ReportKind, process.env.GROQ_API_KEY, process.env.GROQ_MODEL || 'qwen/qwen3.8-27b') }); }
+    catch (error) {
+      if (error instanceof Error && error.message === 'not_a_report') return send(422, { error: 'This does not look like a medical report, so no summary was made.' });
+      return send(502, { error: 'AI summary unavailable. Please retry.' });
+    }
   }
   if (task === 'validate-address') {
     if (typeof context !== 'string' || !context.trim() || context.length > 300) return send(400, { error: 'Invalid address' });
