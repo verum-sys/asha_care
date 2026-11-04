@@ -1,4 +1,4 @@
-import { today } from '../intelligence/dates';
+import { isValidISODate, today } from '../intelligence/dates';
 /**
  * Frontline repository. Every write lands in IndexedDB first, is marked `pending`,
  * and is queued in the outbox for the next sync. Nothing here touches the network.
@@ -7,6 +7,9 @@ import { getDB, getMeta, notifyChange, setMeta, uid } from './db';
 import { isRemoteEnabled } from '../sync/config';
 import { emptyFacility } from './factory';
 import { referralBlockers } from '../intelligence/caseActions';
+import { isDirectAt } from '../intelligence/pathway';
+import { buildStructuredSummary } from '../intelligence/structuredSummary';
+import { addVitalsCheck } from '../intelligence/vitals';
 import type {
   ActionKey,
   Attendance,
@@ -67,7 +70,7 @@ export async function listCases(): Promise<CaseRecord[]> {
   ]);
   const byId = new Map(patients.map((p) => [p.id, p]));
   return referrals
-    .filter((r) => byId.has(r.patientId))
+    .filter((r) => byId.has(r.patientId) && !r.archived)
     .map((r) => ({
       patient: byId.get(r.patientId)!,
       referral: r,
@@ -106,6 +109,7 @@ export type ReferralDraft = Pick<
   radiologyReports?: ReportAttachment[];
   aiSummaryOverride?: string;
   linkedReferralId?: string;
+  mappedPhc?: string;
 };
 
 export async function createCase(p: PatientDraft, r: ReferralDraft, referringWorker: string): Promise<string> {
@@ -362,6 +366,8 @@ export async function updateCaseClinical(
   const updated: Referral = {
     ...current,
     ...updates,
+    // Every saved examination with vitals adds a dated check for this tier, so each visit keeps its own reading.
+    vitalsLog: updates.physicalExam ? addVitalsCheck(current.vitalsLog, updates.physicalExam, current.tier || 'asha', updates.physicalExam.recordedAt || now) : current.vitalsLog,
     updatedAt: now,
     syncStatus: 'pending',
   };
@@ -421,7 +427,8 @@ export async function referToNextTier(
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
   // PHC and DH must record attendance and the physical examination before referring on (reports stay optional).
-  const missing = referralBlockers({ tier: current.tier || 'asha', attendance: current.worker.attendance ?? current.facility.attendance, hasExam: !!current.physicalExam });
+  const fromTier = current.tier || 'asha';
+  const missing = referralBlockers({ tier: fromTier, attendance: current.worker.attendance ?? current.facility.attendance, hasExam: !!current.physicalExam, direct: isDirectAt(current, fromTier) });
   if (missing.length) throw new Error(`Record ${missing.join(' and ')} before referring`);
   const now = new Date().toISOString();
   const updated: Referral = {
@@ -433,6 +440,7 @@ export async function referToNextTier(
       dhNotes: current.dhNotes,
       aiSummary: current.aiSummaryOverride,
       visitStatus: current.worker, facilityStatus: current.facility,
+      structuredSummary: buildStructuredSummary(current, fromTier),
     }],
     // The new tier starts with fresh visit facts and its own physical exam (the previous one is kept in the handover);
     // the appointment set while referring is its first fact.
@@ -440,7 +448,8 @@ export async function referToNextTier(
     worker: appointmentDate ? { appointmentDate } : {},
     facility: emptyFacility(),
     tier: targetTier,
-    unit: targetUnit || current.unit,
+    // The unit is the patient's own PHC catchment and stays the same along the path, so back referrals reach it.
+    unit: current.unit || targetUnit,
     destinationFacility: destinationFacility || current.destinationFacility,
     urgency: urgency || current.urgency,
     notes: notes ? (current.notes ? `${current.notes}\n[Referral to ${targetTier.toUpperCase()}]: ${notes}` : notes) : current.notes,
@@ -464,12 +473,70 @@ export async function referToNextTier(
   notifyChange();
 }
 
+/**
+ * Counter referral from DH or TCC: the patient goes back to their PHC and ASHA with the next appointment and a short
+ * note for ASHA (no clinical details). When something could not happen, the reason goes too, and ASHA is alerted to act.
+ */
+export async function sendBackToAsha(referralId: string, input: { date: string; note: string; reason?: string }): Promise<void> {
+  const db = await getDB();
+  const current = await db.get('referrals', referralId);
+  if (!current) throw new Error('Referral not found');
+  const tier = current.tier || 'asha';
+  if (tier !== 'dh' && tier !== 'tcc') throw new Error('Only DH and TCC send patients back to ASHA');
+  if (!isValidISODate(input.date)) throw new Error('Choose the next appointment date.');
+  if (!input.note.trim()) throw new Error('Write a short note for ASHA.');
+  const now = new Date().toISOString();
+  const reason = input.reason?.trim() || undefined;
+  const updated: Referral = {
+    ...current,
+    ashaFollowUpDate: input.date,
+    ashaFollowUpNote: input.note.trim(),
+    ashaFollowUpReason: reason,
+    // Something could not happen: ASHA acts on it (visit, reassure, bring the patient back).
+    ashaAlert: reason ? `${tier.toUpperCase()}: ${reason}` : current.ashaAlert?.startsWith('Missed the') ? current.ashaAlert : undefined,
+    backReferredFrom: tier,
+    backReferredAt: now,
+    worker: tier === 'tcc' && !reason ? { ...current.worker, outcomeRecorded: true } : current.worker,
+    updatedAt: now,
+    syncStatus: 'pending',
+  };
+  const fu: FollowUp = {
+    id: uid('fu-'), referralId, at: now, action: 'returned_to_asha', data: { tier, date: input.date },
+    note: `Sent back to PHC and ASHA from ${tier.toUpperCase()}. Next appointment ${input.date}.${reason ? ` Could not happen: ${reason}.` : ''} Note for ASHA: ${input.note.trim()}`,
+    syncStatus: 'pending',
+  };
+  const tx = db.transaction(['referrals', 'followups', 'outbox'], 'readwrite');
+  await tx.objectStore('referrals').put(updated);
+  await tx.objectStore('followups').put(fu);
+  await tx.objectStore('outbox').put(outboxItem('referral', referralId));
+  await tx.objectStore('outbox').put(outboxItem('followup', fu.id));
+  await tx.done;
+  notifyChange();
+}
+
+/** Hides cases from every list (used to replace old demo cases). Sync only adds and updates, so this is a flag, not a delete. */
+export async function archiveCases(referralIds: string[]): Promise<void> {
+  if (!referralIds.length) return;
+  const db = await getDB();
+  const now = new Date().toISOString();
+  const tx = db.transaction(['referrals', 'outbox'], 'readwrite');
+  for (const id of referralIds) {
+    const current = await tx.objectStore('referrals').get(id);
+    if (!current) continue;
+    await tx.objectStore('referrals').put({ ...current, archived: true, updatedAt: now, syncStatus: 'pending' });
+    await tx.objectStore('outbox').put(outboxItem('referral', id));
+  }
+  await tx.done;
+  notifyChange();
+}
+
 /** Update recorded acceptance/attendance without discarding prior follow-up history. */
 export async function updateVisitDetails(referralId: string, input: { response?: FacilityResponse; date?: string; attendance: Attendance; note: string; nextAppointment?: string; ashaNote?: string }): Promise<void> {
   const db = await getDB();
   const current = await db.get('referrals', referralId);
   if (!current) throw new Error('Referral not found');
   if (beforeAppointment(current)) throw new Error('Available from the appointment date');
+  if (isDirectAt(current, current.tier || 'asha')) throw new Error('Attendance is not recorded for a patient who came directly');
   const now = new Date().toISOString();
   // Acceptance and appointment date are only changed when supplied; recording attendance alone leaves them as they are.
   const date = input.date === undefined ? current.worker.appointmentDate ?? '' : input.date;
@@ -477,11 +544,18 @@ export async function updateVisitDetails(referralId: string, input: { response?:
   const certainty = input.date === undefined ? current.worker.appointmentCertainty : input.date ? 'confirmed' as const : undefined;
   const updated: Referral = { ...current, worker: { ...current.worker, facilityResponse: response, appointmentDate: date || undefined, appointmentCertainty: certainty, attendance: input.attendance, attendedDate: input.attendance === 'attended' ? current.worker.attendedDate || today() : undefined }, updatedAt: now, syncStatus: 'pending' };
   const followUp: FollowUp = { id: uid('fu-'), referralId, at: now, action: 'other', data: { tier: current.tier || 'asha', attendance: input.attendance, date: updated.worker.attendedDate || date || undefined }, note: `Visit updated: ${response}; appointment ${date || 'not set'}; attendance ${input.attendance}.${input.note ? ` ${input.note}` : ''}`, syncStatus: 'pending' };
+  // A missed facility visit is a negative event: ASHA is alerted to follow up. Attending later clears it.
+  const tier = current.tier || 'asha';
+  if (tier !== 'asha' && input.attendance === 'not_attended') updated.ashaAlert = `Missed the ${tier.toUpperCase()} appointment${date ? ` on ${date}` : ''}`;
+  else if (input.attendance === 'attended' && current.ashaAlert?.startsWith('Missed the')) updated.ashaAlert = undefined;
   // TCC closes the loop when the patient attended: the next appointment goes back to ASHA, and nothing else does.
   const closesLoop = (current.tier || 'asha') === 'tcc' && input.attendance === 'attended' && !!input.nextAppointment;
   if (closesLoop) {
     updated.ashaFollowUpDate = input.nextAppointment;
     updated.ashaFollowUpNote = input.ashaNote?.trim() || undefined;
+    updated.ashaFollowUpReason = undefined;
+    updated.backReferredFrom = 'tcc';
+    updated.backReferredAt = now;
     updated.worker = { ...updated.worker, outcomeRecorded: true };
   }
   const loopBack: FollowUp | undefined = closesLoop

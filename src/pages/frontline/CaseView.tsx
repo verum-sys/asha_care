@@ -1,7 +1,7 @@
 import { CareJourneySummary } from '../../components/CareJourneySummary';
 import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatusModal';
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
-import { RecordedVitals } from '../../components/RecordedVitals';
+import { VitalsHistory } from '../../components/RecordedVitals';
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CbacScreening } from './CbacScreening';
@@ -26,6 +26,8 @@ import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 import { exportPatientReport } from '../../export/caseReport';
 import { ReportSummaryModal } from '../../components/ReportSummaryModal';
+import { BackToAshaModal } from '../../components/BackToAshaModal';
+import { handedTo, isDirectAt, reportsVisibleTo } from '../../intelligence/pathway';
 
 export function CaseView() {
   const { id = '' } = useParams();
@@ -45,6 +47,7 @@ export function CaseView() {
   const [editReport, setEditReport] = useState<ReportAttachment | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
   const [summaryReport, setSummaryReport] = useState<ReportAttachment | null>(null);
+  const [showBackModal, setShowBackModal] = useState(false);
 
   const { data, loading } = useLive(async () => {
     const [c, syncEvents] = await Promise.all([getCase(id), listSyncEvents()]);
@@ -75,7 +78,9 @@ export function CaseView() {
       <Icon name="download" size={14} /><span>{t('Patient report')}</span>
     </button>
   );
-  const reportsCount = (referral.reports?.length || 0) + (referral.biopsyReports?.length || 0) + (referral.radiologyReports?.length || 0);
+  // This team sees the reports attached at its level or earlier, not what later teams added.
+  const visibleReports = reportsVisibleTo(referral, currentTier);
+  const reportsCount = visibleReports.length;
 
 
   // Tapping a finished step opens that stage's handover note below.
@@ -93,18 +98,22 @@ export function CaseView() {
   const attendance = referral.worker.attendance ?? referral.facility.attendance;
   // PHC and DH record attendance and the physical examination before they can refer on; reports stay optional.
   const hasExam = !!referral.physicalExam;
-  const blockers = referralBlockers({ tier: currentTier, attendance, hasExam });
+  // A direct patient (came here themselves) is present when registered: no attendance to record.
+  const direct = isDirectAt(referral, currentTier);
+  const blockers = referralBlockers({ tier: currentTier, attendance, hasExam, direct });
   const locks = actionLocks({ viewTier: currentTier, holderTier: referral.tier || 'asha', appointmentDate: referral.worker.appointmentDate ?? referral.facility.appointmentDate, today: today(), referred: !!referral.clinicalHandovers?.length || !!referral.ashaFollowUpDate });
   const available: Record<CaseAction, BarAction | undefined> = {
     refer: nextTier && !alreadyReferred && blockers.length === 0 ? { key: 'refer', label: currentTier === 'asha' ? t('Refer to PHC') : currentTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setShowReferralModal(true) } : undefined,
-    attendance: currentTier !== 'asha' && !alreadyReferred ? { key: 'attendance', label: t('Record attendance'), onClick: () => setShowVisitModal(true), disabledReason: locks.attendance } : undefined,
+    attendance: currentTier !== 'asha' && !alreadyReferred && !direct ? { key: 'attendance', label: t('Record attendance'), onClick: () => setShowVisitModal(true), disabledReason: locks.attendance } : undefined,
     exam: currentTier !== 'asha' && !alreadyReferred ? { key: 'exam', label: referral.physicalExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setShowExamModal(true), disabledReason: locks.attendance } : undefined,
     followUp: { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${referral.id}/follow-up`), disabledReason: locks.followUp },
+    // DH and TCC close their part with a next appointment, and the patient goes back to their PHC and ASHA.
+    sendBack: (currentTier === 'dh' || currentTier === 'tcc') && !alreadyReferred ? { key: 'sendBack', label: referral.ashaFollowUpDate ? t('Change next appointment') : t('Next appointment (back to ASHA)'), onClick: () => setShowBackModal(true), disabledReason: !direct && attendance !== 'attended' ? 'Record attendance first' : undefined } : undefined,
   };
-  let primaryKey = primaryCaseAction({ viewTier: currentTier, holderTier: referral.tier || 'asha', attendance, hasExam });
+  let primaryKey = primaryCaseAction({ viewTier: currentTier, holderTier: referral.tier || 'asha', attendance, hasExam, direct, sentBack: !!referral.ashaFollowUpDate });
   if (!available[primaryKey]) primaryKey = 'followUp';
   const moreActions: BarAction[] = [
-    ...(['refer', 'attendance', 'exam', 'followUp'] as const).filter(key => key !== primaryKey).map(key => available[key]),
+    ...(['refer', 'sendBack', 'attendance', 'exam', 'followUp'] as const).filter(key => key !== primaryKey).map(key => available[key]),
     ...(currentTier === 'asha' ? [] : [
       { key: 'lab', label: t('+ Lab PDF'), onClick: () => setAttachmentCat('general') },
       { key: 'biopsy', label: t('+ Biopsy PDF'), onClick: () => setAttachmentCat('biopsy') },
@@ -169,9 +178,17 @@ export function CaseView() {
       {currentTier === 'phc' && <CbacScreening embedded tier={currentTier} />}
 
       <CareJourneySummary record={data} />
-      <ClinicalHandovers handovers={referral.clinicalHandovers} />
+      <ClinicalHandovers handovers={handedTo(referral.clinicalHandovers, currentTier)} onOpenReport={reportId => { const found = [...(referral.reports || []), ...(referral.biopsyReports || []), ...(referral.radiologyReports || [])].find(r => r.id === reportId); if (found) setPreviewPdf(found); }} />
 
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span>{!alreadyReferred && <button type="button" className="btn btn-secondary text-xs" disabled={!!locks.attendance} title={locks.attendance ? t(locks.attendance) : undefined} onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button>}</div>
+      {direct
+        ? <div className="card flex flex-wrap items-center gap-2 text-sm"><span className="chip bg-violet-100 text-violet-800 font-bold">{t('Direct patient')}</span><span>{t('Came to {tier} directly, not referred. Registered on {date}; no attendance to record.', { tier: currentTier.toUpperCase(), date: referral.referralDate })}</span>{referral.mappedPhc && <span className="text-muted">· {t('Home PHC')}: <strong>{referral.mappedPhc}</strong></span>}</div>
+        : <div className="card flex flex-wrap items-center justify-between gap-2 text-sm"><span>{t('Appointment:')} <strong>{referral.worker.appointmentDate ?? referral.facility.appointmentDate ?? t('Not set')}</strong> <span className="text-muted">· {t('Attendance')}:</span> <strong>{t(ATTENDANCE_LABELS[referral.worker.attendance ?? referral.facility.attendance])}</strong></span>{!alreadyReferred && <button type="button" className="btn btn-secondary text-xs" disabled={!!locks.attendance} title={locks.attendance ? t(locks.attendance) : undefined} onClick={() => setShowVisitModal(true)}>{t('Record attendance')}</button>}</div>}
+      {referral.ashaFollowUpDate && <div className="card text-sm space-y-1 border-emerald-200 bg-emerald-50/50" data-testid="sent-back">
+        <p className="font-bold text-emerald-900">{t('Sent back to {phc} and ASHA', { phc: referral.mappedPhc || `PHC ${(referral.unit || 'a').toUpperCase()}` })}{referral.backReferredFrom ? ` · ${t('from')} ${referral.backReferredFrom.toUpperCase()}` : ''}</p>
+        <p>{t('Next appointment')}: <strong>{referral.ashaFollowUpDate}</strong></p>
+        {referral.ashaFollowUpReason && <p className="text-amber-900">{t('Could not happen')}: {referral.ashaFollowUpReason}</p>}
+        {referral.ashaFollowUpNote && <p className="text-slate-700">{t('Note for ASHA')}: {referral.ashaFollowUpNote}</p>}
+      </div>}
       {/* Notes (Physical Examination) Section */}
       <section className="card space-y-3">
         <div className="flex items-center justify-between">
@@ -192,9 +209,9 @@ export function CaseView() {
           )}
         </div>
 
+        <VitalsHistory log={referral.vitalsLog} exam={referral.physicalExam} examTier={referral.tier || 'asha'} tier={alreadyReferred ? undefined : currentTier} />
         {referral.physicalExam ? (
           <div className="space-y-3 text-xs sm:text-sm">
-            <RecordedVitals exam={referral.physicalExam} />
 
             {/* Findings list */}
             <div className="space-y-1.5 text-xs text-slate-700">
@@ -259,11 +276,7 @@ export function CaseView() {
 
         {reportsCount > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {[
-              ...(referral.reports || []),
-              ...(referral.biopsyReports || []),
-              ...(referral.radiologyReports || []),
-            ].map((att) => (
+            {visibleReports.map((att) => (
               <div
                 key={att.id}
                 onClick={() => setPreviewPdf(att)}
@@ -282,10 +295,10 @@ export function CaseView() {
                   </div>
                   <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{att.title}</h4>
                   <p className="text-[11px] text-slate-500 line-clamp-2">{att.findings || att.fileName}</p>
-                  {att.aiSummary && <p className="text-[10px] font-bold text-violet-700">{t('AI summary saved')}</p>}
+                  {att.aiFields && <p className="text-[10px] font-bold text-violet-700">{t('Structured report saved')}</p>}
                 </div>
                 <div className="text-sky-600 text-xs font-bold flex flex-wrap items-center gap-1.5">
-                  {(currentTier === 'dh' || currentTier === 'tcc') && <button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold text-violet-800 bg-violet-50" onClick={event => { event.stopPropagation(); setSummaryReport(att); }}><Icon name="spark" size={12} />{att.aiSummary ? t('AI summary') : t('Summarise with AI')}</button>}
+                  {<button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold text-violet-800 bg-violet-50" onClick={event => { event.stopPropagation(); setSummaryReport(att); }}><Icon name="spark" size={12} />{att.aiFields ? t('Structured report') : t('Make structured report')}</button>}
                   <button type="button" className="btn btn-secondary !min-h-[30px] px-3 text-xs font-semibold" onClick={event => { event.stopPropagation(); setEditReport(att); }}>{t('✎ Edit report')}</button><span className="ml-auto">{t('View PDF →')}</span>
                 </div>
               </div>
@@ -327,6 +340,7 @@ export function CaseView() {
 
       {/* MODALS */}
       {showVisitModal && <VisitStatusModal referral={referral} onClose={() => setShowVisitModal(false)} />}
+      {showBackModal && <BackToAshaModal referral={referral} onClose={() => setShowBackModal(false)} />}
       {summaryReport && <ReportSummaryModal referralId={referral.id} report={summaryReport} patient={patient} onClose={() => setSummaryReport(null)} />}
       {editReport && <ReportAttachmentModal referralId={referral.id} category={editReport.category} initialAttachment={editReport} isOpen onClose={() => setEditReport(null)} />}
 

@@ -11,9 +11,15 @@ describe('primaryCaseAction', () => {
     expect(primaryCaseAction({ viewTier: 'phc', holderTier: 'phc', attendance: 'attended' })).toBe('refer');
     expect(primaryCaseAction({ viewTier: 'dh', holderTier: 'dh', attendance: 'attended' })).toBe('refer');
   });
-  it('TCC records attendance, then follow-up (there is nowhere further to refer)', () => {
+  it('TCC records attendance, then gives the next appointment back to ASHA, then follows up', () => {
     expect(primaryCaseAction({ viewTier: 'tcc', holderTier: 'tcc', attendance: 'unknown' })).toBe('attendance');
-    expect(primaryCaseAction({ viewTier: 'tcc', holderTier: 'tcc', attendance: 'attended' })).toBe('followUp');
+    expect(primaryCaseAction({ viewTier: 'tcc', holderTier: 'tcc', attendance: 'attended' })).toBe('sendBack');
+    expect(primaryCaseAction({ viewTier: 'tcc', holderTier: 'tcc', attendance: 'attended', sentBack: true })).toBe('followUp');
+  });
+  it('a direct patient has no attendance step', () => {
+    expect(primaryCaseAction({ viewTier: 'tcc', holderTier: 'tcc', attendance: 'unknown', direct: true })).toBe('sendBack');
+    expect(primaryCaseAction({ viewTier: 'dh', holderTier: 'dh', attendance: 'unknown', direct: true, hasExam: false })).toBe('exam');
+    expect(primaryCaseAction({ viewTier: 'dh', holderTier: 'dh', attendance: 'unknown', direct: true, hasExam: true })).toBe('refer');
   });
   it('a team that already handed the case on only follows up', () => {
     expect(primaryCaseAction({ viewTier: 'asha', holderTier: 'phc', attendance: 'unknown' })).toBe('followUp');

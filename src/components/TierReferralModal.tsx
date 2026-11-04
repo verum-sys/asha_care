@@ -2,23 +2,10 @@ import { useLang } from '../i18n';
 import { VoiceTextarea } from './VoiceTextarea';
 import React, { useState } from 'react';
 import type { CareTier, PhysicalExamNotes, ReportAttachment, Urgency } from '../db/types';
-import { physicalExamText } from './RecordedVitals';
+import { buildStructuredSummary } from '../intelligence/structuredSummary';
+import { StructuredOverview } from './ClinicalHandovers';
 import { referToNextTier } from '../db/repo';
 import { Icon } from './Icon';
-
-const REPORT_LABEL: Record<ReportAttachment['category'], string> = { general: 'Lab report', biopsy: 'Biopsy report', radiology: 'Radiology report' };
-
-/**
- * Report findings for the referral summary. PHC hands over its lab reports (CBC, mainly the abnormal values);
- * DH also hands over biopsy and radiology. The PDFs themselves stay on the case for the next facility to open.
- */
-export function reportFindingsText(tier: CareTier, reports: ReportAttachment[] = []): string {
-  const categories: ReportAttachment['category'][] = tier === 'phc' ? ['general'] : tier === 'dh' ? ['general', 'biopsy', 'radiology'] : [];
-  return reports
-    .filter(report => categories.includes(report.category))
-    .map(report => `${REPORT_LABEL[report.category]} – ${report.title}: ${report.findings?.trim() || 'PDF attached, no findings entered.'}`)
-    .join('\n');
-}
 
 interface TierReferralModalProps {
   referralId: string;
@@ -76,11 +63,9 @@ export function TierReferralModal({
   const [urgency, setUrgency] = useState<Urgency | ''>(''); // the clinician chooses; no default
   const [appointmentDate, setAppointmentDate] = useState('');
   const today = new Date().toISOString().slice(0, 10);
-  const [notes, setNotes] = useState(() => {
-    const exam = physicalExamText(physicalExam);
-    const findings = reportFindingsText(currentTier, reports);
-    return [initialNotes.trim(), exam && !initialNotes.includes(exam) ? exam : '', findings && !initialNotes.includes(findings) ? findings : ''].filter(Boolean).join('\n\n');
-  });
+  // The examination and report values go to the next facility as a structured overview (shown below), not as text.
+  const [notes, setNotes] = useState(initialNotes.trim());
+  const handover = buildStructuredSummary({ physicalExam, reports: reports?.filter(r => r.category === 'general'), biopsyReports: reports?.filter(r => r.category === 'biopsy'), radiologyReports: reports?.filter(r => r.category === 'radiology') }, currentTier);
   // At ASHA the AI summary is the handover: "Generate AI summary" puts it at the top of the notes, where it can be edited.
   const summaryText = currentTier === 'asha' ? (savedSummary?.trim() || aiSummary?.trim() || '') : '';
   const generateSummary = () => setNotes(current => (current.includes(summaryText) ? current : [summaryText, current.trim()].filter(Boolean).join('\n\n')));
@@ -208,6 +193,11 @@ export function TierReferralModal({
               className="w-full text-sm rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500"
             />
           </div>
+
+          {currentTier !== 'asha' && <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 text-xs space-y-1" data-testid="handover-preview">
+            <p className="font-bold text-sky-900">{t('Structured overview sent to {tier}', { tier: targetTier.toUpperCase() })}</p>
+            {handover.exam.length || handover.reports.length ? <StructuredOverview summary={handover} /> : <p className="text-slate-600">{t('No examination or reports recorded yet.')}</p>}
+          </div>}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">

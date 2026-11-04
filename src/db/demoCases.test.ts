@@ -1,48 +1,52 @@
 import { describe, expect, it } from 'vitest';
-import { buildDemoScenarios, DEMO_NAMES } from './demoCases';
-import { stageAt, tiersVisited } from '../export/caseReport';
-import { actionLocks, referralBlockers } from '../intelligence/caseActions';
+import { buildDemoScenarios, DEMO_NAMES, DEMO_VERSION, isDemoCase } from './demoCases';
+import { tiersVisited } from '../export/caseReport';
+import { isDirectAt } from '../intelligence/pathway';
 import { reportFileBlob } from '../intelligence/reportFile';
 
-const today = '2026-11-04';
+const today = '2026-11-05';
 const built = buildDemoScenarios(today, 'a').map((make, i) => make({ patientId: `CL-D${i}`, referralId: `REF-D${i}` }));
 const record = (i: number) => ({ ...built[i], facilityEvents: [] });
 
-describe('demo scenarios at TCC', () => {
-  it('has the three scenarios, all at TCC with the visit today, names marked as demo', () => {
+describe('demo cases for the video', () => {
+  it('has two clean cases at TCC with the visit today and no demo labels on screen', () => {
     expect(built.map(b => b.patient.name)).toEqual([...DEMO_NAMES]);
     for (const b of built) {
       expect(b.referral.tier).toBe('tcc');
       expect(b.referral.worker.appointmentDate).toBe(today);
-      expect(b.patient.name).toMatch(/\(demo\)$/);
-      // TCC can record attendance today: nothing is locked.
-      expect(actionLocks({ viewTier: 'tcc', holderTier: 'tcc', appointmentDate: today, today, referred: true }).attendance).toBeUndefined();
+      expect(b.patient.name).not.toMatch(/demo/i);
+      expect(b.referral.demo).toBe(DEMO_VERSION);
     }
   });
-  it('detected early: screened, through PHC and DH, early biopsy result', () => {
+  it('the referral came the ideal path with structured handovers, dated vitals and reviewed report values', () => {
     const c = record(0);
     expect(tiersVisited(c)).toEqual(['asha', 'phc', 'dh', 'tcc']);
-    expect(c.referral.screening?.cbac?.partA.totalScore).toBe(6);
-    expect(stageAt(c, 'phc')?.visit.attendance).toBe('attended');
-    expect(c.referral.biopsyReports?.[0].findings).toContain('No invasive carcinoma');
+    expect(isDirectAt(c.referral, 'tcc')).toBe(false);
+    expect(c.referral.vitalsLog?.map(v => v.tier)).toEqual(['phc', 'dh']);
+    const dh = c.referral.clinicalHandovers!.find(h => h.fromTier === 'dh')!;
+    expect(dh.structuredSummary?.reports.map(r => r.category)).toEqual(['general', 'biopsy', 'radiology']);
+    const phc = c.referral.clinicalHandovers!.find(h => h.fromTier === 'phc')!;
+    expect(phc.structuredSummary?.reports.map(r => r.category)).toEqual(['general']);
+    expect(c.referral.biopsyReports?.[0].aiFields?.['Depth of invasion']).toBe('2 mm');
   });
-  it('detected late: two missed PHC visits before reaching care, advanced disease', () => {
+  it('the direct patient walked into TCC, is mapped to her PHC, and has no attendance step', () => {
     const c = record(1);
-    expect(c.followUps.filter(f => f.action === 'patient_not_attended')).toHaveLength(2);
-    expect(c.referral.radiologyReports).toHaveLength(1);
-    expect(c.referral.dhNotes).toContain('T3 N1');
-  });
-  it('missed early: walked into TCC, no screening, nothing before TCC', () => {
-    const c = record(2);
     expect(tiersVisited(c)).toEqual(['tcc']);
-    expect(c.referral.screening).toBeUndefined();
-    expect(c.referral.referringWorker.startsWith('Walk-in')).toBe(true);
-    expect(referralBlockers({ tier: 'tcc', attendance: 'unknown', hasExam: false })).toEqual([]);
+    expect(isDirectAt(c.referral, 'tcc')).toBe(true);
+    expect(c.referral.mappedPhc).toBe('PHC Mandar');
+    expect(c.patient.pincode).toBe('835214');
   });
-  it('attaches real PDF files to the demo reports', async () => {
+  it('recognises old and current demo cases so they can be replaced', () => {
+    expect(isDemoCase({ patient: { name: 'Meena Devi (demo)' }, referral: { referringWorker: 'ASHA' } })).toBe(true);
+    expect(isDemoCase({ patient: { name: 'X' }, referral: { referringWorker: 'ASHA (demo scenario)' } })).toBe(true);
+    expect(isDemoCase({ patient: { name: 'X' }, referral: { referringWorker: 'ASHA', demo: 'v2' } })).toBe(true);
+    expect(isDemoCase({ patient: { name: 'Real Person' }, referral: { referringWorker: 'ASHA-1001' } })).toBe(false);
+  });
+  it('attaches real PDFs with clean report text', async () => {
     const blob = await reportFileBlob(built[0].referral.biopsyReports![0]);
     const text = new TextDecoder().decode(new Uint8Array(await blob!.arrayBuffer()));
     expect(text.startsWith('%PDF-1.4')).toBe(true);
-    expect(text).toContain('moderate epithelial dysplasia');
+    expect(text).toContain('Depth of invasion: 2 mm');
+    expect(text).not.toMatch(/synthetic|demo/i);
   });
 });

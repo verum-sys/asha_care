@@ -2,24 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useLang } from '../i18n';
 import { updateCaseAttachment } from '../db/repo';
-import type { Patient, ReportAttachment } from '../db/types';
+import type { LabTest, Patient, ReportAttachment, ReportFields } from '../db/types';
 import { readReportText, redactPatient, type ReportText } from '../intelligence/reportText';
+import { cleanFields, fieldsText, REPORT_FIELDS, NOT_STATED } from '../intelligence/reportFields';
 
 const MAX_CHARS = 11500;
 type Step = 'saved' | 'reading' | 'summarising' | 'done' | 'error';
+const FLAG_CLASS: Record<string, string> = { high: 'text-rose-700 font-bold', low: 'text-sky-700 font-bold', abnormal: 'text-amber-700 font-bold' };
 
 /**
- * AI summary of an uploaded report (trial). The report is read on this device (OCR for scanned pages); only the text,
- * with the patient's name, phone and ID removed, goes to the AI service. The doctor reviews and saves the draft; it is
- * stored apart from the findings they typed.
+ * Structured report (trial): the report's key values in fixed fields, for the doctor. The report is read on this
+ * device (OCR for scanned pages); only its text, without the patient's name, phone or ID, goes to the AI, which fills
+ * the fields with the report's own values ("Not stated" when absent). The doctor checks and edits before saving; it is
+ * kept apart from the findings they typed.
  */
 export function ReportSummaryModal({ referralId, report, patient, onClose }: { referralId: string; report: ReportAttachment; patient: Pick<Patient, 'name' | 'phone' | 'id'>; onClose: () => void }) {
   const { t } = useLang();
   const { getToken } = useAuth();
-  const [step, setStep] = useState<Step>(report.aiSummary ? 'saved' : 'reading');
+  const hasSaved = !!report.aiFields;
+  const [step, setStep] = useState<Step>(hasSaved ? 'saved' : 'reading');
   const [progress, setProgress] = useState('');
   const [read, setRead] = useState<ReportText | null>(null);
-  const [summary, setSummary] = useState(report.aiSummary ?? '');
+  const [fields, setFields] = useState<ReportFields>(report.aiFields ?? cleanFields(report.category, {}));
+  const [tests, setTests] = useState<LabTest[]>(report.aiTests ?? []);
+  const [plain, setPlain] = useState(report.aiPlain ?? '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [showText, setShowText] = useState(false);
@@ -27,7 +33,7 @@ export function ReportSummaryModal({ referralId, report, patient, onClose }: { r
 
   async function start() {
     const id = ++run.current;
-    setStep('reading'); setError(''); setSummary(''); setRead(null);
+    setStep('reading'); setError(''); setRead(null);
     try {
       const result = await readReportText(report, (stage, d) => {
         if (run.current !== id) return;
@@ -39,26 +45,28 @@ export function ReportSummaryModal({ referralId, report, patient, onClose }: { r
       if (text.replace(/\s/g, '').length < 20) throw new Error(t('No readable text was found in this report.'));
       setStep('summarising');
       const token = await getToken();
-      if (!token) throw new Error(t('Please sign in again to use the AI summary.'));
+      if (!token) throw new Error(t('Please sign in again to make the structured report.'));
       const response = await fetch('/api/interpret-answer', {
         method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ task: 'report-summary', kind: report.category, context: text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS)}\n[report text cut here]` : text }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(35000),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || typeof data.summary !== 'string') throw new Error(data.error || t('AI summary unavailable. Please retry.'));
+      if (!response.ok || !data.fields) throw new Error(data.error || t('Structured report unavailable. Please retry.'));
       if (run.current !== id) return;
-      setSummary(data.summary);
+      setFields(cleanFields(report.category, data.fields));
+      setTests(Array.isArray(data.tests) ? data.tests : []);
+      setPlain(typeof data.plain === 'string' ? data.plain : '');
       setStep('done');
     } catch (e) {
       if (run.current !== id) return;
-      setError(e instanceof Error ? t(e.message) : t('AI summary unavailable. Please retry.'));
+      setError(e instanceof Error ? t(e.message) : t('Structured report unavailable. Please retry.'));
       setStep('error');
     }
   }
 
   useEffect(() => {
-    if (!report.aiSummary) void start();
+    if (!hasSaved) void start();
     return () => { run.current++; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -66,28 +74,40 @@ export function ReportSummaryModal({ referralId, report, patient, onClose }: { r
   async function save() {
     setSaving(true);
     try {
-      await updateCaseAttachment(referralId, { ...report, aiSummary: summary.trim(), aiSummaryAt: new Date().toISOString(), aiSummarySource: read?.source ?? report.aiSummarySource });
+      await updateCaseAttachment(referralId, { ...report, aiFields: fields, aiTests: tests, aiPlain: plain.trim() || undefined, aiSummary: fieldsText(fields, tests), aiSummaryAt: new Date().toISOString(), aiSummarySource: read?.source ?? report.aiSummarySource });
       onClose();
-    } catch { setError(t('The summary could not be saved. Please retry.')); setSaving(false); }
+    } catch { setError(t('The structured report could not be saved. Please retry.')); setSaving(false); }
   }
 
+  const ready = step === 'done' || step === 'saved';
   return <div role="dialog" aria-modal="true" aria-labelledby="ai-report-title" className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4">
-    <div className="bg-white rounded-2xl p-5 w-full max-w-xl space-y-3 max-h-[90vh] overflow-y-auto">
+    <div className="bg-white rounded-2xl p-5 w-full max-w-2xl space-y-3 max-h-[90vh] overflow-y-auto">
       <div>
-        <h2 id="ai-report-title" className="text-lg font-bold">{t('AI summary of the report')}</h2>
+        <h2 id="ai-report-title" className="text-lg font-bold">{t('Structured report')}</h2>
         <p className="text-sm text-slate-700">{report.title}</p>
-        <p className="text-xs text-muted">{t('Trial feature. The report is read on this device; only its text, without the patient\'s name, phone or ID, is sent to the AI. Always check the draft against the original report.')}</p>
+        <p className="text-xs text-muted">{t('Trial feature. The report is read on this device; only its text, without the patient\'s name, phone or ID, is sent to the AI. Check every value against the original report.')}</p>
       </div>
 
-      {(step === 'reading' || step === 'summarising') && <p role="status" className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-sm text-sky-900">{step === 'reading' ? progress || t('Opening the report…') : t('Writing the summary…')}</p>}
+      {(step === 'reading' || step === 'summarising') && <p role="status" className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-sm text-sky-900">{step === 'reading' ? progress || t('Opening the report…') : t('Reading the values from the report…')}</p>}
 
       {step === 'error' && <div role="alert" className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-sm text-rose-900 space-y-2"><p>{error}</p><button type="button" className="btn btn-secondary text-xs" onClick={() => void start()}>{t('Try again')}</button></div>}
 
-      {(step === 'done' || step === 'saved') && <>
-        {step === 'saved' && <p className="text-xs text-muted">{t('Saved summary. You can edit it, or make a new one from the report.')}</p>}
+      {ready && <>
+        {step === 'saved' && <p className="text-xs text-muted">{t('Saved structured report. You can edit it, or read the report again.')}</p>}
         {read && <p className="text-xs text-muted">{read.source === 'ocr' ? t('Read with OCR (scanned report): check numbers and spellings carefully.') : t('Read from the text inside the PDF.')}</p>}
-        <label htmlFor="ai-report-summary" className="block text-sm font-semibold">{t('Summary (AI draft, edit if needed)')}</label>
-        <textarea id="ai-report-summary" rows={10} value={summary} onChange={e => setSummary(e.target.value)} className="font-mono text-sm" />
+        <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden" data-testid="structured-fields">
+          <tbody>{REPORT_FIELDS[report.category].map(field => (
+            <tr key={field} className="border-b border-slate-100 last:border-0">
+              <th scope="row" className="w-2/5 bg-slate-50 px-2 py-1.5 text-left text-xs font-semibold text-slate-600 align-top">{t(field)}</th>
+              <td className="px-1 py-1"><input aria-label={t(field)} value={fields[field] ?? ''} onChange={e => setFields(f => ({ ...f, [field]: e.target.value }))} className={`!min-h-[34px] !py-1 text-sm ${(fields[field] ?? NOT_STATED) === NOT_STATED ? 'text-slate-400' : ''}`} /></td>
+            </tr>
+          ))}</tbody>
+        </table>
+        {tests.length > 0 && <table className="w-full text-xs border border-slate-200" data-testid="structured-tests">
+          <thead className="bg-slate-50"><tr><th className="px-2 py-1 text-left">{t('Test')}</th><th className="px-2 py-1 text-left">{t('Result')}</th><th className="px-2 py-1 text-left">{t('Reference range')}</th></tr></thead>
+          <tbody>{tests.map((test, i) => <tr key={i} className="border-t border-slate-100"><td className="px-2 py-1">{test.name}</td><td className={`px-2 py-1 ${FLAG_CLASS[test.flag ?? ''] ?? ''}`}>{test.value}{test.unit ? ` ${test.unit}` : ''}{test.flag && test.flag !== 'normal' ? ` (${t(test.flag)})` : ''}</td><td className="px-2 py-1 text-slate-500">{test.range ?? ''}</td></tr>)}</tbody>
+        </table>}
+        <label className="block text-sm font-semibold">{t('In plain words (for the next team)')}<textarea rows={2} value={plain} onChange={e => setPlain(e.target.value)} /></label>
       </>}
 
       {read && <div>
@@ -96,9 +116,9 @@ export function ReportSummaryModal({ referralId, report, patient, onClose }: { r
       </div>}
 
       <div className="flex flex-wrap justify-end gap-2">
-        {step === 'saved' && <button type="button" className="btn btn-secondary text-xs" onClick={() => void start()}>{t('Make a new summary')}</button>}
+        {step === 'saved' && <button type="button" className="btn btn-secondary text-xs" onClick={() => void start()}>{t('Read the report again')}</button>}
         <button type="button" className="btn btn-secondary text-xs" disabled={saving} onClick={onClose}>{t('Close')}</button>
-        {(step === 'done' || step === 'saved') && <button type="button" className="btn btn-primary text-xs" disabled={saving || summary.trim().length < 20} onClick={() => void save()}>{saving ? t('Saving…') : t('Save summary')}</button>}
+        {ready && <button type="button" className="btn btn-primary text-xs" disabled={saving} onClick={() => void save()}>{saving ? t('Saving…') : t('Save structured report')}</button>}
       </div>
     </div>
   </div>;

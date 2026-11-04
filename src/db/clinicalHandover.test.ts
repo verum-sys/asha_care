@@ -85,7 +85,7 @@ describe('follow-up scope and care-stage visits', () => {
 
 describe('PHC and DH must record attendance and the physical exam before referring on', () => {
   it('blocks referral without attendance, then without the exam, and allows it once both are recorded', async () => {
-    state.referrals.set('gate', makeReferral({ id: 'gate', patientId: 'p', referralDate: '2026-10-25', tier: 'phc' }));
+    state.referrals.set('gate', makeReferral({ id: 'gate', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', clinicalHandovers: [{ fromTier: 'asha', toTier: 'phc', at: '2026-10-25T10:00:00Z' }] }));
     await expect(referToNextTier('gate', 'dh', 'DH')).rejects.toThrow('attendance and exam');
     await updateVisitDetails('gate', { attendance: 'attended', note: 'Reached the PHC' });
     await expect(referToNextTier('gate', 'dh', 'DH')).rejects.toThrow('exam');
@@ -105,7 +105,7 @@ describe('facility tiers cannot record attendance or the exam before the appoint
     state.referrals.set('early', makeReferral({ id: 'early', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', worker: { appointmentDate: '2099-01-01' } }));
     await expect(updateVisitDetails('early', { attendance: 'attended', note: '' })).rejects.toThrow('appointment date');
     await expect(updateCaseClinical('early', { physicalExam: { generalFindings: 'Examined' } })).rejects.toThrow('appointment date');
-    state.referrals.set('due', makeReferral({ id: 'due', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', worker: { appointmentDate: '2020-01-01' } }));
+    state.referrals.set('due', makeReferral({ id: 'due', patientId: 'p', referralDate: '2026-10-25', tier: 'phc', worker: { appointmentDate: '2020-01-01' }, clinicalHandovers: [{ fromTier: 'asha', toTier: 'phc', at: '2026-10-25T10:00:00Z' }] }));
     await updateVisitDetails('due', { attendance: 'attended', note: '' });
     await updateCaseClinical('due', { physicalExam: { generalFindings: 'Examined' } });
     expect(state.referrals.get('due')?.worker.attendance).toBe('attended');

@@ -8,8 +8,8 @@ import { exportReport } from '../../export/caseReport';
 const modules: { tier: CareTier; title: string; subtitle: string; icon: 'user' | 'building'; features: string[] }[] = [
   { tier: 'asha', title: 'ASHA', subtitle: 'Community screening', icon: 'user', features: ['CBAC form', 'Refer to PHC', 'AI summary'] },
   { tier: 'phc', title: 'Primary Health Centre', subtitle: 'Primary care & assessment', icon: 'building', features: ['CBAC form', 'Physical examination notes', 'Reports · PDF', 'Refer to DH'] },
-  { tier: 'dh', title: 'District Hospital', subtitle: 'Specialist diagnostics', icon: 'building', features: ['Walk-in registration', 'Physical examination notes', 'Reports · PDF', 'Biopsy & radiology · PDF', 'DH notes', 'Refer to TCC'] },
-  { tier: 'tcc', title: 'Tertiary Care Centre', subtitle: 'Advanced cancer care', icon: 'building', features: ['Walk-in registration', 'Physical examination notes', 'Reports · PDF', 'Biopsy & radiology · PDF', 'TCC notes', 'Follow-up back to ASHA'] },
+  { tier: 'dh', title: 'District Hospital', subtitle: 'Specialist diagnostics', icon: 'building', features: ['Referred and direct patients', 'Walk-in registration with PIN code', 'Physical examination notes', 'Biopsy & radiology · PDF', 'Refer to TCC or send back to ASHA'] },
+  { tier: 'tcc', title: 'Tertiary Care Centre', subtitle: 'Advanced cancer care', icon: 'building', features: ['Treatment', 'Referred and direct patients', 'Walk-in registration with PIN code', 'Structured report overview', 'Next appointment back to PHC and ASHA'] },
 ];
 export function SuperAdminDashboard() {
   const { t } = useLang();

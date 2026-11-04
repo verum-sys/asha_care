@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useLang } from '../i18n';
-import type { ClinicalHandover, PhysicalExamNotes } from '../db/types';
+import type { ClinicalHandover, PhysicalExamNotes, StructuredSummary } from '../db/types';
+import { NOT_STATED } from '../intelligence/reportFields';
 import { RecordedVitals, recordedVitals } from './RecordedVitals';
 
 const normalise = (value: string) => value.replace(/\s+/g, ' ').trim();
@@ -22,7 +23,7 @@ export function tidySummary(summary: string, handover: Pick<ClinicalHandover, 'f
 }
 
 /** Each distinct note and examination is shown once, at the first stage where it appears; the AI summary only at the ASHA stage. */
-export function ClinicalHandovers({ handovers }: { handovers?: ClinicalHandover[] }) {
+export function ClinicalHandovers({ handovers, onOpenReport }: { handovers?: ClinicalHandover[]; onOpenReport?: (reportId: string) => void }) {
   const { t } = useLang();
   if (!handovers?.length) return null;
   const seen = new Set<string>();
@@ -36,6 +37,8 @@ export function ClinicalHandovers({ handovers }: { handovers?: ClinicalHandover[
     const exam: PhysicalExamNotes | undefined = handover.physicalExam;
     const vitals = recordedVitals(exam);
     const showVitals = vitals.length > 0 && once(`vitals ${JSON.stringify(vitals)}`);
+    // With a structured overview, the examination findings are already in its table.
+    if (handover.structuredSummary) for (const key of ['generalFindings', 'systemicExam', 'oralCavityFindings', 'breastExamFindings', 'cervicalExamFindings'] as const) once(exam?.[key]);
     const rows = ([
       ['Clinical notes', handover.notes],
       ['General examination', exam?.generalFindings],
@@ -57,9 +60,9 @@ export function ClinicalHandovers({ handovers }: { handovers?: ClinicalHandover[
     <ul className="space-y-1.5">
       {stages.map(({ handover, index, exam, showVitals, rows }) => <HandoverStage key={`${handover.at}-${index}`} id={`handover-${handover.fromTier}`}
         label={`${handover.fromTier.toUpperCase()} → ${handover.toTier.toUpperCase()} · ${new Date(handover.at).toLocaleDateString()}`}>
-        {showVitals && <RecordedVitals exam={exam} />}
+        {handover.structuredSummary ? <StructuredOverview summary={handover.structuredSummary} onOpenReport={onOpenReport} /> : showVitals && <RecordedVitals exam={exam} />}
         {rows.map(([label, value]) => <div key={label}><strong>{label}</strong><p className="whitespace-pre-wrap text-slate-700 mt-1">{value}</p></div>)}
-        {!showVitals && !rows.length && <p className="text-slate-500">{t('Nothing new since the previous care team.')}</p>}
+        {!showVitals && !rows.length && !handover.structuredSummary && <p className="text-slate-500">{t('Nothing new since the previous care team.')}</p>}
       </HandoverStage>)}
     </ul>
   </section>;
@@ -78,4 +81,33 @@ function HandoverStage({ id, label, children }: { id: string; label: string; chi
       {children}
     </div>
   </li>;
+}
+
+const CATEGORY_LABEL = { general: 'Lab / other', biopsy: 'Biopsy', radiology: 'Radiology' } as const;
+
+/** The structured handover: examination values, then each report with a plain-words overview, its key values, and the report itself. */
+export function StructuredOverview({ summary, onOpenReport }: { summary: StructuredSummary; onOpenReport?: (reportId: string) => void }) {
+  const { t } = useLang();
+  return <div className="space-y-2" data-testid="structured-overview">
+    {summary.exam.length > 0 && <div>
+      <strong>{t('Examination')}</strong>{summary.vitalsAt && <span className="text-slate-500"> · {t('checked')} {new Date(summary.vitalsAt).toLocaleString()}</span>}
+      <table className="mt-1 w-full border border-slate-200"><tbody>{summary.exam.map(row => <tr key={row.label} className="border-t border-slate-100"><th scope="row" className="w-1/3 bg-slate-50 px-2 py-1 text-left font-semibold text-slate-600">{t(row.label)}</th><td className="px-2 py-1 text-slate-800">{row.value}</td></tr>)}</tbody></table>
+    </div>}
+    {summary.reports.length > 0 && <div className="space-y-1.5">
+      <strong>{t('Reports')}</strong>
+      {summary.reports.map(report => {
+        const values = Object.entries(report.fields ?? {}).filter(([, v]) => v && v !== NOT_STATED);
+        return <div key={report.id} className="rounded-lg border border-slate-200 p-2 space-y-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span><span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase">{t(CATEGORY_LABEL[report.category])}</span> <span className="font-semibold">{report.title}</span></span>
+            {onOpenReport && <button type="button" className="text-sky-700 font-semibold underline" onClick={() => onOpenReport(report.id)}>{t('Open report')}</button>}
+          </div>
+          {report.plain && <p className="text-slate-800">{report.plain}</p>}
+          {values.length > 0 && <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">{values.map(([k, v]) => <Fragment key={k}><dt className="text-slate-500">{t(k)}</dt><dd className="text-slate-800">{v}</dd></Fragment>)}</dl>}
+          {!!report.tests?.length && <p className="text-slate-700">{report.tests.filter(x => x.flag && x.flag !== 'normal').map(x => `${x.name} ${x.value}${x.unit ? ` ${x.unit}` : ''} (${x.flag})`).join(' · ') || t('All listed results within range.')}</p>}
+          {!values.length && !report.tests?.length && <p className="text-slate-700">{report.findings || t('PDF attached, no findings entered.')}</p>}
+        </div>;
+      })}
+    </div>}
+  </div>;
 }

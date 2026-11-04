@@ -87,8 +87,26 @@ export interface ReportAttachment {
   aiSummaryAt?: string;
   /** How the report text was read for the summary: embedded PDF text, or OCR of a scanned page. */
   aiSummarySource?: 'text' | 'ocr';
+  /** Structured values the AI read from the report (fixed fields per report type), reviewed by the doctor. */
+  aiFields?: ReportFields;
+  /** For lab reports: each test with its value, unit, reference range and flag. */
+  aiTests?: LabTest[];
+  /** One or two lines in plain words (no medical terms), for the next care team's overview. */
+  aiPlain?: string;
   fileUrl?: string;
   dataUrl?: string;
+}
+
+/** Fixed fields per report type. Lab reports list their tests; every other value is text, "Not stated" when absent. */
+export type ReportFields = Record<string, string>;
+export interface LabTest { name: string; value: string; unit?: string; range?: string; flag?: 'high' | 'low' | 'abnormal' | 'normal' | '' }
+
+/** One vitals check: taken at every visit, at every tier, with its time. */
+export interface VitalsCheck {
+  at: string;
+  tier: CareTier;
+  values: Partial<Record<'bpSystolic' | 'bpDiastolic' | 'pulseRate' | 'spo2' | 'temperature' | 'weightKg' | 'heightCm' | 'bmi', number>>;
+  recordedBy?: string;
 }
 
 export interface TierNote {
@@ -111,7 +129,12 @@ export interface ClinicalHandover {
   aiSummary?: string;
   visitStatus?: WorkerFacts;
   facilityStatus?: FacilityFacts;
+  /** Structured overview handed to the next facility: exam values and each report's key values (PHC: lab; DH: lab, biopsy, radiology, other). */
+  structuredSummary?: StructuredSummary;
 }
+
+export interface StructuredReport { id: string; category: ReportAttachment['category']; title: string; fields?: ReportFields; tests?: LabTest[]; plain?: string; findings?: string }
+export interface StructuredSummary { exam: { label: string; value: string }[]; vitalsAt?: string; reports: StructuredReport[] }
 
 export interface Referral {
   id: string;
@@ -142,6 +165,21 @@ export interface Referral {
   ashaFollowUpNote?: string;
   /** For a patient who came straight to DH or TCC: the earlier referral of the same person, when one was traced. */
   linkedReferralId?: string;
+  /** The PHC the patient belongs to (picked from the PIN code at DH/TCC registration); its unit is the case unit. */
+  mappedPhc?: string;
+  /** Why the next appointment was given, when something could not happen (sent back to ASHA with the date). */
+  ashaFollowUpReason?: string;
+  /** Something went wrong (missed visit, could not happen): ASHA should act now. */
+  ashaAlert?: string;
+  /** Which tier sent the patient back to ASHA (counter-referral), and when. */
+  backReferredFrom?: CareTier;
+  backReferredAt?: string;
+  /** Every vitals check, at every visit and tier, newest last. */
+  vitalsLog?: VitalsCheck[];
+  /** Ready-made demo case (hidden marker, so demo cases can be replaced). */
+  demo?: string;
+  /** Hidden from every list (replaced demo cases). Kept instead of deleted, because sync only adds and updates. */
+  archived?: boolean;
   clinicalHandovers?: ClinicalHandover[];
   createdAt: string;
   updatedAt: string;
