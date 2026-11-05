@@ -2,6 +2,8 @@ import { useLang } from '../i18n';
 import React, { useState, useRef } from 'react';
 import type { ReportAttachment } from '../db/types';
 import { addCaseAttachment, updateCaseAttachment } from '../db/repo';
+import { summariseInBackground } from '../intelligence/extractReport';
+import { getRemoteToken } from '../sync/config';
 import { Icon } from './Icon';
 
 interface ReportAttachmentModalProps {
@@ -73,7 +75,11 @@ export function ReportAttachmentModal({
 
     setSubmitting(true);
     try {
+      // Keep what the edit form does not show (tier, structured values); a new PDF replaces the old values.
+      const newFile = !!dataUrl && dataUrl !== initialAttachment?.dataUrl;
+      const kept: Partial<ReportAttachment> = initialAttachment ? (newFile ? { tier: initialAttachment.tier } : { ...initialAttachment }) : {};
       const attachment: ReportAttachment = {
+        ...kept,
         id: initialAttachment?.id || `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         title: title.trim() || fileName || 'Clinical PDF Report',
         fileName: fileName || `${category}_report.pdf`,
@@ -89,6 +95,7 @@ export function ReportAttachmentModal({
 
       if (initialAttachment) await updateCaseAttachment(referralId, attachment);
       else await addCaseAttachment(referralId, attachment);
+      if (!initialAttachment || newFile) void summariseInBackground(referralId, attachment.id, getRemoteToken);
       onSaved?.();
       onClose();
     } catch { setError('The PDF could not be saved. Check device storage and try again.'); } finally {
