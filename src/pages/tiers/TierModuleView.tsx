@@ -3,7 +3,6 @@ import { CareJourneySummary } from '../../components/CareJourneySummary';
 import { BackLink } from '../../components/Layout';
 import { ATTENDANCE_LABELS, VisitStatusModal } from '../../components/VisitStatusModal';
 import { ClinicalHandovers } from '../../components/ClinicalHandovers';
-import { RecordedVitals } from '../../components/RecordedVitals';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -25,8 +24,10 @@ import { ashaAppointment, ashaNoteLines } from '../../intelligence/ashaNote';
 import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal } from '../../components/AiSummaryModal';
 import { WalkInModal } from '../../components/WalkInModal';
+import { BackToAshaModal } from '../../components/BackToAshaModal';
+import { handedTo, isDirectAt, reportsVisibleTo } from '../../intelligence/pathway';
 import { exportReport } from '../../export/caseReport';
-import { addDemoScenarios, DEMO_NAMES } from '../../db/demoCases';
+import { DEMO_NAMES, DEMO_VERSION, setUpDemoCases } from '../../db/demoCases';
 
 /** ASHA follows the date TCC sent back; other tiers use the appointment at their own stage. */
 const appointmentFor = (c: CaseRecord, tier: CareTier) => (tier === 'asha' ? ashaAppointment(c.referral) : c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate);
@@ -58,6 +59,8 @@ export function TierModuleView() {
 
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'all' | 'today' | CaseCategory>('all');
+  /** PHC, DH and TCC can show referred patients and direct patients (came in themselves) separately. */
+  const [entry, setEntry] = useState<'all' | 'referred' | 'direct'>('all');
 
   // Modals state
   const [activeCaseForAttachment, setActiveCaseForAttachment] = useState<{ id: string; category: 'general' | 'biopsy' | 'radiology' } | null>(null);
@@ -68,6 +71,7 @@ export function TierModuleView() {
   const [editReport, setEditReport] = useState<{ id: string; attachment: ReportAttachment } | null>(null);
   const [activeCaseForAi, setActiveCaseForAi] = useState<{ caseRecord: CaseRecord } | null>(null);
   const [walkIn, setWalkIn] = useState(false);
+  const [backCase, setBackCase] = useState<CaseRecord | null>(null);
   const [demo, setDemo] = useState<'idle' | 'confirm' | 'adding' | 'done'>('idle');
   const [demoAdded, setDemoAdded] = useState(0);
 
@@ -80,13 +84,17 @@ export function TierModuleView() {
     const t = c.referral.tier || 'asha';
     const u = c.referral.unit || 'a';
     // A tier keeps the cases it referred onward, so it can still record follow-ups and see the appointment.
-    // ASHA also sees a case TCC sent back for follow-up, even when the patient came to TCC directly.
-    const sentBackToAsha = activeTier === 'asha' && !!c.referral.ashaFollowUpDate;
-    if (t !== activeTier && !sentBackToAsha && !c.referral.clinicalHandovers?.some(h => h.fromTier === activeTier)) return false;
+    // A counter referral (DH or TCC sent the patient back) reaches both the patient's PHC and its ASHA, even when the
+    // patient came to DH or TCC directly; ASHA also sees any case where something went wrong (missed visit).
+    const sentBack = (activeTier === 'asha' || activeTier === 'phc') && !!c.referral.ashaFollowUpDate;
+    const needsAsha = activeTier === 'asha' && !!c.referral.ashaAlert;
+    if (t !== activeTier && !sentBack && !needsAsha && !c.referral.clinicalHandovers?.some(h => h.fromTier === activeTier)) return false;
     if (user.role !== 'super_admin' && u !== user.unit) return false;
     return true;
   });
   const tierCases = moduleCases.filter((c) => {
+    if (entry === 'direct' && !isDirectAt(c.referral, activeTier)) return false;
+    if (entry === 'referred' && isDirectAt(c.referral, activeTier)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       const name = (c.patient.name || '').toLowerCase();
@@ -158,17 +166,22 @@ export function TierModuleView() {
     };
     const locks = actionLocks({ viewTier: activeTier, holderTier: holder, appointmentDate: c.referral.worker.appointmentDate ?? c.referral.facility.appointmentDate, today: today(), referred: !!c.referral.clinicalHandovers?.length || !!c.referral.ashaFollowUpDate });
     const followUp: BarAction = { key: 'followUp', label: t('Record follow-up'), onClick: () => navigate(`/case/${c.referral.id}/follow-up`, { state: { returnTo: `/tier/${activeTier}` } }), disabledReason: locks.followUp };
-    const attendance: BarAction | undefined = activeTier !== 'asha' && canAct ? { key: 'attendance', label: t('Record attendance'), onClick: () => setVisitCase(c), disabledReason: locks.attendance } : undefined;
-    // PHC and DH record attendance and the physical examination before they can refer on.
+    // A direct patient came in themselves: no attendance step.
+    const direct = isDirectAt(c.referral, holder);
+    const attendedHere = (c.referral.worker.attendance ?? c.referral.facility.attendance) === 'attended';
+    const attendance: BarAction | undefined = activeTier !== 'asha' && canAct && !direct ? { key: 'attendance', label: t('Record attendance'), onClick: () => setVisitCase(c), disabledReason: locks.attendance } : undefined;
+    // PHC and DH record attendance (referred patients) and the physical examination before they can refer on.
     const hasExam = !!c.referral.physicalExam;
-    const blockers = referralBlockers({ tier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam });
+    const blockers = referralBlockers({ tier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam, direct });
+    // DH and TCC close their part with a next appointment, sending the patient back to their PHC and ASHA.
+    const sendBack: BarAction | undefined = (activeTier === 'dh' || activeTier === 'tcc') && canAct ? { key: 'sendBack', label: c.referral.ashaFollowUpDate ? t('Change next appointment') : t('Next appointment (back to ASHA)'), onClick: () => setBackCase(c), disabledReason: !direct && !attendedHere ? 'Record attendance first' : undefined } : undefined;
     const exam: BarAction = { key: 'exam', label: hasExam ? t('Edit Physical Exam') : t('+ Record Physical Exam'), onClick: () => setActiveCaseForExam({ caseRecord: c }), disabledReason: locks.attendance };
     const refer: BarAction | undefined = activeTier !== 'asha' && NEXT_TIER[activeTier] && canAct && blockers.length === 0 ? { key: 'refer', label: activeTier === 'phc' ? t('Refer to DH') : t('Refer to TCC'), onClick: () => setActiveCaseForReferral({ caseRecord: c }) } : undefined;
     let primary: BarAction;
     if (activeTier === 'asha') primary = !canAct ? followUp : openCase; // a case held by another tier (also one TCC sent back) is ASHA's follow-up
     else {
-      const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam });
-      primary = (wanted === 'refer' ? refer : wanted === 'attendance' ? attendance : wanted === 'exam' && canAct ? exam : followUp) ?? openCase;
+      const wanted = primaryCaseAction({ viewTier: activeTier, holderTier: holder, attendance: c.referral.worker.attendance ?? c.referral.facility.attendance, hasExam, direct, sentBack: !!c.referral.ashaFollowUpDate });
+      primary = (wanted === 'refer' ? refer : wanted === 'sendBack' ? sendBack : wanted === 'attendance' ? attendance : wanted === 'exam' && canAct ? exam : followUp) ?? openCase;
     }
     const extras: BarAction[] = activeTier === 'asha' ? [followUp] : [
       ...(canAct ? [{ key: 'exam', label: t('Add Notes'), onClick: () => setActiveCaseForExam({ caseRecord: c }), disabledReason: locks.attendance }] : []),
@@ -180,6 +193,7 @@ export function TierModuleView() {
       followUp,
       ...(attendance ? [attendance] : []),
       ...(refer ? [refer] : []),
+      ...(sendBack ? [sendBack] : []),
       openCase,
     ];
     const more = extras.filter(action => action.key !== primary.key);
@@ -218,13 +232,13 @@ export function TierModuleView() {
         </button>
       </div>
 
-      {/* Demo scenarios for TCC (super admin): detected early, detected late, missed early (walk-in). */}
+      {/* Demo cases for TCC (super admin): one referral on the ideal path, one direct walk-in. */}
       {activeTier === 'tcc' && user.role === 'super_admin' && (
         <div className="flex flex-wrap items-center justify-end gap-2 text-xs" data-testid="demo-scenarios">
-          {demo === 'idle' && !DEMO_NAMES.every(name => allCases.some(c => c.patient.name === name)) && <button type="button" className="btn btn-secondary !min-h-[36px] text-xs font-semibold" onClick={() => setDemo('confirm')}>{t('Add demo cases')}</button>}
+          {demo === 'idle' && allCases.filter(c => c.referral.demo === DEMO_VERSION).length < DEMO_NAMES.length && <button type="button" className="btn btn-secondary !min-h-[36px] text-xs font-semibold" onClick={() => setDemo('confirm')}>{t('Set up demo cases')}</button>}
           {demo === 'confirm' && <>
-            <span className="text-muted">{t('Add 3 demo patients to TCC (detected early, detected late, missed early)? They are saved and shared like real records, with (demo) in the name.')}</span>
-            <button type="button" className="btn btn-primary !min-h-[36px] text-xs font-semibold" onClick={async () => { setDemo('adding'); setDemoAdded(await addDemoScenarios(today(), user.unit)); setDemo('done'); }}>{t('Add')}</button>
+            <span className="text-muted">{t('Add 2 demo patients to TCC (one referral, one direct walk-in)? Any earlier demo patients are removed from the lists.')}</span>
+            <button type="button" className="btn btn-primary !min-h-[36px] text-xs font-semibold" onClick={async () => { setDemo('adding'); setDemoAdded(await setUpDemoCases(today(), user.unit)); setDemo('done'); }}>{t('Add')}</button>
             <button type="button" className="btn btn-secondary !min-h-[36px] text-xs font-semibold" onClick={() => setDemo('idle')}>{t('Cancel')}</button>
           </>}
           {demo === 'adding' && <span className="text-muted">{t('Saving…')}</span>}
@@ -243,6 +257,15 @@ export function TierModuleView() {
           </h2>
 
         </div>
+
+        {activeTier !== 'asha' && <div role="radiogroup" aria-label={t('Referred or direct patients')} className="flex flex-wrap items-center gap-1.5" data-testid="entry-filter">
+          <span className="text-xs font-semibold text-muted mr-1">{t('Show')}</span>
+          {([['all', t('All patients')], ['referred', t('Referred')], ['direct', t('Direct (walk-in)')]] as const).map(([key, label]) => (
+            <button key={key} type="button" role="radio" aria-checked={entry === key} onClick={() => setEntry(key)} className={`btn !min-h-[36px] text-xs font-semibold ${entry === key ? 'btn-primary' : 'btn-secondary'}`}>
+              {label} <span className="opacity-80">{moduleCases.filter(c => key === 'all' || (key === 'direct') === isDirectAt(c.referral, activeTier)).length}</span>
+            </button>
+          ))}
+        </div>}
 
         <div role="tablist" aria-label={t('Patients at')} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {tabs.map(({ key, label }) => (
@@ -268,7 +291,9 @@ export function TierModuleView() {
             {shownCases.length === 0 && <p className="py-6 text-center text-sm text-muted">{t('today.emptyTab')}</p>}
             {shownCases.map((c) => {
               const cbac = c.referral.screening?.cbac;
-              const reportsCount = (c.referral.reports?.length || 0) + (c.referral.biopsyReports?.length || 0) + (c.referral.radiologyReports?.length || 0);
+              // Each team sees the reports attached at its level or earlier (ASHA sees none).
+              const visibleReports = reportsVisibleTo(c.referral, activeTier);
+              const reportsCount = visibleReports.length;
               const cardActions = cardActionsFor(c);
 
               return (
@@ -292,6 +317,7 @@ export function TierModuleView() {
                               {t('URGENT')}
                             </span>
                           )}
+                          {activeTier !== 'asha' && isDirectAt(c.referral, activeTier) && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-800">{t('DIRECT')}</span>}
                         </div>
                         <div className="text-xs text-slate-500">
                           {c.patient.age ? `${c.patient.age}y` : ''} · {c.patient.locality || t('Locality unrecorded')}
@@ -301,7 +327,7 @@ export function TierModuleView() {
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {(c.referral.tier || 'asha') !== activeTier && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">{t('Referred to')} {(c.referral.tier || '').toUpperCase()}</span>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">{c.referral.ashaFollowUpDate && activeTier !== 'tcc' && activeTier !== 'dh' ? `${t('Back from')} ${(c.referral.backReferredFrom || c.referral.tier || '').toUpperCase()}` : `${t('Referred to')} ${(c.referral.tier || '').toUpperCase()}`}</span>
                       )}
                       {!withCbac ? null : cbac ? (
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${cbac.highRiskNcd ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
@@ -320,19 +346,17 @@ export function TierModuleView() {
                     </div>
                   </div>
 
-                  <RecordedVitals exam={c.referral.physicalExam} />
+                  {/* Vitals are not shown on the list card; the latest check (with date and time) is on the case page and in the notes. */}
+                  {c.referral.ashaFollowUpDate && <p className="text-xs rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1.5 text-emerald-900">{t('Next appointment')}: <strong>{c.referral.ashaFollowUpDate}</strong>{c.referral.ashaFollowUpNote ? ` · ${c.referral.ashaFollowUpNote}` : ''}</p>}
+                  {activeTier === 'asha' && c.referral.ashaAlert && <p role="status" className="text-xs rounded-lg bg-amber-50 border border-amber-300 px-2 py-1.5 font-semibold text-amber-900">⚠ {t('ASHA action needed')}: {c.referral.ashaAlert}</p>}
                   <CareJourneySummary record={c} />
-                  <ClinicalHandovers handovers={c.referral.clinicalHandovers} />
+                  <ClinicalHandovers handovers={handedTo(c.referral.clinicalHandovers, activeTier)} onOpenReport={reportId => { const found = [...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].find(r => r.id === reportId); if (found) setActivePdfPreview({ attachment: found, patientName: c.patient.name, patientId: c.patient.id }); }} />
 
                   {/* Attached Reports previews */}
                   {reportsCount > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] font-bold text-slate-400">{t('Reports:')}</span>
-                      {[
-                        ...(c.referral.reports || []),
-                        ...(c.referral.biopsyReports || []),
-                        ...(c.referral.radiologyReports || []),
-                      ].map((att) => (
+                      {visibleReports.map((att) => (
                         <button
                           key={att.id}
                           type="button"
@@ -356,8 +380,8 @@ export function TierModuleView() {
                   )}
 
                   {activeTier === 'asha' && <p className="line-clamp-2 text-xs text-slate-600">{ashaNoteLines(c, t, formatDate).join(' ')}</p>}
-                  {reportsCount > 0 && <div className="flex flex-wrap gap-2">{[...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier !== 'asha' && <span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span>}</div>
+                  {reportsCount > 0 && <div className="flex flex-wrap gap-2">{visibleReports.map(attachment => <button type="button" key={attachment.id} className="btn btn-secondary !min-h-[34px] px-3 text-xs font-semibold" onClick={() => setEditReport({ id: c.referral.id, attachment })}>{t('✎ Edit')} {attachment.title}</button>)}</div>}
+                  <div className="flex flex-wrap items-center gap-3 text-xs"><span>{t('Appointment:')} {appointmentFor(c, activeTier) ?? t('Not set')}</span>{activeTier !== 'asha' && !isDirectAt(c.referral, activeTier) && <span>{t('Attendance')}: {t(ATTENDANCE_LABELS[c.referral.worker.attendance ?? c.referral.facility.attendance])}</span>}{activeTier !== 'asha' && isDirectAt(c.referral, activeTier) && <span>{t('Came directly, no attendance to record')}</span>}</div>
                   {/* One main action for this case; the rest behind More. */}
                   <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
                     <button type="button" className="btn btn-primary min-w-0 flex-1 !min-h-[48px] text-sm font-bold" disabled={!!cardActions.primary.disabledReason} onClick={cardActions.primary.onClick}>{cardActions.primary.label}</button>
@@ -373,6 +397,7 @@ export function TierModuleView() {
       </div>
 
       {/* MODALS */}
+      {backCase && <BackToAshaModal referral={freshCase(backCase).referral} onClose={() => setBackCase(null)} />}
       {visitCase && <VisitStatusModal referral={visitCase.referral} onClose={() => setVisitCase(null)} />}
       {walkIn && <WalkInModal tier={activeTier} unit={user.unit} onClose={() => setWalkIn(false)} onSaved={id => navigate(`/case/${id}?tier=${activeTier}`, { state: { returnTo: `/tier/${activeTier}` } })} />}
       {editReport && <ReportAttachmentModal referralId={editReport.id} category={editReport.attachment.category} initialAttachment={editReport.attachment} isOpen onClose={() => setEditReport(null)} />}

@@ -21,9 +21,12 @@ export function ashaNoteLines(data: CaseRecord, t: (key: string, params?: Record
     if (cbac.tbSuspectAlert) lines.push(t('TB suspect: sputum collection is needed.'));
   }
   // After TCC closes the loop (also for a patient who went straight to TCC), ASHA is told only the date and TCC's instructions.
+  // Something went wrong (missed visit, or it could not happen at the facility): ASHA acts first.
+  if (referral.ashaAlert) lines.push(t('Action needed: {alert}. Visit the patient and help them get back to care.', { alert: referral.ashaAlert }));
   if (referral.ashaFollowUpDate) {
-    lines.push(t('Next follow-up from TCC on {date}.', { date: formatDate(referral.ashaFollowUpDate) }));
-    if (referral.ashaFollowUpNote) lines.push(t('Instructions from TCC: {note}', { note: referral.ashaFollowUpNote }));
+    const from = (referral.backReferredFrom || 'tcc').toUpperCase();
+    lines.push(t('Next follow-up from {tier} on {date}.', { tier: from, date: formatDate(referral.ashaFollowUpDate) }));
+    if (referral.ashaFollowUpNote) lines.push(t('Instructions from {tier}: {note}', { tier: from, note: referral.ashaFollowUpNote }));
     return lines;
   }
   if (!cbac) return lines;

@@ -37,7 +37,7 @@ export default async function handler(req: IncomingMessage & { body?: unknown },
     const { kind } = body as Record<string, unknown>;
     if (typeof context !== 'string' || context.trim().length < 20 || context.length > 12000) return send(400, { error: 'The report text is too short or too long to summarise.' });
     if (typeof kind !== 'string' || !(REPORT_KINDS as readonly string[]).includes(kind)) return send(400, { error: 'Invalid report type' });
-    try { return send(200, { summary: await summariseReport(context.trim(), kind as ReportKind, process.env.GROQ_API_KEY, process.env.GROQ_MODEL || 'qwen/qwen3.8-27b') }); }
+    try { return send(200, await summariseReport(context.trim(), kind as ReportKind, process.env.GROQ_API_KEY, process.env.GROQ_MODEL || 'qwen/qwen3.8-27b')); }
     catch (error) {
       if (error instanceof Error && error.message === 'not_a_report') return send(422, { error: 'This does not look like a medical report, so no summary was made.' });
       return send(502, { error: 'AI summary unavailable. Please retry.' });

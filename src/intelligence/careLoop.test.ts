@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reportFindingsText } from '../components/TierReferralModal';
+import { buildStructuredSummary } from './structuredSummary';
 import { ashaAppointment, ashaNoteLines } from './ashaNote';
 import type { ReportAttachment } from '../db/types';
 
@@ -7,18 +7,26 @@ const report = (category: ReportAttachment['category'], title: string, findings?
   ({ id: title, title, category, findings, fileName: '', fileSize: '', fileType: 'application/pdf', uploadedAt: '', uploadedBy: '' }) as ReportAttachment;
 const reports = [report('general', 'CBC', 'Hb 8.2 low; WBC 14,000 high'), report('biopsy', 'Oral biopsy', 'Squamous cell carcinoma'), report('radiology', 'Chest X-ray')];
 
-describe('referral summary report findings', () => {
-  it('PHC hands over its lab (CBC) findings only', () => {
-    expect(reportFindingsText('phc', reports)).toBe('Lab report – CBC: Hb 8.2 low; WBC 14,000 high');
+describe('structured handover: which reports each tier passes on', () => {
+  const split = { reports: reports.filter(r => r.category === 'general'), biopsyReports: reports.filter(r => r.category === 'biopsy'), radiologyReports: reports.filter(r => r.category === 'radiology') };
+  it('PHC passes its lab (CBC) report only, with its findings', () => {
+    const s = buildStructuredSummary(split, 'phc');
+    expect(s.reports.map(r => r.title)).toEqual(['CBC']);
+    expect(s.reports[0].findings).toBe('Hb 8.2 low; WBC 14,000 high');
   });
-  it('DH also hands over biopsy and radiology, noting a PDF without findings', () => {
-    const text = reportFindingsText('dh', reports);
-    expect(text).toContain('Biopsy report – Oral biopsy: Squamous cell carcinoma');
-    expect(text).toContain('Radiology report – Chest X-ray: PDF attached, no findings entered.');
+  it('DH passes lab, biopsy and radiology, including a PDF with no findings', () => {
+    const s = buildStructuredSummary(split, 'dh');
+    expect(s.reports.map(r => r.title)).toEqual(['CBC', 'Oral biopsy', 'Chest X-ray']);
+    expect(s.reports[2].findings).toBeUndefined();
   });
-  it('ASHA and TCC add no report findings', () => {
-    expect(reportFindingsText('asha', reports)).toBe('');
-    expect(reportFindingsText('tcc', reports)).toBe('');
+  it('ASHA and TCC pass no reports on (TCC treats and passes nothing on)', () => {
+    expect(buildStructuredSummary(split, 'asha').reports).toEqual([]);
+    expect(buildStructuredSummary(split, 'tcc').reports).toEqual([]);
+  });
+  it('lists the examination values and findings', () => {
+    const s = buildStructuredSummary({ physicalExam: { bpSystolic: 130, bpDiastolic: 85, pulseRate: 80, oralCavityFindings: 'Ulcer 2 cm', recordedAt: '2026-11-04T10:00:00Z' } }, 'phc');
+    expect(s.exam).toEqual([{ label: 'BP', value: '130/85 mmHg' }, { label: 'Pulse', value: '80 bpm' }, { label: 'Oral cavity', value: 'Ulcer 2 cm' }]);
+    expect(s.vitalsAt).toBe('2026-11-04T10:00:00Z');
   });
 });
 
