@@ -197,6 +197,7 @@ export function TierReferralModal({
           {currentTier !== 'asha' && <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 text-xs space-y-1" data-testid="handover-preview">
             <p className="font-bold text-sky-900">{t('Structured overview sent to {tier}', { tier: targetTier.toUpperCase() })}</p>
             {handover.exam.length || handover.reports.length ? <StructuredOverview summary={handover} /> : <p className="text-slate-600">{t('No examination or reports recorded yet.')}</p>}
+            {handover.reports.some(r => !r.fields) && <p className="font-semibold text-amber-800">{t('Some reports are not summarised yet. Close this and tap "Summarise all reports" on the case so the next team gets their values.')}</p>}
           </div>}
 
           {/* Actions */}

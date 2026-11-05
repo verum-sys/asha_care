@@ -3,10 +3,10 @@ import { useAuth } from '@clerk/clerk-react';
 import { useLang } from '../i18n';
 import { updateCaseAttachment } from '../db/repo';
 import type { LabTest, Patient, ReportAttachment, ReportFields } from '../db/types';
-import { readReportText, redactPatient, type ReportText } from '../intelligence/reportText';
-import { cleanFields, fieldsText, REPORT_FIELDS, NOT_STATED } from '../intelligence/reportFields';
+import type { ReportText } from '../intelligence/reportText';
+import { extractReport, withExtraction } from '../intelligence/extractReport';
+import { cleanFields, REPORT_FIELDS, NOT_STATED } from '../intelligence/reportFields';
 
-const MAX_CHARS = 11500;
 type Step = 'saved' | 'reading' | 'summarising' | 'done' | 'error';
 const FLAG_CLASS: Record<string, string> = { high: 'text-rose-700 font-bold', low: 'text-sky-700 font-bold', abnormal: 'text-amber-700 font-bold' };
 
@@ -35,28 +35,18 @@ export function ReportSummaryModal({ referralId, report, patient, onClose }: { r
     const id = ++run.current;
     setStep('reading'); setError(''); setRead(null);
     try {
-      const result = await readReportText(report, (stage, d) => {
-        if (run.current !== id) return;
-        setProgress(stage === 'ocr' ? t('Reading scanned page {page} of {pages} with OCR ({percent}%)', { page: d?.page ?? 1, pages: d?.pages ?? 1, percent: d?.percent ?? 0 }) : stage === 'reading' ? t('Reading page {page} of {pages}', { page: d?.page ?? 1, pages: d?.pages ?? 1 }) : t('Opening the report…'));
-      });
-      if (run.current !== id) return;
-      setRead(result);
-      const text = redactPatient(result.text, patient);
-      if (text.replace(/\s/g, '').length < 20) throw new Error(t('No readable text was found in this report.'));
-      setStep('summarising');
       const token = await getToken();
-      if (!token) throw new Error(t('Please sign in again to make the structured report.'));
-      const response = await fetch('/api/interpret-answer', {
-        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: 'report-summary', kind: report.category, context: text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS)}\n[report text cut here]` : text }),
-        signal: AbortSignal.timeout(35000),
+      if (!token) throw new Error('Please sign in again to make the structured report.');
+      const x = await extractReport(report, patient, token, d => {
+        if (run.current !== id) return;
+        if (d.stage === 'ai') { setStep('summarising'); return; }
+        setProgress(d.stage === 'ocr' ? t('Reading scanned page {page} of {pages} with OCR ({percent}%)', { page: d.page ?? 1, pages: d.pages ?? 1, percent: d.percent ?? 0 }) : d.stage === 'reading' ? t('Reading page {page} of {pages}', { page: d.page ?? 1, pages: d.pages ?? 1 }) : t('Opening the report…'));
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.fields) throw new Error(data.error || t('Structured report unavailable. Please retry.'));
       if (run.current !== id) return;
-      setFields(cleanFields(report.category, data.fields));
-      setTests(Array.isArray(data.tests) ? data.tests : []);
-      setPlain(typeof data.plain === 'string' ? data.plain : '');
+      setRead({ text: x.text, source: x.source, pages: 0 });
+      setFields(x.fields);
+      setTests(x.tests);
+      setPlain(x.plain);
       setStep('done');
     } catch (e) {
       if (run.current !== id) return;
@@ -74,7 +64,7 @@ export function ReportSummaryModal({ referralId, report, patient, onClose }: { r
   async function save() {
     setSaving(true);
     try {
-      await updateCaseAttachment(referralId, { ...report, aiFields: fields, aiTests: tests, aiPlain: plain.trim() || undefined, aiSummary: fieldsText(fields, tests), aiSummaryAt: new Date().toISOString(), aiSummarySource: read?.source ?? report.aiSummarySource });
+      await updateCaseAttachment(referralId, withExtraction(report, { fields, tests, plain: plain.trim(), source: read?.source ?? report.aiSummarySource ?? 'text' }));
       onClose();
     } catch { setError(t('The structured report could not be saved. Please retry.')); setSaving(false); }
   }

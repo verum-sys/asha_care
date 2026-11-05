@@ -26,6 +26,7 @@ import { TierReferralModal } from '../../components/TierReferralModal';
 import { AiSummaryModal, buildSummary } from '../../components/AiSummaryModal';
 import { exportPatientReport } from '../../export/caseReport';
 import { ReportSummaryModal } from '../../components/ReportSummaryModal';
+import { CombinedReportSummary } from '../../components/CombinedReportSummary';
 import { BackToAshaModal } from '../../components/BackToAshaModal';
 import { handedTo, isDirectAt, reportsVisibleTo } from '../../intelligence/pathway';
 
@@ -179,6 +180,7 @@ export function CaseView() {
 
       <CareJourneySummary record={data} />
       <ClinicalHandovers handovers={handedTo(referral.clinicalHandovers, currentTier)} onOpenReport={reportId => { const found = [...(referral.reports || []), ...(referral.biopsyReports || []), ...(referral.radiologyReports || [])].find(r => r.id === reportId); if (found) setPreviewPdf(found); }} />
+      <CombinedReportSummary referralId={referral.id} reports={visibleReports} patient={patient} onEditReport={setSummaryReport} />
 
       {direct
         ? <div className="card flex flex-wrap items-center gap-2 text-sm"><span className="chip bg-violet-100 text-violet-800 font-bold">{t('Direct patient')}</span><span>{t('Came to {tier} directly, not referred. Registered on {date}; no attendance to record.', { tier: currentTier.toUpperCase(), date: referral.referralDate })}</span>{referral.mappedPhc && <span className="text-muted">· {t('Home PHC')}: <strong>{referral.mappedPhc}</strong></span>}</div>

@@ -856,5 +856,16 @@ export const hiExtra: Record<string, string> = {
   "high": "अधिक",
   "low": "कम",
   "abnormal": "असामान्य",
-  "Came directly, no attendance to record": "सीधे आए, उपस्थिति दर्ज करने की ज़रूरत नहीं"
+  "Came directly, no attendance to record": "सीधे आए, उपस्थिति दर्ज करने की ज़रूरत नहीं",
+  "Summary of all reports": "सभी रिपोर्ट का सारांश",
+  "Out of range": "सीमा से बाहर",
+  "In plain words": "सरल शब्दों में",
+  "Not summarised yet": "अभी सारांश नहीं बना",
+  "Summarise all reports": "सभी रिपोर्ट का सारांश बनाएँ",
+  "Summarise the remaining reports": "बाकी रिपोर्ट का सारांश बनाएँ",
+  "Check": "जाँचें",
+  "AI read from the reports. Check values against the original report before acting on them.": "AI ने रिपोर्ट से पढ़ा है। कोई कदम उठाने से पहले मूल रिपोर्ट से मान मिला लें।",
+  "Some reports are not summarised yet. Close this and tap \"Summarise all reports\" on the case so the next team gets their values.": "कुछ रिपोर्ट का सारांश अभी नहीं बना। इसे बंद करें और केस पर \"सभी रिपोर्ट का सारांश बनाएँ\" दबाएँ ताकि अगली टीम को उनके मान मिलें।",
+  "Reading report {n} of {total}: {title}": "रिपोर्ट {n} / {total} पढ़ी जा रही है: {title}",
+  "{done} of {total} reports summarised": "{total} में से {done} रिपोर्ट का सारांश बना"
 };
