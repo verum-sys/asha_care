@@ -27,6 +27,8 @@ import { WalkInModal } from '../../components/WalkInModal';
 import { BackToAshaModal } from '../../components/BackToAshaModal';
 import { handedTo, isDirectAt, reportsVisibleTo } from '../../intelligence/pathway';
 import { exportReport } from '../../export/caseReport';
+import { CombinedReportSummary } from '../../components/CombinedReportSummary';
+import { ReportSummaryModal } from '../../components/ReportSummaryModal';
 import { DEMO_NAMES, DEMO_VERSION, setUpDemoCases } from '../../db/demoCases';
 
 /** ASHA follows the date TCC sent back; other tiers use the appointment at their own stage. */
@@ -69,6 +71,7 @@ export function TierModuleView() {
   const [activeCaseForReferral, setActiveCaseForReferral] = useState<{ caseRecord: CaseRecord } | null>(null);
   const [visitCase, setVisitCase] = useState<CaseRecord | null>(null);
   const [editReport, setEditReport] = useState<{ id: string; attachment: ReportAttachment } | null>(null);
+  const [checkReport, setCheckReport] = useState<{ id: string; report: ReportAttachment; patient: CaseRecord['patient'] } | null>(null);
   const [activeCaseForAi, setActiveCaseForAi] = useState<{ caseRecord: CaseRecord } | null>(null);
   const [walkIn, setWalkIn] = useState(false);
   const [backCase, setBackCase] = useState<CaseRecord | null>(null);
@@ -352,6 +355,8 @@ export function TierModuleView() {
                   <CareJourneySummary record={c} />
                   <ClinicalHandovers handovers={handedTo(c.referral.clinicalHandovers, activeTier)} onOpenReport={reportId => { const found = [...(c.referral.reports || []), ...(c.referral.biopsyReports || []), ...(c.referral.radiologyReports || [])].find(r => r.id === reportId); if (found) setActivePdfPreview({ attachment: found, patientName: c.patient.name, patientId: c.patient.id }); }} />
 
+                  {activeTier !== 'asha' && <CombinedReportSummary referralId={c.referral.id} reports={visibleReports} patient={c.patient} onEditReport={report => setCheckReport({ id: c.referral.id, report, patient: c.patient })} />}
+
                   {/* Attached Reports previews */}
                   {reportsCount > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -400,6 +405,7 @@ export function TierModuleView() {
       {backCase && <BackToAshaModal referral={freshCase(backCase).referral} onClose={() => setBackCase(null)} />}
       {visitCase && <VisitStatusModal referral={visitCase.referral} onClose={() => setVisitCase(null)} />}
       {walkIn && <WalkInModal tier={activeTier} unit={user.unit} onClose={() => setWalkIn(false)} onSaved={id => navigate(`/case/${id}?tier=${activeTier}`, { state: { returnTo: `/tier/${activeTier}` } })} />}
+      {checkReport && <ReportSummaryModal referralId={checkReport.id} report={checkReport.report} patient={checkReport.patient} onClose={() => setCheckReport(null)} />}
       {editReport && <ReportAttachmentModal referralId={editReport.id} category={editReport.attachment.category} initialAttachment={editReport.attachment} isOpen onClose={() => setEditReport(null)} />}
 
       {activeCaseForAttachment && (
